@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  --color-appBackground: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-sidebar: #FFFFFF;
+  --color-sidebarElevated: #F8FAFC;
+  --color-sidebarBorder: #E2E8F0;
+  
+  --color-textPrimary: #0F172A;
+  --color-textSecondary: #475569;
+  --color-textMuted: #94A3B8;
+  
+  --color-border: #E2E8F0;
+  --color-borderStrong: #CBD5E1;
+  
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-soft: #EFF6FF;
+  
+  --color-secondary: #14B8A6;
+  --color-secondary-soft: #F0FDFA;
+  
+  --color-accent: #F59E0B;
+  --color-accent-soft: #FFFBEB;
+  
+  --color-success: #10B981;
+  --color-success-soft: #ECFDF5;
+  
+  --color-warning: #F59E0B;
+  --color-warning-soft: #FFFBEB;
+  
+  --color-danger: #EF4444;
+  --color-danger-soft: #FEF2F2;
+  
+  --color-purple: #8B5CF6;
+  --color-purple-soft: #F5F3FF;
+  
+  --font-sans: 'Inter', sans-serif;
+  
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+@layer base {
+  html, body {
+    @apply h-full antialiased text-textPrimary bg-appBackground;
+  }
+  
+  #root {
+    @apply h-full;
+  }
+  
+  .dark {
+    /* Backgrounds: Deep, premium dark tones */
+    --color-appBackground: #09090B; /* Zinc 950 */
+    --color-surface: #18181B; /* Zinc 900 */
+    --color-sidebar: #09090B; 
+    --color-sidebarElevated: #27272A; /* Zinc 800 */
+    --color-sidebarBorder: #27272A;
+    
+    /* Text: High contrast for readability */
+    --color-textPrimary: #FAFAFA; /* Zinc 50 */
+    --color-textSecondary: #A1A1AA; /* Zinc 400 */
+    --color-textMuted: #71717A; /* Zinc 500 */
+    
+    /* Borders: Subtle separation */
+    --color-border: #27272A; /* Zinc 800 */
+    --color-borderStrong: #3F3F46; /* Zinc 700 */
+    
+    /* Brand Colors: Keep primary vibrant */
+    --color-primary: #3B82F6; 
+    --color-primary-hover: #60A5FA;
+    
+    /* Soft Colors: Use transparency for smooth blending on dark backgrounds */
+    --color-primary-soft: rgba(59, 130, 246, 0.15);
+    --color-secondary-soft: rgba(20, 184, 166, 0.15);
+    --color-accent-soft: rgba(245, 158, 11, 0.15);
+    --color-success-soft: rgba(16, 185, 129, 0.15);
+    --color-warning-soft: rgba(245, 158, 11, 0.15);
+    --color-danger-soft: rgba(239, 68, 68, 0.15);
+    --color-purple-soft: rgba(139, 92, 246, 0.15);
+    --color-cyan-soft: rgba(6, 182, 212, 0.15);
+    
+    /* Update shadow for dark mode */
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
