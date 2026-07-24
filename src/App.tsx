@@ -22,7 +22,8 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<UploadDataset />} />
+            <Route path="/" element={<Navigate to="/upload-dataset" replace />} />
+            <Route path="/upload-dataset" element={<UploadDataset />} />
             <Route path="/dashboard" element={<AppShell><DashboardOverview /></AppShell>} />
             <Route path="/data-schema" element={<AppShell><DataSchema /></AppShell>} />
             <Route path="/clean-transform" element={<AppShell><CleanTransform /></AppShell>} />

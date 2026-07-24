@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileUp, CheckCircle2, Sparkles } from 'lucide-react';
+import { Upload, FileUp, CheckCircle2, Sparkles, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
@@ -54,8 +55,23 @@ export function UploadDataset() {
     }, 1500);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-slate-950 text-slate-50 selection:bg-primary/30">
+      {/* Top right Sign Out button */}
+      <div className="absolute top-6 right-6 z-20">
+        <button
+          onClick={handleLogout}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 bg-white/5 hover:bg-white/10 hover:text-white rounded-xl border border-white/10 transition-all backdrop-blur-sm shadow-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </button>
+      </div>
       {/* Dynamic Background Spotlight Effect */}
       <div 
         className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
