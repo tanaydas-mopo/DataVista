@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  UploadCloud
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { Avatar } from "../ui/Avatar";
