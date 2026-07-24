@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/app-shell/AppShell";
+import { UploadDataset } from "./pages/UploadDataset";
 import { DashboardOverview } from "./pages/DashboardOverview";
 import { DataSchema } from "./pages/DataSchema";
 import { CleanTransform } from "./pages/CleanTransform";
@@ -21,7 +22,8 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<AppShell><DashboardOverview /></AppShell>} />
+            <Route path="/" element={<AppShell><UploadDataset /></AppShell>} />
+            <Route path="/dashboard" element={<AppShell><DashboardOverview /></AppShell>} />
             <Route path="/data-schema" element={<AppShell><DataSchema /></AppShell>} />
             <Route path="/clean-transform" element={<AppShell><CleanTransform /></AppShell>} />
             <Route path="/visual-builder" element={<AppShell><VisualBuilder /></AppShell>} />

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  UploadCloud
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { Avatar } from "../ui/Avatar";
@@ -51,7 +52,8 @@ export function Sidebar({ className }: { className?: string }) {
       {/* Main Navigation */}
       <nav className="flex-1 overflow-y-auto px-4 py-2 no-scrollbar">
         <div className="space-y-1">
-          <SidebarItem href="/" icon={LayoutDashboard} label="Dashboard" />
+          <SidebarItem href="/" icon={UploadCloud} label="Upload Dataset" />
+          <SidebarItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <SidebarItem href="/data-schema" icon={Database} label="Data & Schema" />
           <SidebarItem
             href="/clean-transform"
