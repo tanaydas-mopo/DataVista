@@ -1,24 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileUp, CheckCircle2, Sparkles, LogOut } from 'lucide-react';
+import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+
+// Floating ambient node particle for Antigravity effect
+interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  speedX: number;
+  speedY: number;
+  opacity: number;
+}
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [particles, setParticles] = useState<Particle[]>([]);
   const navigate = useNavigate();
 
+  // Initialize floating zero-gravity particles
+  useEffect(() => {
+    const initialParticles: Particle[] = Array.from({ length: 18 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 6 + 4,
+      speedX: (Math.random() - 0.5) * 0.05,
+      speedY: (Math.random() - 0.5) * 0.05,
+      opacity: Math.random() * 0.4 + 0.1,
+    }));
+    setParticles(initialParticles);
+
+    // Antigravity floating animation loop
+    let animationFrameId: number;
+    const updateParticles = () => {
+      setParticles(prev =>
+        prev.map(p => {
+          let newX = p.x + p.speedX;
+          let newY = p.y + p.speedY;
+          if (newX < 0 || newX > 100) p.speedX *= -1;
+          if (newY < 0 || newY > 100) p.speedY *= -1;
+          return { ...p, x: newX, y: newY };
+        })
+      );
+      animationFrameId = requestAnimationFrame(updateParticles);
+    };
+
+    animationFrameId = requestAnimationFrame(updateParticles);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  // Parallax mouse movement listener
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
+      const { clientX, clientY } = e;
+      const moveX = (clientX - window.innerWidth / 2) / 45;
+      const moveY = (clientY - window.innerHeight / 2) / 45;
+      setMousePos({ x: moveX, y: moveY });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -48,7 +94,6 @@ export function UploadDataset() {
   const handleUpload = () => {
     if (!file) return;
     setIsUploading(true);
-    // Simulate upload delay
     setTimeout(() => {
       setIsUploading(false);
       navigate('/dashboard');
@@ -61,130 +106,190 @@ export function UploadDataset() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-slate-950 text-slate-50 selection:bg-primary/30">
-      {/* Top right Sign Out button */}
-      <div className="absolute top-6 right-6 z-20">
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-[#F8FAFC] text-slate-900 overflow-hidden font-sans p-6">
+      
+      {/* Google Antigravity Zero-G Ambient Floating Particles Background */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        {particles.map(p => (
+          <div
+            key={p.id}
+            className="absolute rounded-full bg-blue-500/20 blur-[1px] transition-transform duration-1000 ease-out"
+            style={{
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              opacity: p.opacity,
+              transform: `translate(${mousePos.x * (p.id % 3 + 1)}px, ${mousePos.y * (p.id % 3 + 1)}px)`
+            }}
+          />
+        ))}
+
+        {/* Floating Glowing Orbs */}
+        <div 
+          className="absolute -top-32 -left-32 w-96 h-96 bg-blue-300/20 rounded-full blur-3xl animate-pulse pointer-events-none"
+          style={{ transform: `translate(${mousePos.x * 0.8}px, ${mousePos.y * 0.8}px)` }}
+        />
+        <div 
+          className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-300/20 rounded-full blur-3xl animate-pulse pointer-events-none"
+          style={{ transform: `translate(${-mousePos.x * 0.8}px, ${-mousePos.y * 0.8}px)` }}
+        />
+      </div>
+
+      {/* Top Header Bar */}
+      <header className="relative z-10 w-full max-w-6xl flex items-center justify-between py-2">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20 transition-transform hover:scale-105">
+            <div className="flex items-end gap-0.5 h-4">
+              <div className="w-1 bg-white h-2 rounded-sm" />
+              <div className="w-1 bg-white h-4 rounded-sm" />
+              <div className="w-1 bg-white h-3 rounded-sm" />
+            </div>
+          </div>
+          <span className="text-xl font-bold tracking-tight text-slate-900">
+            DataVista
+          </span>
+        </div>
+
         <button
           onClick={handleLogout}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 bg-white/5 hover:bg-white/10 hover:text-white rounded-xl border border-white/10 transition-all backdrop-blur-sm shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white hover:bg-slate-100 hover:text-slate-900 rounded-xl border border-slate-200/80 transition-all shadow-sm active:scale-95"
         >
           <LogOut className="w-4 h-4" />
           Sign Out
         </button>
-      </div>
-      {/* Dynamic Background Spotlight Effect */}
-      <div 
-        className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(56, 189, 248, 0.1), transparent 40%)`
-        }}
-      />
-      
-      {/* Decorative Grid Background */}
-      <div className="absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      </header>
 
-      <div className="relative z-10 max-w-3xl w-full flex flex-col items-center px-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+      {/* Main Content Area */}
+      <main className="relative z-10 max-w-2xl w-full flex flex-col items-center my-auto py-8">
         
-        {/* Header Section */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center p-3 bg-white/5 rounded-2xl mb-6 ring-1 ring-white/10 shadow-2xl backdrop-blur-sm">
-            <Sparkles className="w-8 h-8 text-sky-400" />
-          </div>
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight mb-6 bg-gradient-to-br from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            Welcome to DataVista
-          </h1>
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Upload your dataset to unlock powerful analytics, seamless transformations, and stunning visualizations.
-          </p>
-        </div>
-
-        {/* Upload Dropzone */}
-        <div
-          className={`w-full relative rounded-3xl border border-white/10 p-12 transition-all duration-500 ease-out flex flex-col items-center justify-center gap-6 overflow-hidden backdrop-blur-md ${
-            isDragging
-              ? "bg-sky-500/10 border-sky-500/50 scale-[1.02] shadow-[0_0_40px_-10px_rgba(14,165,233,0.3)]"
-              : "bg-white/5 hover:bg-white/10 hover:border-white/20 shadow-2xl"
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+        {/* Antigravity Floating Parallax Container */}
+        <div 
+          className="w-full flex flex-col items-center transition-transform duration-500 ease-out"
+          style={{
+            transform: `perspective(1000px) rotateX(${-mousePos.y * 0.08}deg) rotateY(${mousePos.x * 0.08}deg) translateZ(0)`
+          }}
         >
-          {/* Subtle inner glow for dropzone */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500" />
           
-          <div className={`relative p-6 rounded-full transition-all duration-500 ${
-            file 
-              ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50 scale-110' 
-              : 'bg-white/5 text-slate-300 ring-1 ring-white/10 group-hover:bg-white/10 group-hover:scale-110'
-          }`}>
-            {file ? <CheckCircle2 className="w-12 h-12" /> : <Upload className="w-12 h-12" />}
+          {/* Header Section */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
+              Create New Analysis
+            </h1>
+            <p className="text-sm md:text-base text-slate-500 max-w-lg mx-auto leading-relaxed">
+              Upload a dataset to begin your analytics workflow. DataVista will inspect, clean, analyze, and visualize your data.
+            </p>
           </div>
 
-          <div className="text-center relative z-10">
-            {file ? (
-              <div className="space-y-3 animate-in fade-in zoom-in duration-500">
-                <p className="text-2xl font-semibold text-white">{file.name}</p>
-                <p className="text-sm font-medium text-emerald-400/80 bg-emerald-500/10 inline-block px-3 py-1 rounded-full">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB Ready
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-2xl font-semibold text-white">
-                  Drag & drop your file here
-                </p>
-                <p className="text-sm text-slate-400">
-                  Supports CSV, Excel, JSON, and SQLite files up to 500MB
-                </p>
-              </div>
-            )}
-          </div>
-
-          {!file && (
-            <div className="relative z-10 mt-4">
-              <label className="relative inline-flex items-center justify-center px-8 py-3.5 text-sm font-bold text-slate-900 transition-all duration-300 bg-white rounded-xl shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] cursor-pointer hover:bg-slate-100 hover:scale-105 active:scale-95 focus:outline-none">
-                Browse Files
-                <input
-                  type="file"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  onChange={handleFileChange}
-                  accept=".csv,.xlsx,.xls,.json,.sqlite,.db"
-                />
-              </label>
-            </div>
-          )}
-        </div>
-
-        {/* Action Button */}
-        {file && (
-          <div className="mt-10 w-full flex justify-center animate-in slide-in-from-bottom-8 fade-in duration-700 z-10">
-            <button
-              onClick={handleUpload}
-              disabled={isUploading}
-              className="group relative inline-flex items-center justify-center px-12 py-5 text-lg font-bold text-white transition-all duration-300 bg-sky-500 rounded-2xl shadow-[0_0_40px_-10px_rgba(14,165,233,0.5)] hover:bg-sky-400 hover:shadow-[0_0_60px_-15px_rgba(14,165,233,0.7)] hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 focus:ring-sky-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none overflow-hidden"
+          {/* Main Card: Dropzone */}
+          <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-300">
+            <div
+              className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-300 ease-out flex flex-col items-center justify-center text-center ${
+                isDragging
+                  ? "border-blue-500 bg-blue-50/50 scale-[1.01]"
+                  : "border-slate-200 bg-slate-50/50 hover:border-blue-400 hover:bg-blue-50/20"
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
-              {/* Button shimmer effect */}
-              <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-              
-              {isUploading ? (
-                <>
-                  <svg className="w-6 h-6 mr-3 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Initializing Workspace...
-                </>
+              {/* Cloud Icon */}
+              <div className={`p-4 rounded-full mb-4 transition-transform duration-300 ${
+                file 
+                  ? 'bg-emerald-100 text-emerald-600 scale-110' 
+                  : 'bg-blue-50 text-blue-600 group-hover:scale-110'
+              }`}>
+                {file ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
+              </div>
+
+              {file ? (
+                <div className="space-y-2 mb-6">
+                  <p className="text-lg font-bold text-slate-800">{file.name}</p>
+                  <p className="text-xs font-semibold text-emerald-600 bg-emerald-50 inline-block px-3 py-1 rounded-full border border-emerald-200">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB • Ready to analyze
+                  </p>
+                </div>
               ) : (
                 <>
-                  <FileUp className="w-6 h-6 mr-3 transition-transform group-hover:-translate-y-1 group-hover:scale-110" />
-                  Enter Dashboard
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">
+                    Drag & Drop Your Dataset
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Upload CSV, Excel (.xlsx), TSV, or JSON files.
+                  </p>
+
+                  {/* Format Pills */}
+                  <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+                    <span className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-md text-[11px] font-semibold text-slate-600 shadow-2xs">CSV</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-md text-[11px] font-semibold text-slate-600 shadow-2xs">XLSX</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-md text-[11px] font-semibold text-slate-600 shadow-2xs">TSV</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-md text-[11px] font-semibold text-slate-600 shadow-2xs">JSON</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 mb-6">
+                    Maximum upload size: 100 MB
+                  </p>
                 </>
               )}
-            </button>
+
+              {/* Browse Button */}
+              {!file ? (
+                <label className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-blue-600 bg-white border border-blue-600/30 rounded-xl shadow-2xs cursor-pointer hover:bg-blue-50 hover:border-blue-600 transition-all duration-200 active:scale-95">
+                  <FolderOpen className="w-4 h-4 text-blue-600" />
+                  Browse Files
+                  <input
+                    type="file"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    onChange={handleFileChange}
+                    accept=".csv,.xlsx,.xls,.tsv,.json,.sqlite,.db"
+                  />
+                </label>
+              ) : (
+                <button
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl shadow-md shadow-blue-500/20 hover:bg-blue-700 hover:shadow-lg transition-all duration-200 active:scale-95 disabled:opacity-70"
+                >
+                  {isUploading ? (
+                    <>
+                      <svg className="w-4 h-4 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Analyzing Dataset...
+                    </>
+                  ) : (
+                    <>
+                      <FileUp className="w-4 h-4" />
+                      Proceed to Analysis
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
-        )}
-        
-      </div>
+
+          {/* Secondary Card: Recent Files */}
+          <div className="w-full mt-4 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] backdrop-blur-xl transition-all duration-300 hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-bold text-slate-800">Recent Files</h4>
+              <Clock className="w-4 h-4 text-slate-400" />
+            </div>
+            <p className="text-xs text-slate-400">
+              No recent dataset files.
+            </p>
+          </div>
+
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 w-full max-w-6xl text-center py-4 text-xs text-slate-400">
+        © DataVista Analytics • All rights reserved.
+      </footer>
     </div>
   );
 }
