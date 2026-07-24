@@ -49,6 +49,11 @@ export default {
       boxShadow: {
         'card': '0 2px 8px rgba(16,24,40,0.04)',
       },
+      keyframes: {
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        }
+      }
     },
   },
   plugins: [],
