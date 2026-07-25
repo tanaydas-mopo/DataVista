@@ -3,6 +3,7 @@ import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2, S
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
+import { ThreeDAbstractBackground } from '../components/ui/ThreeDAbstractBackground';
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
@@ -86,37 +87,21 @@ export function UploadDataset() {
         '--mouse-y': '0px',
       } as React.CSSProperties}
     >
-      {/* Dynamic Animated Ambient Background Orbs & Tech Mesh Grid */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Animated Floating Glow Orbs */}
-        <div
-          className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-blue-500/15 dark:bg-blue-500/20 blur-3xl animate-orb-1 transition-transform duration-500 ease-out will-change-transform"
-          style={{ transform: `translate(var(--mouse-x), var(--mouse-y))` }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 w-[550px] h-[550px] rounded-full bg-purple-500/15 dark:bg-purple-500/20 blur-3xl animate-orb-2 transition-transform duration-500 ease-out will-change-transform"
-          style={{ transform: `translate(calc(var(--mouse-x) * -1), calc(var(--mouse-y) * -1))` }}
-        />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/15 blur-3xl animate-pulse" />
+      {/* 3D Abstract Canvas: Floating Organic Spheres & Upward Drifting Data Particles */}
+      <ThreeDAbstractBackground />
 
-        {/* Subtle Tech Grid Lines Overlay */}
-        <svg
-          className="absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.12] stroke-textPrimary"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-        </svg>
-
-        {/* Floating Zero-Gravity Particles */}
-        <div className="absolute top-1/4 left-1/6 w-2 h-2 rounded-full bg-primary/40 blur-xs animate-particle-1" />
-        <div className="absolute top-1/3 right-1/5 w-3 h-3 rounded-full bg-purple-500/30 blur-xs animate-particle-2" />
-        <div className="absolute bottom-1/3 left-1/4 w-2.5 h-2.5 rounded-full bg-cyan-400/40 blur-xs animate-particle-3" />
-      </div>
+      {/* Subtle Tech Grid Lines Overlay */}
+      <svg
+        className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.1] stroke-textPrimary pointer-events-none z-0"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+      </svg>
 
       {/* Top Header Bar */}
       <header className="relative z-10 w-full max-w-6xl flex items-center justify-between py-2">
@@ -153,7 +138,7 @@ export function UploadDataset() {
         >
           {/* Header Section */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold mb-3 shadow-xs">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold mb-3 shadow-xs">
               <Sparkles className="w-3.5 h-3.5 animate-pulse" />
               Data Analytics Portal
             </div>
