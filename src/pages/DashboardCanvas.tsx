@@ -34,6 +34,14 @@ export function DashboardCanvas() {
     { icon: LayoutGrid, name: "KPI Grid" },
   ];
 
+  const tooltipStyle = {
+    backgroundColor: "var(--color-surface, #FFFFFF)",
+    color: "var(--color-textPrimary, #0F172A)",
+    borderRadius: "12px",
+    borderColor: "var(--color-border, #E2E8F0)",
+    boxShadow: "var(--shadow-card)",
+  };
+
   return (
     <div className="flex flex-col gap-6 pb-8 h-full">
       <div className="flex items-center justify-between">
@@ -44,10 +52,10 @@ export function DashboardCanvas() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors">
+          <button className="px-4 py-2 bg-primary-soft text-textPrimary text-xs font-bold rounded-xl hover:bg-primary-soft/60 transition-colors border border-border">
             Preview
           </button>
-          <button className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors">
+          <button className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors shadow-sm">
             Publish
           </button>
         </div>
@@ -56,44 +64,44 @@ export function DashboardCanvas() {
       <div className="flex flex-col lg:flex-row gap-6 flex-1">
         {/* Widget Sidebar */}
         <Card className="lg:w-64 h-fit flex-shrink-0">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-sm">Widgets</CardTitle>
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider">Widgets</CardTitle>
           </CardHeader>
           <CardContent className="pt-4 flex flex-col gap-3">
             {widgetTypes.map((widget, idx: number) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:border-primary hover:bg-primary-soft cursor-grab active:cursor-grabbing transition-colors"
+                className="flex items-center justify-between p-3 border border-border bg-surface rounded-xl hover:border-primary hover:bg-primary-soft/20 cursor-grab active:cursor-grabbing transition-all"
                 draggable
               >
                 <div className="flex items-center gap-3">
-                  <widget.icon className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-textPrimary">
+                  <widget.icon className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-bold text-textPrimary">
                     {widget.name}
                   </span>
                 </div>
-                <Plus className="w-4 h-4 text-slate-400" />
+                <Plus className="w-4 h-4 text-textMuted" />
               </div>
             ))}
           </CardContent>
         </Card>
 
         {/* Canvas Area */}
-        <div className="flex-1 bg-slate-100/50 rounded-xl border-2 border-dashed border-slate-300 p-6 overflow-y-auto min-h-[500px]">
+        <div className="flex-1 bg-surface/50 rounded-2xl border-2 border-dashed border-border p-6 overflow-y-auto min-h-[500px]">
           {!isDatasetActive ? (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 bg-white/60 rounded-xl backdrop-blur-sm">
-              <div className="p-4 rounded-full bg-slate-100 text-slate-400 mb-4">
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 bg-surface rounded-2xl border border-border">
+              <div className="p-4 rounded-full bg-primary-soft text-primary mb-4">
                 <Database className="w-10 h-10" />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-1">
+              <h3 className="text-lg font-bold text-textPrimary mb-1">
                 No Active Dataset Loaded
               </h3>
-              <p className="text-sm text-slate-500 max-w-sm mb-6">
+              <p className="text-xs text-textSecondary max-w-sm mb-6">
                 Upload a CSV, Excel, or JSON dataset to dynamically populate your dashboard canvas widgets.
               </p>
               <button
                 onClick={() => navigate("/dashboard")}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-primary rounded-xl hover:bg-primary-hover shadow-md shadow-blue-500/20 transition-all active:scale-95"
               >
                 <Upload className="w-4 h-4" />
                 Upload Dataset
@@ -102,21 +110,21 @@ export function DashboardCanvas() {
           ) : (
             <div className="grid grid-cols-12 gap-4 auto-rows-[auto]">
               {/* Dynamic KPI Widget placed on canvas */}
-              <div className="col-span-12 row-span-1 bg-white border border-slate-200 shadow-sm rounded-xl p-5 flex items-center justify-between group relative">
-                <div className="absolute inset-0 border-2 border-primary rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full divide-x divide-slate-100">
+              <div className="col-span-12 row-span-1 bg-surface border border-border shadow-xs rounded-2xl p-5 flex items-center justify-between group relative">
+                <div className="absolute inset-0 border-2 border-primary rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full divide-x divide-border">
                   {(dataset.kpis || []).map((kpi: DynamicKpi, idx: number) => (
                     <div
                       key={kpi.id || idx}
                       className={`text-center ${idx > 0 ? "pl-4" : ""}`}
                     >
-                      <p className="text-xs text-textSecondary font-medium truncate">
+                      <p className="text-xs text-textSecondary font-semibold truncate">
                         {kpi.label}
                       </p>
                       <p className="text-xl md:text-2xl font-bold text-textPrimary mt-1">
                         {kpi.value}
                       </p>
-                      <span className="text-[11px] font-semibold text-emerald-600">
+                      <span className="text-[11px] font-bold text-emerald-500">
                         {kpi.trend}
                       </span>
                     </div>
@@ -125,9 +133,9 @@ export function DashboardCanvas() {
               </div>
 
               {/* Dynamic Chart Widget */}
-              <div className="col-span-12 lg:col-span-8 bg-white border border-slate-200 shadow-sm rounded-xl p-5 group relative flex flex-col min-h-[320px]">
-                <div className="absolute inset-0 border-2 border-primary rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                <h3 className="text-sm font-semibold text-textPrimary mb-4">
+              <div className="col-span-12 lg:col-span-8 bg-surface border border-border shadow-xs rounded-2xl p-5 group relative flex flex-col min-h-[320px]">
+                <div className="absolute inset-0 border-2 border-primary rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                <h3 className="text-sm font-bold text-textPrimary mb-4">
                   {dataset.chartTitle || "Visual Analysis"}
                 </h3>
                 <div className="flex-1 w-full h-[240px]">
@@ -136,27 +144,20 @@ export function DashboardCanvas() {
                       data={dataset.chartData || []}
                       margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />
                       <XAxis
                         dataKey="label"
                         tickLine={false}
-                        axisLine={{ stroke: "#CBD5E1" }}
-                        tick={{ fill: "#64748B", fontSize: 12 }}
+                        axisLine={false}
+                        tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
                       />
                       <YAxis
                         tickLine={false}
                         axisLine={false}
-                        tick={{ fill: "#64748B", fontSize: 12 }}
+                        tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
                       />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#FFFFFF",
-                          borderColor: "#E2E8F0",
-                          borderRadius: "8px",
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                        }}
-                      />
-                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                         {(dataset.chartData || []).map((entry: DynamicChartItem, index: number) => (
                           <Cell
                             key={`cell-${index}`}
@@ -170,19 +171,19 @@ export function DashboardCanvas() {
               </div>
 
               {/* Dynamic Text Widget / Summary */}
-              <div className="col-span-12 lg:col-span-4 bg-white border border-slate-200 shadow-sm rounded-xl p-5 group relative flex flex-col">
-                <div className="absolute inset-0 border-2 border-primary rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                <h3 className="text-sm font-semibold text-textPrimary mb-2">
+              <div className="col-span-12 lg:col-span-4 bg-surface border border-border shadow-xs rounded-2xl p-5 group relative flex flex-col">
+                <div className="absolute inset-0 border-2 border-primary rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                <h3 className="text-sm font-bold text-textPrimary mb-2">
                   Analysis Summary
                 </h3>
                 <div className="text-xs text-textSecondary leading-relaxed space-y-3">
                   <p>
-                    <strong className="text-slate-800">Dataset:</strong> {dataset.name}
+                    <strong className="text-textPrimary font-bold">Dataset:</strong> {dataset.name}
                   </p>
                   <p>
-                    This custom canvas is dynamically linked to your active dataset. It currently tracks <strong className="text-slate-800">{dataset.totalRows}</strong> rows and <strong className="text-slate-800">{dataset.totalColumns}</strong> columns.
+                    This custom canvas is dynamically linked to your active dataset. It currently tracks <strong className="text-textPrimary font-bold">{dataset.totalRows}</strong> rows and <strong className="text-textPrimary font-bold">{dataset.totalColumns}</strong> columns.
                   </p>
-                  <p className="p-3 bg-blue-50/60 rounded-lg text-blue-900 border border-blue-100">
+                  <p className="p-3 bg-primary-soft text-primary rounded-xl border border-primary/20 font-medium">
                     💡 All metric cards and visual widgets automatically update in real-time as you upload new CSV or Excel files.
                   </p>
                 </div>

@@ -15,7 +15,6 @@ export function DatasetOverview() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       uploadDataset(e.target.files[0]);
-      // Reset input value so re-uploading the same file works
       e.target.value = "";
     }
   };
@@ -24,7 +23,6 @@ export function DatasetOverview() {
 
   return (
     <Card className="flex flex-col relative">
-      {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -36,10 +34,10 @@ export function DatasetOverview() {
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle>Dataset Overview</CardTitle>
         <span
-          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+          className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${
             isDatasetActive
-              ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-              : "bg-slate-100 text-slate-500 border border-slate-200"
+              ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+              : "bg-primary-soft text-textMuted border border-border"
           }`}
         >
           {isDatasetActive ? "Active" : "No Dataset"}
@@ -47,51 +45,50 @@ export function DatasetOverview() {
       </CardHeader>
 
       <CardContent className="flex flex-col justify-between space-y-4">
-        {/* Toast / Notification Banner */}
         {notification && (
-          <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="p-2.5 rounded-xl bg-primary-soft border border-primary/30 text-primary text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
             {isDatasetActive ? (
               <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
             ) : (
-              <Info className="h-4 w-4 text-blue-500 shrink-0" />
+              <Info className="h-4 w-4 text-primary shrink-0" />
             )}
             <span>{notification}</span>
           </div>
         )}
 
         <div className="flex flex-col space-y-2.5 text-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-textSecondary">Dataset Name</span>
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <span className="text-textSecondary text-xs font-medium">Dataset Name</span>
             <span
-              className={`font-semibold text-right max-w-[180px] truncate ${
-                isDatasetActive ? "text-textPrimary" : "text-slate-400 italic"
+              className={`font-semibold text-xs text-right max-w-[180px] truncate ${
+                isDatasetActive ? "text-textPrimary" : "text-textMuted italic"
               }`}
               title={dataset.name}
             >
               {dataset.name}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-textSecondary">Total Rows</span>
-            <span className="font-semibold text-textPrimary">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <span className="text-textSecondary text-xs font-medium">Total Rows</span>
+            <span className="font-semibold text-xs text-textPrimary">
               {dataset.totalRows}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-textSecondary">Total Columns</span>
-            <span className="font-semibold text-textPrimary">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <span className="text-textSecondary text-xs font-medium">Total Columns</span>
+            <span className="font-semibold text-xs text-textPrimary">
               {dataset.totalColumns}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-textSecondary">Missing Values</span>
-            <span className="font-semibold text-textPrimary">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <span className="text-textSecondary text-xs font-medium">Missing Values</span>
+            <span className="font-semibold text-xs text-textPrimary">
               {dataset.missingValues}
             </span>
           </div>
           <div className="flex items-center justify-between pt-0.5">
-            <span className="text-textSecondary">Last Updated</span>
-            <span className="font-semibold text-textPrimary text-right">
+            <span className="text-textSecondary text-xs font-medium">Last Updated</span>
+            <span className="font-semibold text-xs text-textPrimary text-right">
               {dataset.lastUpdated}
             </span>
           </div>
@@ -100,7 +97,7 @@ export function DatasetOverview() {
         <div className="pt-2 flex flex-col gap-2.5">
           <Button
             variant="primary"
-            className="w-full flex items-center justify-center gap-2 py-2.5"
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl"
             onClick={handleUploadClick}
           >
             <Upload className="h-4 w-4" />
@@ -110,13 +107,13 @@ export function DatasetOverview() {
             type="button"
             disabled={!isDatasetActive}
             onClick={removeDataset}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
+            className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${
               isDatasetActive
-                ? "text-red-600 bg-white/70 backdrop-blur-md border border-red-200/80 shadow-sm hover:bg-red-50 hover:border-red-300 hover:text-red-700 active:scale-[0.98]"
-                : "opacity-50 cursor-not-allowed text-slate-400 bg-slate-50 border border-slate-200"
+                ? "text-danger bg-danger-soft border border-danger/30 shadow-xs hover:bg-danger/20 active:scale-[0.98]"
+                : "opacity-40 cursor-not-allowed text-textMuted bg-primary-soft border border-border"
             }`}
           >
-            <Trash2 className="h-4 w-4 shrink-0 text-red-500" />
+            <Trash2 className="h-4 w-4 shrink-0 text-danger" />
             Remove Dataset
           </button>
         </div>
