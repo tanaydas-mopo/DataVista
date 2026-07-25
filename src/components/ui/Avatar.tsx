@@ -8,6 +8,7 @@ export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function Avatar({ className, src, fallback, size = "md", ...props }: AvatarProps) {
+  const [imgError, setImgError] = React.useState(false);
   const sizes = {
     sm: "h-6 w-6 text-xs",
     md: "h-8 w-8 text-sm",
@@ -17,20 +18,21 @@ export function Avatar({ className, src, fallback, size = "md", ...props }: Avat
   return (
     <div
       className={cn(
-        "relative flex shrink-0 overflow-hidden rounded-full bg-slate-100",
+        "relative flex shrink-0 overflow-hidden rounded-full bg-blue-600 text-white font-bold",
         sizes[size],
         className
       )}
       {...props}
     >
-      {src ? (
+      {src && !imgError ? (
         <img
           src={src}
-          alt="Avatar"
+          alt="User avatar"
+          onError={() => setImgError(true)}
           className="aspect-square h-full w-full object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-slate-200 text-slate-600 font-medium">
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold uppercase shadow-inner">
           {fallback || "U"}
         </div>
       )}
