@@ -55,7 +55,7 @@ export function TopNavigation() {
               className="ml-2 pl-2 flex items-center gap-2 cursor-pointer group"
               title="Click to view profile picture"
             >
-              <div className="relative rounded-full transition-transform duration-200 group-hover:scale-110 group-hover:ring-2 group-hover:ring-primary/60 group-active:scale-95">
+              <div className="relative rounded-full transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
                 <Avatar size="md" src={avatarSrc} fallback={initial} title={user?.email || displayName} />
               </div>
             </div>
@@ -76,14 +76,14 @@ export function TopNavigation() {
         </div>
       </header>
 
-      {/* Instagram-Style Profile Photo Zoom Modal */}
+      {/* Clean Frosted Glass Profile Photo Zoom Modal */}
       {isAvatarZoomed && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300"
           onClick={() => setIsAvatarZoomed(false)}
         >
           <div
-            className="relative flex flex-col items-center p-8 bg-surface border border-border rounded-3xl shadow-2xl animate-in zoom-in-90 duration-300 max-w-sm w-full text-center"
+            className="relative flex flex-col items-center p-8 bg-surface/90 backdrop-blur-2xl border border-borderStrong/60 rounded-3xl shadow-2xl animate-in zoom-in-90 duration-300 max-w-sm w-full text-center"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
@@ -95,25 +95,22 @@ export function TopNavigation() {
               <X className="w-5 h-5" />
             </button>
 
-            {/* Instagram Profile Ring & Enlarged Photo */}
-            <div className="relative p-1.5 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 shadow-xl mb-4 animate-in zoom-in-95 duration-300">
-              <div className="p-1 bg-surface rounded-full">
-                {avatarSrc ? (
-                  <img
-                    src={avatarSrc}
-                    alt={displayName}
-                    className="w-36 h-36 rounded-full object-cover shadow-inner"
-                    onError={(e) => {
-                      // Fallback if image fails to load
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="w-36 h-36 rounded-full bg-primary text-white flex items-center justify-center font-bold text-4xl uppercase shadow-inner">
-                    {initial}
-                  </div>
-                )}
-              </div>
+            {/* Clean Frameless Enlarged Profile Photo */}
+            <div className="relative mb-5 animate-in zoom-in-95 duration-300">
+              {avatarSrc ? (
+                <img
+                  src={avatarSrc}
+                  alt={displayName}
+                  className="w-44 h-44 rounded-full object-cover shadow-2xl border-4 border-surface"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-44 h-44 rounded-full bg-primary text-white flex items-center justify-center font-bold text-5xl uppercase shadow-2xl border-4 border-surface">
+                  {initial}
+                </div>
+              )}
             </div>
 
             {/* User Details */}
@@ -121,7 +118,7 @@ export function TopNavigation() {
               {displayName}
             </h3>
             <p className="text-xs font-semibold text-textSecondary mb-6">
-              {user?.email || "Authenticated Google Account"}
+              {user?.email || "Authenticated User"}
             </p>
 
             {/* Action Buttons */}
@@ -131,14 +128,14 @@ export function TopNavigation() {
                   setIsAvatarZoomed(false);
                   navigate("/settings");
                 }}
-                className="w-full py-2.5 px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all flex items-center justify-center gap-2 shadow-sm"
+                className="w-full py-2.5 px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
               >
                 <User className="w-4 h-4" />
                 Manage Account & Settings
               </button>
               <button
                 onClick={() => setIsAvatarZoomed(false)}
-                className="w-full py-2 px-4 bg-primary-soft/40 text-textSecondary text-xs font-semibold rounded-xl hover:bg-primary-soft/80 hover:text-textPrimary transition-all"
+                className="w-full py-2 px-4 bg-primary-soft/30 text-textSecondary text-xs font-semibold rounded-xl hover:bg-primary-soft/60 hover:text-textPrimary transition-all active:scale-95"
               >
                 Close
               </button>
