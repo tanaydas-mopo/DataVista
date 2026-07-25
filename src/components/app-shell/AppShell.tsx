@@ -4,6 +4,7 @@ import { TopNavigation } from "./TopNavigation";
 import { Menu } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
 import { cn } from "../../lib/utils";
+import { DataVistaLogo } from "../ui/DataVistaLogo";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,17 +30,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Mobile Header Bar */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-surface border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 items-end gap-1">
-              <div className="h-4 w-1.5 rounded-sm bg-primary" />
-              <div className="h-6 w-1.5 rounded-sm bg-primary" />
-              <div className="h-5 w-1.5 rounded-sm bg-primary" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-textPrimary">
-              DataVista
-            </span>
-          </div>
+          <DataVistaLogo size="md" />
           <IconButton onClick={() => setSidebarOpen(true)} variant="ghost">
             <Menu className="h-6 w-6 text-textSecondary" />
           </IconButton>

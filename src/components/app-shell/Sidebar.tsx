@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { cn } from "../../lib/utils";
+import { DataVistaLogo } from "../ui/DataVistaLogo";
 
 export function Sidebar({ className }: { className?: string }) {
   return (
@@ -18,20 +19,13 @@ export function Sidebar({ className }: { className?: string }) {
         className
       )}
     >
-      {/* Header / Logo */}
-      <div className="flex items-center gap-2.5 px-6 py-6">
-        <div className="flex h-6 items-end gap-1">
-          <div className="h-4 w-1.5 rounded-sm bg-primary" />
-          <div className="h-6 w-1.5 rounded-sm bg-primary" />
-          <div className="h-5 w-1.5 rounded-sm bg-primary" />
-        </div>
-        <span className="text-xl font-bold tracking-tight text-textPrimary">
-          DataVista
-        </span>
+      {/* Header / Animated DV Logo */}
+      <div className="flex items-center px-6 py-6 border-b border-border/50">
+        <DataVistaLogo size="md" />
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto px-4 py-2 no-scrollbar">
+      <nav className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
         <div className="space-y-1">
           <SidebarItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <SidebarItem href="/data-schema" icon={Database} label="Data & Schema" />

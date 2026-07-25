@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { DataVistaLogo } from '../components/ui/DataVistaLogo';
 
 export function Login() {
   const navigate = useNavigate();
@@ -49,12 +50,14 @@ export function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-appBackground p-4 font-sans">
-      <div className="w-full max-w-[400px] overflow-hidden rounded-2xl bg-surface shadow-card border border-border">
-        <div className="p-6 pb-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">
-              Sign In
-            </h1>
+      <div className="w-full max-w-[400px] overflow-hidden rounded-3xl bg-surface shadow-2xl border border-border">
+        <div className="p-8">
+          {/* Animated DV Logo Header */}
+          <div className="mb-6 flex flex-col items-center justify-center text-center">
+            <DataVistaLogo size="lg" animate={true} />
+            <p className="text-xs text-textSecondary mt-2 font-medium">
+              Data Analytics & Visualization Portal
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -81,7 +84,7 @@ export function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-lg border border-borderStrong bg-surface p-2 pl-9 text-sm text-textPrimary placeholder:text-textMuted focus:border-purple focus:outline-none focus:ring-1 focus:ring-purple transition-colors"
+                  className="block w-full rounded-xl border border-borderStrong bg-surface p-2.5 pl-9 text-sm text-textPrimary placeholder:text-textMuted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                   placeholder="you@example.com"
                   required
                 />
@@ -104,7 +107,7 @@ export function Login() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-lg border border-borderStrong bg-surface p-2 pl-9 pr-9 text-sm text-textPrimary placeholder:text-textMuted focus:border-purple focus:outline-none focus:ring-1 focus:ring-purple transition-colors"
+                  className="block w-full rounded-xl border border-borderStrong bg-surface p-2.5 pl-9 pr-9 text-sm text-textPrimary placeholder:text-textMuted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                   placeholder="••••••••"
                   required
                 />
@@ -128,7 +131,7 @@ export function Login() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-borderStrong text-purple focus:ring-purple cursor-pointer accent-purple"
+                  className="h-3.5 w-3.5 rounded border-borderStrong text-primary focus:ring-primary cursor-pointer accent-primary"
                 />
                 <span className="text-[13px] text-textPrimary font-medium">Remember me for 30 days</span>
               </label>
@@ -137,7 +140,7 @@ export function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative flex w-full justify-center rounded-lg bg-purple p-2.5 text-sm font-bold text-white transition-all hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-purple focus:ring-offset-2 focus:ring-offset-appBackground disabled:cursor-not-allowed disabled:opacity-70 mt-2 shadow-sm"
+              className="group relative flex w-full justify-center rounded-xl bg-primary p-2.5 text-sm font-bold text-white transition-all hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-appBackground disabled:cursor-not-allowed disabled:opacity-70 mt-2 shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer"
             >
               {loading ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -162,7 +165,7 @@ export function Login() {
             <button
               onClick={handleGoogleLogin}
               type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-borderStrong bg-surface p-2.5 text-sm font-semibold text-textPrimary transition-all hover:bg-slate-50 dark:hover:bg-sidebarElevated focus:outline-none focus:ring-2 focus:ring-borderStrong focus:ring-offset-2 focus:ring-offset-appBackground shadow-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface p-2.5 text-sm font-semibold text-textPrimary transition-all hover:bg-primary-soft/30 focus:outline-none focus:ring-2 focus:ring-borderStrong focus:ring-offset-2 focus:ring-offset-appBackground shadow-xs cursor-pointer"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -189,7 +192,7 @@ export function Login() {
             <button
               onClick={handleGithubLogin}
               type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-borderStrong bg-surface p-2.5 text-sm font-semibold text-textPrimary transition-all hover:bg-slate-50 dark:hover:bg-sidebarElevated focus:outline-none focus:ring-2 focus:ring-borderStrong focus:ring-offset-2 focus:ring-offset-appBackground shadow-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface p-2.5 text-sm font-semibold text-textPrimary transition-all hover:bg-primary-soft/30 focus:outline-none focus:ring-2 focus:ring-borderStrong focus:ring-offset-2 focus:ring-offset-appBackground shadow-xs cursor-pointer"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
@@ -202,7 +205,7 @@ export function Login() {
             Don't have an account?{' '}
             <Link
               to="/signup"
-              className="font-bold text-purple transition-colors hover:underline"
+              className="font-bold text-primary transition-colors hover:underline"
             >
               Sign Up
             </Link>

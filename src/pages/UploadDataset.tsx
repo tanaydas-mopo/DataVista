@@ -3,6 +3,7 @@ import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2, S
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
+import { DataVistaLogo } from '../components/ui/DataVistaLogo';
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
@@ -97,18 +98,7 @@ export function UploadDataset() {
 
       {/* Top Header Bar */}
       <header className="relative z-10 w-full max-w-6xl flex items-center justify-between py-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-blue-500/20 transition-transform hover:scale-105">
-            <div className="flex items-end gap-0.5 h-4">
-              <div className="w-1 bg-white h-2 rounded-sm" />
-              <div className="w-1 bg-white h-4 rounded-sm" />
-              <div className="w-1 bg-white h-3 rounded-sm" />
-            </div>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-textPrimary">
-            DataVista
-          </span>
-        </div>
+        <DataVistaLogo size="md" />
 
         <button
           onClick={handleLogout}
