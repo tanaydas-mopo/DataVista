@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut } from 'lucide-react';
+import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
@@ -92,7 +92,7 @@ export function UploadDataset() {
     }
   };
 
-  const { uploadDataset } = useDataset();
+  const { uploadDataset, removeDataset } = useDataset();
 
   const handleUpload = () => {
     if (!file) return;
@@ -252,26 +252,38 @@ export function UploadDataset() {
                   />
                 </label>
               ) : (
-                <button
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl shadow-md shadow-blue-500/20 hover:bg-blue-700 hover:shadow-lg transition-all duration-200 active:scale-95 disabled:opacity-70"
-                >
-                  {isUploading ? (
-                    <>
-                      <svg className="w-4 h-4 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Analyzing Dataset...
-                    </>
-                  ) : (
-                    <>
-                      <FileUp className="w-4 h-4" />
-                      Proceed to Analysis
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+                  <button
+                    onClick={handleUpload}
+                    disabled={isUploading}
+                    className="w-full inline-flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl shadow-md shadow-blue-500/20 hover:bg-blue-700 hover:shadow-lg transition-all duration-200 active:scale-95 disabled:opacity-70"
+                  >
+                    {isUploading ? (
+                      <>
+                        <svg className="w-4 h-4 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Analyzing Dataset...
+                      </>
+                    ) : (
+                      <>
+                        <FileUp className="w-4 h-4" />
+                        Proceed to Analysis
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFile(null);
+                      removeDataset();
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 transition-all active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Remove Dataset
+                  </button>
+                </div>
               )}
             </div>
           </div>

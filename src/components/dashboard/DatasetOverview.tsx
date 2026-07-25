@@ -100,7 +100,7 @@ export function DatasetOverview() {
         <div className="mt-6 flex flex-col gap-3">
           <Button
             variant="primary"
-            className="w-full flex items-center justify-center gap-2"
+            className="w-full flex items-center justify-center gap-2 font-semibold shadow-sm"
             onClick={handleUploadClick}
           >
             <Upload className="h-4 w-4" />
@@ -108,12 +108,7 @@ export function DatasetOverview() {
           </Button>
           <Button
             variant="secondary"
-            disabled={!isDatasetActive}
-            className={`w-full flex items-center justify-center gap-2 ${
-              isDatasetActive
-                ? "text-danger-DEFAULT hover:text-danger-hover border border-red-100 hover:border-red-200"
-                : "opacity-50 cursor-not-allowed text-slate-400"
-            }`}
+            className="w-full flex items-center justify-center gap-2 text-danger-DEFAULT hover:text-danger-hover border border-red-100 hover:border-red-200 hover:bg-red-50/50 font-semibold transition-all active:scale-95"
             onClick={removeDataset}
           >
             <Trash2 className="h-4 w-4" />
