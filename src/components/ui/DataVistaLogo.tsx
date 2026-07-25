@@ -23,14 +23,16 @@ export function DataVistaLogo({
 
   return (
     <div className={`inline-flex items-center ${currentSize.gap} ${className}`}>
-      {/* Dynamic DV Data Peak Animated SVG Icon */}
+      {/* Dynamic DV Data Peak SVG Icon with Continuous 60FPS Floating Animation */}
       <svg
         width={currentSize.icon}
         height={currentSize.icon}
         viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="shrink-0 drop-shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
+        className={`shrink-0 transform-gpu ${
+          animate ? "animate-dv-mark-continuous" : ""
+        }`}
       >
         <defs>
           {/* Main DV Gradient */}
@@ -60,29 +62,59 @@ export function DataVistaLogo({
         </defs>
 
         <style>{`
-          @keyframes dvPopIn {
-            0% { transform: scale(0.85); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+          @keyframes dvGlowPulseContinuous {
+            0%, 100% {
+              filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4));
+              transform: scale(1);
+            }
+            50% {
+              filter: drop-shadow(0 6px 18px rgba(168, 85, 247, 0.65));
+              transform: scale(1.03);
+            }
           }
-          @keyframes barRise1 {
-            0% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
-            100% { transform: scaleY(1); transform-origin: bottom; opacity: 1; }
+          @keyframes bar1Continuous {
+            0%, 100% {
+              transform: translateY(0px) scaleY(1);
+            }
+            50% {
+              transform: translateY(-4px) scaleY(1.1);
+            }
           }
-          .animate-dv-mark {
-            ${animate ? "animation: dvPopIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;" : ""}
+          @keyframes bar2Continuous {
+            0%, 100% {
+              transform: translateY(0px) scaleY(1);
+            }
+            50% {
+              transform: translateY(-6px) scaleY(1.08);
+            }
           }
-          .animate-bar-1 {
-            ${animate ? "animation: barRise1 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards; transform-origin: 52px 50px;" : ""}
+          @keyframes bar3Continuous {
+            0%, 100% {
+              transform: translateY(0px) scaleY(1);
+            }
+            50% {
+              transform: translateY(-8px) scaleY(1.06);
+            }
           }
-          .animate-bar-2 {
-            ${animate ? "animation: barRise1 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards; transform-origin: 67px 50px;" : ""}
+          .animate-dv-mark-continuous {
+            animation: dvGlowPulseContinuous 4s ease-in-out infinite;
+            transform-origin: center;
           }
-          .animate-bar-3 {
-            ${animate ? "animation: barRise1 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.45s forwards; transform-origin: 82px 50px;" : ""}
+          .animate-bar-continuous-1 {
+            animation: bar1Continuous 2.5s ease-in-out infinite;
+            transform-origin: 54px 52px;
+          }
+          .animate-bar-continuous-2 {
+            animation: bar2Continuous 3s ease-in-out infinite 0.35s;
+            transform-origin: 68px 52px;
+          }
+          .animate-bar-continuous-3 {
+            animation: bar3Continuous 3.5s ease-in-out infinite 0.7s;
+            transform-origin: 82px 52px;
           }
         `}</style>
 
-        <g className="animate-dv-mark">
+        <g>
           {/* Letter D */}
           <path
             d="M 12 40 C 12 36, 16 36, 22 36 L 36 36 C 50 36, 58 44, 58 56 C 58 68, 50 76, 36 76 L 22 76 C 16 76, 12 76, 12 72 Z M 26 48 L 26 64 L 35 64 C 42 64, 46 61, 46 56 C 46 51, 42 48, 35 48 Z"
@@ -103,7 +135,7 @@ export function DataVistaLogo({
             height="20"
             rx="3"
             fill="url(#barGrad1)"
-            className="animate-bar-1"
+            className={animate ? "animate-bar-continuous-1" : ""}
           />
 
           {/* Rising Bar Chart Peak 2 (Medium - Blue) */}
@@ -114,7 +146,7 @@ export function DataVistaLogo({
             height="32"
             rx="3"
             fill="url(#barGrad2)"
-            className="animate-bar-2"
+            className={animate ? "animate-bar-continuous-2" : ""}
           />
 
           {/* Rising Bar Chart Peak 3 (Tall - Violet) */}
@@ -125,7 +157,7 @@ export function DataVistaLogo({
             height="44"
             rx="3"
             fill="url(#barGrad3)"
-            className="animate-bar-3"
+            className={animate ? "animate-bar-continuous-3" : ""}
           />
         </g>
       </svg>
@@ -133,9 +165,7 @@ export function DataVistaLogo({
       {/* Brand Text */}
       {showText && (
         <span
-          className={`font-extrabold tracking-tight text-textPrimary ${currentSize.font} ${
-            animate ? "animate-in fade-in duration-500" : ""
-          }`}
+          className={`font-extrabold tracking-tight text-textPrimary ${currentSize.font}`}
         >
           Data<span className="text-primary">Vista</span>
         </span>
