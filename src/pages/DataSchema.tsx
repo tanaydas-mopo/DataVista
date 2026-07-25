@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef } from "react";
 import { UploadCloud, FileType, Database, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
+import { useDataset } from "../context/DatasetContext";
 
 const mockSchema = [
   { column: "match_id", type: "Integer", nulls: "0%", sample: "335982" },
@@ -17,10 +18,28 @@ const mockSchema = [
 ];
 
 export function DataSchema() {
-  const [isUploaded, setIsUploaded] = useState(false);
+  const { dataset, uploadDataset, removeDataset } = useDataset();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isUploaded = dataset.status === "active";
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      uploadDataset(e.target.files[0]);
+      e.target.value = "";
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 pb-8 h-full">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".csv,.xlsx,.xls,.tsv,.json"
+        className="hidden"
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-textPrimary">Data & Schema</h1>
@@ -41,7 +60,7 @@ export function DataSchema() {
             {!isUploaded ? (
               <div 
                 className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center gap-4 text-center cursor-pointer hover:bg-slate-50 transition-colors hover:border-primary"
-                onClick={() => setIsUploaded(true)}
+                onClick={() => fileInputRef.current?.click()}
               >
                 <div className="w-16 h-16 bg-primary-soft rounded-full flex items-center justify-center mb-2">
                   <UploadCloud className="w-8 h-8 text-primary" />
@@ -58,12 +77,12 @@ export function DataSchema() {
               <div className="border border-slate-200 rounded-xl p-6 bg-success-soft/30 flex flex-col items-center justify-center gap-4 text-center">
                 <CheckCircle2 className="w-12 h-12 text-success-DEFAULT mb-2" />
                 <div>
-                  <p className="text-sm font-bold text-textPrimary">ipl_matches_2024.csv</p>
-                  <p className="text-xs text-textSecondary mt-1">4.2 MB • Uploaded just now</p>
+                  <p className="text-sm font-bold text-textPrimary">{dataset.name}</p>
+                  <p className="text-xs text-textSecondary mt-1">{dataset.totalRows} rows • {dataset.totalColumns} columns</p>
                 </div>
                 <button 
                   className="mt-2 text-xs font-medium text-danger-DEFAULT hover:underline"
-                  onClick={() => setIsUploaded(false)}
+                  onClick={removeDataset}
                 >
                   Remove file
                 </button>

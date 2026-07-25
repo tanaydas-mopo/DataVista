@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useDataset } from '../context/DatasetContext';
 
 // Floating ambient node particle for Antigravity effect
 interface Particle {
@@ -91,13 +92,16 @@ export function UploadDataset() {
     }
   };
 
+  const { uploadDataset } = useDataset();
+
   const handleUpload = () => {
     if (!file) return;
     setIsUploading(true);
+    uploadDataset(file);
     setTimeout(() => {
       setIsUploading(false);
       navigate('/dashboard');
-    }, 1500);
+    }, 1200);
   };
 
   const handleLogout = async () => {

@@ -6,12 +6,10 @@ import {
   Layout,
   Download,
   Settings,
-  ChevronDown,
   Sun,
   Moon,
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
-import { Avatar } from "../ui/Avatar";
 import { cn } from "../../lib/utils";
 import { useState } from "react";
 
@@ -79,22 +77,6 @@ export function Sidebar({ className }: { className?: string }) {
 
       {/* Footer Area */}
       <div className="mt-auto px-4 pb-6 space-y-4">
-
-
-        {/* User Profile */}
-        <button className="flex w-full items-center justify-between rounded-xl border border-border p-3 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1">
-          <div className="flex items-center gap-3">
-            <Avatar size="md" src="https://i.pravatar.cc/150?u=tanay" fallback="T" />
-            <div className="flex flex-col items-start">
-              <span className="text-sm font-semibold text-textPrimary">
-                Tanay Das
-              </span>
-              <span className="text-xs text-textSecondary">Admin</span>
-            </div>
-          </div>
-          <ChevronDown className="h-4 w-4 text-slate-400" />
-        </button>
-
         {/* Theme Toggle */}
         <div className="flex items-center rounded-lg border border-border bg-appBackground p-1">
           <button
