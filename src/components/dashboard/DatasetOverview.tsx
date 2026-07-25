@@ -15,6 +15,7 @@ export function DatasetOverview() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       uploadDataset(e.target.files[0]);
+      // Reset input value so re-uploading the same file works
       e.target.value = "";
     }
   };
@@ -22,7 +23,7 @@ export function DatasetOverview() {
   const isDatasetActive = dataset.status === "active";
 
   return (
-    <Card className="flex flex-col relative overflow-hidden">
+    <Card className="flex h-full flex-col relative overflow-hidden">
       {/* Hidden File Input */}
       <input
         type="file"
@@ -45,10 +46,10 @@ export function DatasetOverview() {
         </span>
       </CardHeader>
 
-      <CardContent className="flex flex-col justify-between space-y-5">
+      <CardContent className="flex flex-1 flex-col justify-between">
         {/* Toast / Notification Banner */}
         {notification && (
-          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
             {isDatasetActive ? (
               <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
             ) : (
@@ -58,8 +59,8 @@ export function DatasetOverview() {
           </div>
         )}
 
-        <div className="flex flex-col space-y-3.5 text-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div className="flex flex-col space-y-4 text-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="text-textSecondary">Dataset Name</span>
             <span
               className={`font-semibold text-right max-w-[180px] truncate ${
@@ -70,25 +71,25 @@ export function DatasetOverview() {
               {dataset.name}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="text-textSecondary">Total Rows</span>
             <span className="font-semibold text-textPrimary">
               {dataset.totalRows}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="text-textSecondary">Total Columns</span>
             <span className="font-semibold text-textPrimary">
               {dataset.totalColumns}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="text-textSecondary">Missing Values</span>
             <span className="font-semibold text-textPrimary">
               {dataset.missingValues}
             </span>
           </div>
-          <div className="flex items-center justify-between pt-0.5">
+          <div className="flex items-center justify-between pt-1">
             <span className="text-textSecondary">Last Updated</span>
             <span className="font-semibold text-textPrimary text-right">
               {dataset.lastUpdated}
@@ -96,25 +97,26 @@ export function DatasetOverview() {
           </div>
         </div>
 
-        {/* Action Buttons Section */}
-        <div className="pt-2 flex flex-col gap-3">
-          {/* Solid Primary Upload Button */}
+        <div className="mt-6 flex flex-col gap-3">
           <Button
             variant="primary"
-            className="w-full flex items-center justify-center gap-2 font-semibold shadow-md shadow-blue-500/15 py-2.5 rounded-xl hover:shadow-lg transition-all"
+            className="w-full flex items-center justify-center gap-2"
             onClick={handleUploadClick}
           >
             <Upload className="h-4 w-4" />
             Upload Dataset
           </Button>
-
-          {/* Premium Glassmorphic / Frosted Glass Remove Dataset Button */}
           <button
             type="button"
+            disabled={!isDatasetActive}
             onClick={removeDataset}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl text-red-600 bg-white/70 backdrop-blur-md border border-red-200/80 shadow-[0_4px_16px_rgba(239,68,68,0.06)] hover:bg-red-50/80 hover:border-red-300 hover:shadow-[0_6px_20px_rgba(239,68,68,0.12)] hover:text-red-700 active:scale-[0.98] transition-all duration-200"
+            className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
+              isDatasetActive
+                ? "text-red-600 bg-white/60 backdrop-blur-md border border-red-200/80 shadow-[0_4px_16px_rgba(239,68,68,0.06)] hover:bg-red-50/80 hover:border-red-300 hover:shadow-[0_6px_20px_rgba(239,68,68,0.12)] hover:text-red-700 active:scale-[0.98]"
+                : "opacity-50 cursor-not-allowed text-slate-400 bg-slate-50/50 border border-slate-200"
+            }`}
           >
-            <Trash2 className="h-4 w-4 text-red-500 shrink-0" />
+            <Trash2 className="h-4 w-4 shrink-0" />
             Remove Dataset
           </button>
         </div>
