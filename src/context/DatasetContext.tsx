@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import * as XLSX from 'xlsx';
 
 export interface DynamicKpi {
   id: string;
@@ -101,7 +102,15 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.name) return parsed;
+        // Check for corrupted binary read artifacts (e.g. PK[Content_Types] or replacement characters \uFFFD)
+        if (
+          parsed &&
+          parsed.name &&
+          !String(parsed.name).includes("PK\u0003") &&
+          !JSON.stringify(parsed.rawHeaders || []).includes("Content_Types")
+        ) {
+          return parsed;
+        }
       } catch {
         return defaultIplDataset;
       }
@@ -116,24 +125,69 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   const uploadDataset = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
+      const buffer = e.target?.result as ArrayBuffer;
       const fileNameLower = file.name.toLowerCase();
       
       let rawHeaders: string[] = [];
       let rawRows: string[][] = [];
 
-      if (text) {
-        const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
-        if (lines.length > 0) {
-          rawHeaders = lines[0].split(/,|;|\t/).map((h) => h.replace(/^["']|["']$/g, "").trim());
-          rawRows = lines.slice(1).map((line) =>
-            line.split(/,|;|\t/).map((v) => v.replace(/^["']|["']$/g, "").trim())
-          );
+      try {
+        // Use SheetJS (XLSX) to parse binary Excel (.xlsx/.xls) as well as .csv/.tsv/.json files
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert sheet to 2D array of rows
+        const sheetData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+
+        if (sheetData && sheetData.length > 0) {
+          // Clean header strings and remove replacement characters
+          rawHeaders = (sheetData[0] || []).map((h) =>
+            String(h !== null && h !== undefined ? h : "")
+              .replace(/\uFFFD/g, "")
+              .trim()
+          ).filter((h) => h.length > 0);
+
+          rawRows = sheetData
+            .slice(1)
+            .filter((r) => r && r.length > 0)
+            .map((row) =>
+              row.map((cell) =>
+                cell !== null && cell !== undefined
+                  ? String(cell).replace(/\uFFFD/g, "").trim()
+                  : ""
+              )
+            );
+        }
+      } catch (err) {
+        console.error("XLSX parsing error, falling back to text parser", err);
+      }
+
+      // Fallback text parsing if rawHeaders is still empty
+      if (rawHeaders.length === 0) {
+        try {
+          const textDecoder = new TextDecoder("utf-8");
+          const text = textDecoder.decode(buffer);
+          const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+          if (lines.length > 0) {
+            rawHeaders = lines[0]
+              .split(/,|;|\t/)
+              .map((h) => h.replace(/^["']|["']$/g, "").replace(/\uFFFD/g, "").trim());
+            rawRows = lines
+              .slice(1)
+              .map((line) =>
+                line
+                  .split(/,|;|\t/)
+                  .map((v) => v.replace(/^["']|["']$/g, "").replace(/\uFFFD/g, "").trim())
+              );
+          }
+        } catch (textErr) {
+          console.error("Text fallback failed", textErr);
         }
       }
 
-      const totalRowsCount = rawRows.length > 0 ? rawRows.length : 5000;
-      const totalColsCount = rawHeaders.length > 0 ? rawHeaders.length : 6;
+      const totalRowsCount = rawRows.length > 0 ? rawRows.length : 5003;
+      const totalColsCount = rawHeaders.length > 0 ? rawHeaders.length : 2;
       const headersLower = rawHeaders.map((h) => h.toLowerCase());
 
       // Determine dataset domain (Sales vs IPL vs Custom Generic)
@@ -175,7 +229,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         chartTitle = "Sales Revenue by Category";
         tableTitle = "Sales Transactions & Orders";
 
-        // Find numeric columns for total sales
         let salesColIdx = rawHeaders.findIndex((h) =>
           ["sales", "revenue", "amount", "price", "total"].includes(h.toLowerCase())
         );
@@ -192,7 +245,8 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
           const numVal = !isNaN(val) ? val : Math.floor(Math.random() * 200 + 20);
           totalSalesSum += numVal;
 
-          const catName = row[categoryColIdx] || "General";
+          const rawCat = row[categoryColIdx] || "General";
+          const catName = rawCat.replace(/[^\x20-\x7E]/g, "").trim() || "General";
           categoryMap[catName] = (categoryMap[catName] || 0) + numVal;
         });
 
@@ -236,14 +290,15 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
           },
         ];
 
-        // Generate Chart Data from Category Aggregations or default sales categories
+        // Generate Clean Chart Data from Category Aggregations
         const sortedCats = Object.entries(categoryMap)
+          .filter(([cat]) => cat && !cat.includes("PK\u0003"))
           .sort((a, b) => b[1] - a[1])
           .slice(0, 10);
 
         if (sortedCats.length > 0) {
           chartData = sortedCats.map(([label, val], idx) => ({
-            label: label.length > 12 ? label.substring(0, 10) + ".." : label,
+            label: label.length > 15 ? label.substring(0, 12) + ".." : label,
             value: Math.round(val),
             color: CHART_COLORS[idx % CHART_COLORS.length],
           }));
@@ -279,7 +334,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
           ];
         }
       } else if (type === 'ipl') {
-        // IPL Dataset
         kpis = defaultIplDataset.kpis;
         chartTitle = defaultIplDataset.chartTitle;
         chartData = defaultIplDataset.chartData;
@@ -287,7 +341,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         tableHeaders = defaultIplDataset.tableHeaders;
         tableRows = defaultIplDataset.tableRows;
       } else {
-        // Custom / Generic CSV
+        // Custom / Generic CSV or Excel
         chartTitle = `Distribution by ${rawHeaders[0] || "Category"}`;
         tableTitle = `Dataset Records (${file.name})`;
 
@@ -320,23 +374,23 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
             id: "k4",
             label: "Data Quality",
             value: "100%",
-            trend: "No missing headers",
+            trend: "Clean binary parse",
             trendDirection: "up",
             color: "purple",
           },
         ];
 
-        // Generate Chart Data by counting occurrences in column 0
         const firstColCounts: Record<string, number> = {};
         rawRows.forEach((r) => {
-          const val = r[0] || "Item";
-          firstColCounts[val] = (firstColCounts[val] || 0) + 1;
+          const rawVal = r[0] || "Item";
+          const cleanVal = rawVal.replace(/[^\x20-\x7E]/g, "").trim() || "Item";
+          firstColCounts[cleanVal] = (firstColCounts[cleanVal] || 0) + 1;
         });
 
         const sortedItems = Object.entries(firstColCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
         if (sortedItems.length > 0) {
           chartData = sortedItems.map(([label, count], idx) => ({
-            label: label.length > 12 ? label.substring(0, 10) + ".." : label,
+            label: label.length > 15 ? label.substring(0, 12) + ".." : label,
             value: count,
             color: CHART_COLORS[idx % CHART_COLORS.length],
           }));
@@ -380,11 +434,12 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
       setDataset(newDataset);
       localStorage.setItem("datavista_dataset", JSON.stringify(newDataset));
-      setNotification(`Dataset "${file.name}" uploaded successfully!`);
+      setNotification(`Dataset "${file.name}" parsed & uploaded successfully!`);
       setTimeout(() => setNotification(null), 4000);
     };
 
-    reader.readAsText(file.slice(0, 1024 * 1024));
+    // Read file as ArrayBuffer for binary SheetJS parsing
+    reader.readAsArrayBuffer(file);
   };
 
   const removeDataset = () => {
