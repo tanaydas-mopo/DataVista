@@ -1,12 +1,13 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, CalendarDays, DollarSign, ShoppingBag, Database, Layers } from "lucide-react";
 import { Card, CardContent } from "../ui/Card";
-import type { KpiMetric } from "../../types/dashboard";
 import { cn } from "../../lib/utils";
 
-export function KpiCard({ metric }: { metric: KpiMetric }) {
-  const Icon = metric.icon;
+const defaultIcons = [CalendarDays, DollarSign, ShoppingBag, Layers, Database];
 
-  const colorStyles = {
+export function KpiCard({ metric, index = 0 }: { metric: any; index?: number }) {
+  const Icon = metric.icon || defaultIcons[index % defaultIcons.length] || CalendarDays;
+
+  const colorStyles: Record<string, string> = {
     primary: "bg-primary-soft text-primary",
     success: "bg-success-soft text-success",
     warning: "bg-warning-soft text-warning",
@@ -52,7 +53,7 @@ export function KpiCard({ metric }: { metric: KpiMetric }) {
           <div
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-lg shrink-0",
-              colorStyles[metric.color]
+              colorStyles[metric.color] || colorStyles.primary
             )}
           >
             <Icon className="h-5 w-5" />
