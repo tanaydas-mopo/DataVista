@@ -26,7 +26,6 @@ export function DataSchema() {
     }
   };
 
-  // Derive dynamic schema rows from active dataset headers and raw rows
   const headers =
     dataset.rawHeaders && dataset.rawHeaders.length > 0
       ? dataset.rawHeaders
@@ -37,7 +36,6 @@ export function DataSchema() {
   const rawRows = dataset.rawRows || [];
 
   const schemaRows = headers.map((colName, colIdx) => {
-    // Find sample data from first non-empty row
     let sampleVal = "-";
     let nullCount = 0;
 
@@ -92,7 +90,7 @@ export function DataSchema() {
         {/* Upload / Data Source Section */}
         <Card className="lg:col-span-1 h-fit">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base font-bold">
               <Database className="w-5 h-5 text-primary" />
               Data Source
             </CardTitle>
@@ -100,27 +98,27 @@ export function DataSchema() {
           <CardContent>
             {!isUploaded ? (
               <div
-                className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center gap-4 text-center cursor-pointer hover:bg-slate-50 transition-colors hover:border-primary"
+                className="border-2 border-dashed border-border rounded-2xl p-8 flex flex-col items-center justify-center gap-4 text-center cursor-pointer hover:bg-primary-soft/20 transition-colors hover:border-primary"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <div className="w-16 h-16 bg-primary-soft rounded-full flex items-center justify-center mb-2">
                   <UploadCloud className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-textPrimary">
+                  <p className="text-sm font-bold text-textPrimary">
                     Click to upload or drag and drop
                   </p>
                   <p className="text-xs text-textSecondary mt-1">
                     CSV, Excel (.xlsx), or JSON (max. 100MB)
                   </p>
                 </div>
-                <button className="mt-4 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors">
+                <button className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all">
                   Select File
                 </button>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-xl p-6 bg-emerald-50/40 flex flex-col items-center justify-center gap-4 text-center">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mb-1" />
+              <div className="border border-emerald-500/30 rounded-2xl p-6 bg-emerald-500/10 flex flex-col items-center justify-center gap-4 text-center">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-1" />
                 <div>
                   <p className="text-sm font-bold text-textPrimary">{dataset.name}</p>
                   <p className="text-xs text-textSecondary mt-1">
@@ -128,7 +126,7 @@ export function DataSchema() {
                   </p>
                 </div>
                 <button
-                  className="mt-2 text-xs font-semibold text-red-600 hover:underline"
+                  className="mt-2 text-xs font-bold text-danger hover:underline"
                   onClick={removeDataset}
                 >
                   Remove file
@@ -141,47 +139,47 @@ export function DataSchema() {
         {/* Schema Preview Section */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base font-bold">
               <FileType className="w-5 h-5 text-primary" />
               Schema Preview {isUploaded && `(${schemaRows.length} attributes)`}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isUploaded && schemaRows.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-border">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-textSecondary">
+                  <thead className="bg-primary-soft/20 text-textSecondary">
                     <tr>
-                      <th className="px-4 py-3 font-semibold rounded-tl-lg">
+                      <th className="px-4 py-3 font-bold text-xs uppercase tracking-wider">
                         Column Name
                       </th>
-                      <th className="px-4 py-3 font-semibold">Data Type</th>
-                      <th className="px-4 py-3 font-semibold">Null %</th>
-                      <th className="px-4 py-3 font-semibold rounded-tr-lg">
+                      <th className="px-4 py-3 font-bold text-xs uppercase tracking-wider">Data Type</th>
+                      <th className="px-4 py-3 font-bold text-xs uppercase tracking-wider">Null %</th>
+                      <th className="px-4 py-3 font-bold text-xs uppercase tracking-wider">
                         Sample Data
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border bg-surface">
                     {schemaRows.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-semibold text-textPrimary">
+                      <tr key={idx} className="hover:bg-primary-soft/10 transition-colors">
+                        <td className="px-4 py-3 font-bold text-textPrimary">
                           {row.column}
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
+                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
                               row.type === "Integer" || row.type === "Decimal"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                ? "bg-blue-500/15 text-blue-600 border border-blue-500/30"
                                 : row.type === "Date"
-                                ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                : "bg-slate-100 text-slate-700 border border-slate-200"
+                                ? "bg-purple-500/15 text-purple-600 border border-purple-500/30"
+                                : "bg-primary-soft text-textPrimary border border-border"
                             }`}
                           >
                             {row.type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-textSecondary font-medium">
+                        <td className="px-4 py-3 text-textSecondary font-semibold">
                           {row.nulls}
                         </td>
                         <td className="px-4 py-3 text-textSecondary font-mono text-xs truncate max-w-[220px]">
@@ -193,12 +191,12 @@ export function DataSchema() {
                 </table>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-                <Database className="w-12 h-12 opacity-20" />
-                <p className="text-sm font-semibold text-slate-600">
+              <div className="flex flex-col items-center justify-center h-64 text-textMuted gap-3">
+                <Database className="w-12 h-12 opacity-30" />
+                <p className="text-sm font-bold text-textPrimary">
                   No Active Dataset Schema
                 </p>
-                <p className="text-xs text-slate-400 max-w-xs text-center">
+                <p className="text-xs text-textSecondary max-w-xs text-center">
                   Upload a dataset file to inspect column data types, null rates, and live sample values.
                 </p>
               </div>

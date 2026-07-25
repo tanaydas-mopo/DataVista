@@ -20,10 +20,10 @@ export function SidebarItem({
       to={href}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
+          "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[15px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
           isActive
-            ? "bg-[#0F172A] text-white shadow-sm"
-            : "text-textSecondary hover:bg-slate-100 hover:text-textPrimary",
+            ? "bg-primary text-white shadow-sm shadow-blue-500/20"
+            : "text-textSecondary hover:bg-primary-soft/40 hover:text-textPrimary",
           className
         )
       }
@@ -32,11 +32,11 @@ export function SidebarItem({
         <>
           <Icon
             className={cn(
-              "h-5 w-5",
-              isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"
+              "h-5 w-5 shrink-0 transition-colors",
+              isActive ? "text-white" : "text-textMuted group-hover:text-textPrimary"
             )}
           />
-          {label}
+          <span className="truncate">{label}</span>
         </>
       )}
     </NavLink>

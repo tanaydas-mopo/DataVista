@@ -1,11 +1,13 @@
-import { Bell, Search, Moon, ChevronDown, Filter, Calendar } from "lucide-react";
+import { Bell, Search, Moon, Sun, ChevronDown, Filter, Calendar } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { useAuth } from "../auth/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export function TopNavigation() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Extract Google / Gmail avatar photo URL or unavatar service fallback
   const avatarSrc =
@@ -21,8 +23,13 @@ export function TopNavigation() {
 
   const initial = displayName ? displayName.charAt(0).toUpperCase() : "U";
 
+  const isDarkMode =
+    document.documentElement.classList.contains("dark") ||
+    document.documentElement.classList.contains("extra-dark") ||
+    document.documentElement.classList.contains("cobalt-dark");
+
   return (
-    <header className="flex flex-col border-b border-border bg-surface px-8 py-5">
+    <header className="flex flex-col border-b border-border bg-surface px-8 py-5 transition-colors duration-200">
       <div className="flex shrink-0 items-start justify-between">
         {/* Left */}
         <div className="flex flex-col gap-1">
@@ -30,40 +37,51 @@ export function TopNavigation() {
             Dashboard
           </h1>
           <p className="text-sm font-medium text-textSecondary">
-            Welcome back, <span className="capitalize font-semibold text-slate-800">{displayName}</span>!
+            Welcome back, <span className="capitalize font-bold text-textPrimary">{displayName}</span>!
           </p>
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-4">
-          <IconButton variant="ghost">
-            <Search className="h-5 w-5" />
+        <div className="flex items-center gap-3">
+          <IconButton variant="ghost" title="Search">
+            <Search className="h-4 h-4 text-textSecondary" />
           </IconButton>
+
           <div className="relative">
-            <IconButton variant="ghost">
-              <Bell className="h-5 w-5" />
+            <IconButton variant="ghost" title="Notifications">
+              <Bell className="h-4 h-4 text-textSecondary" />
             </IconButton>
-            <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger border border-white" />
+            <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger border border-surface" />
           </div>
-          <IconButton variant="ghost">
-            <Moon className="h-5 w-5" />
+
+          <IconButton
+            variant="ghost"
+            title="Appearance Settings"
+            onClick={() => navigate("/settings")}
+          >
+            {isDarkMode ? (
+              <Sun className="h-4 w-4 text-amber-400" />
+            ) : (
+              <Moon className="h-4 w-4 text-textSecondary" />
+            )}
           </IconButton>
+
           <div className="ml-2 pl-2 flex items-center gap-2">
             <Avatar size="md" src={avatarSrc} fallback={initial} title={user?.email || displayName} />
           </div>
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-end gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-textSecondary hover:bg-slate-50 cursor-pointer">
-          <Calendar className="h-4 w-4" />
+      <div className="mt-5 flex items-center justify-end gap-3">
+        <div className="flex items-center gap-2 rounded-xl border border-border px-3.5 py-2 text-xs font-semibold text-textSecondary hover:bg-primary-soft/30 hover:text-textPrimary transition-all cursor-pointer">
+          <Calendar className="h-3.5 w-3.5" />
           <span>Jan 01, 2024 - Dec 31, 2024</span>
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="h-3.5 w-3.5" />
         </div>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4 text-textSecondary" />
+        <Button variant="outline" className="gap-2 text-xs font-semibold rounded-xl">
+          <Filter className="h-3.5 w-3.5 text-textSecondary" />
           Filters
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </div>
     </header>
