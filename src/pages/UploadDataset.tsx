@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2, Sparkles, ArrowRight, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -9,35 +9,10 @@ export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { dataset, uploadDataset, removeDataset } = useDataset();
 
   const isDatasetActive = dataset.status === "active";
-
-  // Smooth hardware-accelerated parallax mouse movement
-  useEffect(() => {
-    let ticking = false;
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (containerRef.current) {
-            const moveX = (e.clientX - window.innerWidth / 2) / 45;
-            const moveY = (e.clientY - window.innerHeight / 2) / 45;
-            containerRef.current.style.setProperty('--tilt-x', `${-moveY * 0.07}deg`);
-            containerRef.current.style.setProperty('--tilt-y', `${moveX * 0.07}deg`);
-            containerRef.current.style.setProperty('--mouse-x', `${moveX}px`);
-            containerRef.current.style.setProperty('--mouse-y', `${moveY}px`);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -79,22 +54,13 @@ export function UploadDataset() {
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary overflow-hidden font-sans p-6 transition-colors duration-200 will-change-transform"
-      style={{
-        '--tilt-x': '0deg',
-        '--tilt-y': '0deg',
-        '--mouse-x': '0px',
-        '--mouse-y': '0px',
-      } as React.CSSProperties}
-    >
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary overflow-y-auto font-sans p-6 transition-colors duration-200 transform-gpu">
       {/* 3D Abstract Canvas: Floating Organic Spheres & Upward Drifting Data Particles */}
       <ThreeDAbstractBackground />
 
       {/* Subtle Tech Grid Lines Overlay */}
       <svg
-        className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.1] stroke-textPrimary pointer-events-none z-0"
+        className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.08] stroke-textPrimary pointer-events-none z-0"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
@@ -122,7 +88,7 @@ export function UploadDataset() {
 
         <button
           onClick={handleLogout}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-textSecondary bg-surface hover:bg-primary-soft/30 hover:text-textPrimary rounded-xl border border-border transition-all shadow-xs active:scale-95"
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-textSecondary bg-surface hover:bg-primary-soft/30 hover:text-textPrimary rounded-xl border border-border transition-all shadow-xs active:scale-95 cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
           Sign Out
@@ -131,13 +97,7 @@ export function UploadDataset() {
 
       {/* Main Content Area */}
       <main className="relative z-10 max-w-2xl w-full flex flex-col items-center my-auto py-8">
-        {/* Parallax Container */}
-        <div
-          className="w-full flex flex-col items-center transition-transform duration-300 ease-out will-change-transform"
-          style={{
-            transform: `perspective(1000px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(0)`,
-          }}
-        >
+        <div className="w-full flex flex-col items-center transform-gpu">
           {/* Header Section */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold mb-3 shadow-xs">
@@ -152,8 +112,8 @@ export function UploadDataset() {
             </p>
           </div>
 
-          {/* Main Glassmorphic Card: Dropzone */}
-          <div className="w-full bg-surface/90 backdrop-blur-2xl rounded-3xl border border-border shadow-2xl p-6 sm:p-8 transition-all duration-200">
+          {/* Main Card: Dropzone */}
+          <div className="w-full bg-surface/95 rounded-3xl border border-border shadow-xl p-6 sm:p-8 transition-all duration-200">
             <div
               className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 ease-out flex flex-col items-center justify-center text-center ${
                 isDragging
@@ -191,7 +151,7 @@ export function UploadDataset() {
                     Upload CSV, Excel (.xlsx), TSV, or JSON files.
                   </p>
 
-                  {/* Clean Format Badges */}
+                  {/* Format Badges */}
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
                     <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs">CSV</span>
                     <span className="text-textMuted">•</span>
@@ -225,7 +185,7 @@ export function UploadDataset() {
                   <button
                     onClick={handleUpload}
                     disabled={isUploading}
-                    className="w-full inline-flex items-center justify-center gap-2 px-8 py-3 text-xs font-bold text-white bg-primary rounded-xl shadow-md shadow-blue-500/20 hover:bg-primary-hover transition-all duration-200 active:scale-95 disabled:opacity-70"
+                    className="w-full inline-flex items-center justify-center gap-2 px-8 py-3 text-xs font-bold text-white bg-primary rounded-xl shadow-md shadow-blue-500/20 hover:bg-primary-hover transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-70"
                   >
                     {isUploading ? (
                       <>
@@ -247,7 +207,7 @@ export function UploadDataset() {
                       setFile(null);
                       removeDataset();
                     }}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-danger bg-danger-soft hover:bg-danger/20 rounded-xl border border-danger/30 transition-all active:scale-95"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-danger bg-danger-soft hover:bg-danger/20 rounded-xl border border-danger/30 transition-all active:scale-95 cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                     Remove Dataset
@@ -258,7 +218,7 @@ export function UploadDataset() {
           </div>
 
           {/* Secondary Card: Recent Files & Active Dataset Workflow */}
-          <div className="w-full mt-4 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border p-5 shadow-sm transition-all duration-200">
+          <div className="w-full mt-4 bg-surface/95 rounded-2xl border border-border p-5 shadow-sm transition-all duration-200">
             <div className="flex items-center justify-between mb-3 border-b border-border pb-3">
               <h4 className="text-xs font-bold text-textPrimary flex items-center gap-2">
                 <Clock className="w-4 h-4 text-primary" />
@@ -274,7 +234,7 @@ export function UploadDataset() {
                     removeDataset();
                   }}
                   title="Clear Recent Dataset Details"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-danger bg-danger-soft hover:bg-danger/20 px-2.5 py-0.5 rounded-md border border-danger/30 transition-all active:scale-95"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-danger bg-danger-soft hover:bg-danger/20 px-2.5 py-0.5 rounded-md border border-danger/30 transition-all active:scale-95 cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3" />
                   Clear Recent
@@ -305,7 +265,7 @@ export function UploadDataset() {
 
                 <button
                   onClick={() => navigate("/dashboard")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 self-end sm:self-auto"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 self-end sm:self-auto cursor-pointer"
                 >
                   Dashboard
                   <ArrowRight className="w-3.5 h-3.5" />

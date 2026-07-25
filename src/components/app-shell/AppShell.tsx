@@ -36,12 +36,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="h-6 w-1.5 rounded-sm bg-primary" />
               <div className="h-5 w-1.5 rounded-sm bg-primary" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-[#0F172A]">
+            <span className="text-xl font-bold tracking-tight text-textPrimary">
               DataVista
             </span>
           </div>
           <IconButton onClick={() => setSidebarOpen(true)} variant="ghost">
-            <Menu className="h-6 w-6" />
+            <Menu className="h-6 w-6 text-textSecondary" />
           </IconButton>
         </div>
 
@@ -55,11 +55,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Dashboard
           </h1>
           <p className="text-xs font-medium text-textSecondary">
-            Welcome back, Tanay!
+            Welcome back!
           </p>
         </div>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 transform-gpu">
           <div className="mx-auto max-w-[1600px]">{children}</div>
         </main>
       </div>
