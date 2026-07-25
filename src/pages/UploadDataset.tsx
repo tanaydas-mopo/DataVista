@@ -38,14 +38,17 @@ export function UploadDataset() {
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) return;
     setIsUploading(true);
-    uploadDataset(file);
-    setTimeout(() => {
-      setIsUploading(false);
+    try {
+      await uploadDataset(file);
       navigate('/dashboard');
-    }, 1000);
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -211,7 +214,7 @@ export function UploadDataset() {
                   >
                     {isUploading ? (
                       <>
-                        <svg className="w-4 h-4 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-white animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
