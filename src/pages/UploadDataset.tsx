@@ -1,70 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
 
-// Floating ambient node particle for Antigravity effect
-interface Particle {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  speedX: number;
-  speedY: number;
-  opacity: number;
-}
-
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [particles, setParticles] = useState<Particle[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { uploadDataset, removeDataset } = useDataset();
 
-  // Initialize floating zero-gravity particles
+  // Smooth throttled parallax mouse movement using Direct DOM CSS variables (0 React re-renders!)
   useEffect(() => {
-    const initialParticles: Particle[] = Array.from({ length: 18 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 6 + 4,
-      speedX: (Math.random() - 0.5) * 0.05,
-      speedY: (Math.random() - 0.5) * 0.05,
-      opacity: Math.random() * 0.4 + 0.1,
-    }));
-    setParticles(initialParticles);
-
-    // Antigravity floating animation loop
-    let animationFrameId: number;
-    const updateParticles = () => {
-      setParticles(prev =>
-        prev.map(p => {
-          let newX = p.x + p.speedX;
-          let newY = p.y + p.speedY;
-          if (newX < 0 || newX > 100) p.speedX *= -1;
-          if (newY < 0 || newY > 100) p.speedY *= -1;
-          return { ...p, x: newX, y: newY };
-        })
-      );
-      animationFrameId = requestAnimationFrame(updateParticles);
-    };
-
-    animationFrameId = requestAnimationFrame(updateParticles);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
-
-  // Parallax mouse movement listener
-  useEffect(() => {
+    let ticking = false;
     const handleMouseMove = (e: MouseEvent) => {
-      const { clientX, clientY } = e;
-      const moveX = (clientX - window.innerWidth / 2) / 45;
-      const moveY = (clientY - window.innerHeight / 2) / 45;
-      setMousePos({ x: moveX, y: moveY });
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (containerRef.current) {
+            const moveX = (e.clientX - window.innerWidth / 2) / 50;
+            const moveY = (e.clientY - window.innerHeight / 2) / 50;
+            containerRef.current.style.setProperty('--tilt-x', `${-moveY * 0.08}deg`);
+            containerRef.current.style.setProperty('--tilt-y', `${moveX * 0.08}deg`);
+            containerRef.current.style.setProperty('--mouse-x', `${moveX}px`);
+            containerRef.current.style.setProperty('--mouse-y', `${moveY}px`);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
@@ -92,8 +60,6 @@ export function UploadDataset() {
     }
   };
 
-  const { uploadDataset, removeDataset } = useDataset();
-
   const handleUpload = () => {
     if (!file) return;
     setIsUploading(true);
@@ -101,7 +67,7 @@ export function UploadDataset() {
     setTimeout(() => {
       setIsUploading(false);
       navigate('/dashboard');
-    }, 1200);
+    }, 1000);
   };
 
   const handleLogout = async () => {
@@ -110,33 +76,25 @@ export function UploadDataset() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-[#F8FAFC] text-slate-900 overflow-hidden font-sans p-6">
-      
-      {/* Google Antigravity Zero-G Ambient Floating Particles Background */}
+    <div
+      ref={containerRef}
+      className="relative min-h-screen w-full flex flex-col items-center justify-between bg-[#F8FAFC] text-slate-900 overflow-hidden font-sans p-6 will-change-transform"
+      style={{
+        '--tilt-x': '0deg',
+        '--tilt-y': '0deg',
+        '--mouse-x': '0px',
+        '--mouse-y': '0px',
+      } as React.CSSProperties}
+    >
+      {/* Hardware-Accelerated Ambient Glowing Orbs Background */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        {particles.map(p => (
-          <div
-            key={p.id}
-            className="absolute rounded-full bg-blue-500/20 blur-[1px] transition-transform duration-1000 ease-out"
-            style={{
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              opacity: p.opacity,
-              transform: `translate(${mousePos.x * (p.id % 3 + 1)}px, ${mousePos.y * (p.id % 3 + 1)}px)`
-            }}
-          />
-        ))}
-
-        {/* Floating Glowing Orbs */}
-        <div 
-          className="absolute -top-32 -left-32 w-96 h-96 bg-blue-300/20 rounded-full blur-3xl animate-pulse pointer-events-none"
-          style={{ transform: `translate(${mousePos.x * 0.8}px, ${mousePos.y * 0.8}px)` }}
+        <div
+          className="absolute -top-32 -left-32 w-96 h-96 bg-blue-300/20 rounded-full blur-3xl transition-transform duration-300 ease-out will-change-transform"
+          style={{ transform: `translate(var(--mouse-x), var(--mouse-y))` }}
         />
-        <div 
-          className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-300/20 rounded-full blur-3xl animate-pulse pointer-events-none"
-          style={{ transform: `translate(${-mousePos.x * 0.8}px, ${-mousePos.y * 0.8}px)` }}
+        <div
+          className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-300/20 rounded-full blur-3xl transition-transform duration-300 ease-out will-change-transform"
+          style={{ transform: `translate(calc(var(--mouse-x) * -1), calc(var(--mouse-y) * -1))` }}
         />
       </div>
 
@@ -166,15 +124,13 @@ export function UploadDataset() {
 
       {/* Main Content Area */}
       <main className="relative z-10 max-w-2xl w-full flex flex-col items-center my-auto py-8">
-        
-        {/* Antigravity Floating Parallax Container */}
-        <div 
-          className="w-full flex flex-col items-center transition-transform duration-500 ease-out"
+        {/* Hardware Accelerated Smooth Parallax Container */}
+        <div
+          className="w-full flex flex-col items-center transition-transform duration-300 ease-out will-change-transform"
           style={{
-            transform: `perspective(1000px) rotateX(${-mousePos.y * 0.08}deg) rotateY(${mousePos.x * 0.08}deg) translateZ(0)`
+            transform: `perspective(1000px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(0)`,
           }}
         >
-          
           {/* Header Section */}
           <div className="text-center mb-8">
             <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
@@ -186,9 +142,9 @@ export function UploadDataset() {
           </div>
 
           {/* Main Card: Dropzone */}
-          <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-300">
+          <div className="w-full bg-white/95 rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-200">
             <div
-              className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-300 ease-out flex flex-col items-center justify-center text-center ${
+              className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 ease-out flex flex-col items-center justify-center text-center ${
                 isDragging
                   ? "border-blue-500 bg-blue-50/50 scale-[1.01]"
                   : "border-slate-200 bg-slate-50/50 hover:border-blue-400 hover:bg-blue-50/20"
@@ -198,11 +154,13 @@ export function UploadDataset() {
               onDrop={handleDrop}
             >
               {/* Cloud Icon */}
-              <div className={`p-4 rounded-full mb-4 transition-transform duration-300 ${
-                file 
-                  ? 'bg-emerald-100 text-emerald-600 scale-110' 
-                  : 'bg-blue-50 text-blue-600 group-hover:scale-110'
-              }`}>
+              <div
+                className={`p-4 rounded-full mb-4 transition-transform duration-200 ${
+                  file
+                    ? 'bg-emerald-100 text-emerald-600 scale-110'
+                    : 'bg-blue-50 text-blue-600 group-hover:scale-110'
+                }`}
+              >
                 {file ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
               </div>
 
@@ -289,7 +247,7 @@ export function UploadDataset() {
           </div>
 
           {/* Secondary Card: Recent Files */}
-          <div className="w-full mt-4 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] backdrop-blur-xl transition-all duration-300 hover:shadow-md">
+          <div className="w-full mt-4 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] transition-all duration-200 hover:shadow-md">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-bold text-slate-800">Recent Files</h4>
               <Clock className="w-4 h-4 text-slate-400" />
@@ -298,7 +256,6 @@ export function UploadDataset() {
               No recent dataset files.
             </p>
           </div>
-
         </div>
       </main>
 

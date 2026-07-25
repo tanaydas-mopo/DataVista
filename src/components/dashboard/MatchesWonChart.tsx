@@ -1,3 +1,4 @@
+import React from "react";
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -13,7 +14,7 @@ import { useDataset } from "../../context/DatasetContext";
 import { ChevronDown, MoreVertical, BarChart2 } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
 
-export function MatchesWonChart() {
+export const MatchesWonChart = React.memo(function MatchesWonChart() {
   const { dataset } = useDataset();
 
   const isDatasetActive = dataset.status === "active" && dataset.chartData.length > 0;
@@ -74,7 +75,7 @@ export function MatchesWonChart() {
                   tick={{ fill: "#475569", fontSize: 11, fontWeight: 500 }}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.03)" }} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                   {dataset.chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -94,4 +95,4 @@ export function MatchesWonChart() {
       </CardContent>
     </Card>
   );
-}
+});
