@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/app-shell/AppShell";
 import { UploadDataset } from "./pages/UploadDataset";
@@ -15,6 +16,17 @@ import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 
 function App() {
+  // Initialize saved theme preference on boot
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("datavista_theme");
+    if (savedTheme) {
+      document.documentElement.classList.remove("dark", "extra-dark", "cobalt-dark");
+      if (savedTheme !== "light") {
+        document.documentElement.classList.add(savedTheme);
+      }
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <DatasetProvider>

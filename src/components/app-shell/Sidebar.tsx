@@ -6,27 +6,11 @@ import {
   Layout,
   Download,
   Settings,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { cn } from "../../lib/utils";
-import { useState } from "react";
 
 export function Sidebar({ className }: { className?: string }) {
-  const [theme, setTheme] = useState<"light" | "dark">(
-    document.documentElement.classList.contains("dark") ? "dark" : "light"
-  );
-
-  const handleThemeChange = (newTheme: "light" | "dark") => {
-    setTheme(newTheme);
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
-
   return (
     <aside
       className={cn(
@@ -41,7 +25,7 @@ export function Sidebar({ className }: { className?: string }) {
           <div className="h-6 w-1.5 rounded-sm bg-primary" />
           <div className="h-5 w-1.5 rounded-sm bg-primary" />
         </div>
-        <span className="text-xl font-bold tracking-tight text-[#0F172A]">
+        <span className="text-xl font-bold tracking-tight text-textPrimary">
           DataVista
         </span>
       </div>
@@ -74,36 +58,6 @@ export function Sidebar({ className }: { className?: string }) {
           <SidebarItem href="/settings" icon={Settings} label="Settings" />
         </div>
       </nav>
-
-      {/* Footer Area */}
-      <div className="mt-auto px-4 pb-6 space-y-4">
-        {/* Theme Toggle */}
-        <div className="flex items-center rounded-lg border border-border bg-appBackground p-1">
-          <button
-            onClick={() => handleThemeChange("light")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md py-1.5 text-sm font-medium transition-all",
-              theme === "light"
-                ? "bg-surface text-textPrimary shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
-            )}
-          >
-            <Sun className="h-4 w-4" />
-            Light
-          </button>
-          <button
-            onClick={() => handleThemeChange("dark")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md py-1.5 text-sm font-medium transition-all",
-              theme === "dark"
-                ? "bg-surface text-textPrimary shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
-            )}
-          >
-            <Moon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
     </aside>
   );
 }

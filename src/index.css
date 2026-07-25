@@ -84,6 +84,50 @@
     /* Update shadow for dark mode */
     --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
   }
+
+  .extra-dark {
+    /* Extra Dark Charcoal Grey Mode */
+    --color-appBackground: #050505;
+    --color-surface: #121215;
+    --color-sidebar: #050505;
+    --color-sidebarElevated: #1C1C20;
+    --color-sidebarBorder: #1C1C20;
+    
+    --color-textPrimary: #FFFFFF;
+    --color-textSecondary: #9E9E9E;
+    --color-textMuted: #666666;
+    
+    --color-border: #1E1E24;
+    --color-borderStrong: #2C2C34;
+    
+    --color-primary: #3B82F6;
+    --color-primary-hover: #60A5FA;
+    --color-primary-soft: rgba(59, 130, 246, 0.18);
+    
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.7);
+  }
+
+  .cobalt-dark {
+    /* Deep Cobalt Navy Blue Theme */
+    --color-appBackground: #0B132B;
+    --color-surface: #1C2541;
+    --color-sidebar: #0B132B;
+    --color-sidebarElevated: #2A365C;
+    --color-sidebarBorder: #2A365C;
+    
+    --color-textPrimary: #F1F5F9;
+    --color-textSecondary: #94A3B8;
+    --color-textMuted: #64748B;
+    
+    --color-border: #2A365C;
+    --color-borderStrong: #3A4B7C;
+    
+    --color-primary: #38BDF8;
+    --color-primary-hover: #0EA5E9;
+    --color-primary-soft: rgba(56, 189, 248, 0.18);
+    
+    --shadow-card: 0 4px 6px -1px rgba(11, 19, 43, 0.6);
+  }
 }
 
 @utility no-scrollbar {
