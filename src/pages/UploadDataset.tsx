@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2, Sparkles, ArrowRight, FileSpreadsheet, RotateCcw } from 'lucide-react';
+import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2, Sparkles, ArrowRight, FileSpreadsheet, RotateCcw, TrendingUp, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
-import { ThreeDAbstractBackground } from '../components/ui/ThreeDAbstractBackground';
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
@@ -55,21 +54,46 @@ export function UploadDataset() {
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary overflow-y-auto font-sans p-6 transition-colors duration-200 transform-gpu">
-      {/* 3D Abstract Canvas: Floating Organic Spheres & Upward Drifting Data Particles */}
-      <ThreeDAbstractBackground />
+      {/* Dynamic Continuous Floating Ambient Background Orbs */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-36 -left-36 w-[550px] h-[550px] rounded-full bg-blue-500/15 dark:bg-blue-500/20 blur-3xl animate-glow-pulse" />
+        <div className="absolute -bottom-36 -right-36 w-[600px] h-[600px] rounded-full bg-purple-500/15 dark:bg-purple-500/20 blur-3xl animate-glow-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/15 blur-3xl animate-pulse" />
 
-      {/* Subtle Tech Grid Lines Overlay */}
-      <svg
-        className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.08] stroke-textPrimary pointer-events-none z-0"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" strokeWidth="1" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-      </svg>
+        {/* Subtle Tech Pattern Grid Lines */}
+        <svg
+          className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.08] stroke-textPrimary pointer-events-none z-0"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" strokeWidth="1" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+        </svg>
+
+        {/* Floating Zero-Gravity Side Analytics Micro-Widgets */}
+        <div className="hidden lg:flex absolute left-8 top-1/3 z-10 items-center gap-3 p-3 bg-surface/90 backdrop-blur-md rounded-2xl border border-border shadow-lg animate-float-slow transform-gpu">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold">
+            <TrendingUp className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold text-textPrimary">Auto Chart Engine</p>
+            <p className="text-[10px] font-medium text-textSecondary">Real-time dynamic visualization</p>
+          </div>
+        </div>
+
+        <div className="hidden lg:flex absolute right-8 bottom-1/3 z-10 items-center gap-3 p-3 bg-surface/90 backdrop-blur-md rounded-2xl border border-border shadow-lg animate-float-delayed transform-gpu">
+          <div className="w-9 h-9 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold text-textPrimary">Binary CSV/XLSX Inspection</p>
+            <p className="text-[10px] font-medium text-textSecondary">100% data integrity validation</p>
+          </div>
+        </div>
+      </div>
 
       {/* Top Header Bar */}
       <header className="relative z-10 w-full max-w-6xl flex items-center justify-between py-2">
@@ -124,12 +148,12 @@ export function UploadDataset() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              {/* Cloud Icon */}
+              {/* Cloud Icon with Continuous Breathing Pulse */}
               <div
-                className={`p-4 rounded-2xl mb-4 transition-all duration-200 shadow-md ${
+                className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-md ${
                   file
                     ? 'bg-emerald-500 text-white scale-110'
-                    : 'bg-primary text-white shadow-blue-500/20 group-hover:scale-110'
+                    : 'bg-primary text-white shadow-blue-500/20 animate-float-slow'
                 }`}
               >
                 {file ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
@@ -151,15 +175,23 @@ export function UploadDataset() {
                     Upload CSV, Excel (.xlsx), TSV, or JSON files.
                   </p>
 
-                  {/* Format Badges */}
-                  <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs">CSV</span>
+                  {/* Floating Levitating Format Badges */}
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
+                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
+                      CSV
+                    </span>
                     <span className="text-textMuted">•</span>
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs">XLSX</span>
+                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
+                      XLSX
+                    </span>
                     <span className="text-textMuted">•</span>
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs">TSV</span>
+                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
+                      TSV
+                    </span>
                     <span className="text-textMuted">•</span>
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs">JSON</span>
+                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
+                      JSON
+                    </span>
                   </div>
 
                   <p className="text-[11px] text-textMuted mb-6">
