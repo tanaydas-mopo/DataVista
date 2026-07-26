@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   Database,
@@ -27,6 +27,47 @@ export function Sidebar({ className }: { className?: string }) {
   const { dataset, switchDatasetPreset, removeDataset } = useDataset();
   const navigate = useNavigate();
 
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Global Click Outside, Touch, Scroll & Escape Key Dismissal Handler
+  useEffect(() => {
+    if (!isHeaderMenuOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsHeaderMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsHeaderMenuOpen(false);
+      }
+    };
+
+    const handleScroll = () => {
+      setIsHeaderMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [isHeaderMenuOpen]);
+
   const toggleHeaderMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -52,6 +93,7 @@ export function Sidebar({ className }: { className?: string }) {
 
         {/* Option 1: Header Three Dots (...) Trigger Button */}
         <button
+          ref={buttonRef}
           onClick={toggleHeaderMenu}
           title="Active Dataset Switcher & Controls"
           className="p-1.5 rounded-xl border border-border bg-surface text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 transition-all shadow-2xs active:scale-95 cursor-pointer"
@@ -62,14 +104,16 @@ export function Sidebar({ className }: { className?: string }) {
         {/* Option 1: Fixed Position Frosted Glassmorphism Context Menu */}
         {isHeaderMenuOpen && headerMenuPos && (
           <>
+            {/* Backdrop Overlay */}
             <div
-              className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
+              className="fixed inset-0 z-[90] bg-black/5"
               onClick={() => setIsHeaderMenuOpen(false)}
             />
 
             <div
+              ref={menuRef}
               style={{ top: headerMenuPos.top, left: headerMenuPos.left }}
-              className="fixed z-50 w-64 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150 transform-gpu"
+              className="fixed z-[100] w-64 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150 transform-gpu"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Active Dataset Status Header */}

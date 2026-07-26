@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { MoreVertical, Pin, Sparkles, ArrowRight, Check } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -25,6 +25,46 @@ export function SidebarItem({
     return localStorage.getItem("datavista_default_page") === href;
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Global Click Outside, Touch, Scroll & Escape Key Dismissal Handler
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    };
+
+    const handleScroll = () => {
+      setIsMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [isMenuOpen]);
 
   const toggleMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -87,8 +127,9 @@ export function SidebarItem({
               )}
             </div>
 
-            {/* Option 2: Three Dots (...) Action Trigger Button */}
+            {/* Three Dots (...) Action Trigger Button */}
             <button
+              ref={buttonRef}
               type="button"
               onClick={toggleMenu}
               title={`Options for ${label}`}
@@ -106,17 +147,19 @@ export function SidebarItem({
         )}
       </NavLink>
 
-      {/* Option 2: Fixed Position Frosted Glassmorphism Context Menu (Floats cleanly over everything) */}
+      {/* Fixed Position Frosted Glassmorphism Context Menu */}
       {isMenuOpen && menuPos && (
         <>
+          {/* Fullscreen Backdrop Overlay */}
           <div
-            className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
+            className="fixed inset-0 z-[90] bg-black/5"
             onClick={() => setIsMenuOpen(false)}
           />
 
           <div
+            ref={menuRef}
             style={{ top: menuPos.top, left: menuPos.left }}
-            className="fixed z-50 w-56 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-1.5 text-xs animate-in fade-in zoom-in-95 duration-150 transform-gpu"
+            className="fixed z-[100] w-56 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-1.5 text-xs animate-in fade-in zoom-in-95 duration-150 transform-gpu"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-2.5 py-1.5 border-b border-border/60 font-bold text-textMuted uppercase text-[10px] tracking-wider">
