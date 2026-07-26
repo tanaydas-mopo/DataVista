@@ -38,6 +38,7 @@ export interface DatasetInfo {
 interface DatasetContextType {
   dataset: DatasetInfo;
   uploadDataset: (file: File) => Promise<void>;
+  switchDatasetPreset: (preset: 'ipl' | 'sales' | 'ecommerce') => void;
   removeDataset: () => void;
   notification: string | null;
   clearNotification: () => void;
@@ -55,7 +56,8 @@ const defaultIplDataset: DatasetInfo = {
   totalRows: "15,600",
   totalColumns: "15",
   missingValues: "0",
-  lastUpdated: "22 May 2024, 10:30 AM",
+  lastUpdated: "26 Jul 2026, 10:30 AM",
+  fileSize: "4.82 MB",
   status: "active",
   type: "ipl",
   kpis: [
@@ -94,6 +96,87 @@ const defaultIplDataset: DatasetInfo = {
   ],
 };
 
+// Sales Revenue Preset Dataset
+const defaultSalesDataset: DatasetInfo = {
+  name: "E-Commerce Revenue 2026.csv",
+  totalRows: "24,850",
+  totalColumns: "12",
+  missingValues: "0",
+  lastUpdated: "26 Jul 2026, 11:15 AM",
+  fileSize: "6.12 MB",
+  status: "active",
+  type: "sales",
+  kpis: [
+    { id: "k1", label: "Total Revenue", value: "$1,482,900", trend: "18.4% vs last quarter", trendDirection: "up", color: "primary" },
+    { id: "k2", label: "Total Orders", value: "24,850", trend: "12.1% vs last quarter", trendDirection: "up", color: "success" },
+    { id: "k3", label: "Avg. Order Value", value: "$59.67", trend: "4.8% vs last quarter", trendDirection: "up", color: "warning" },
+    { id: "k4", label: "Product Categories", value: "8", trend: "Active catalog lines", trendDirection: "up", color: "purple" },
+  ],
+  chartTitle: "Revenue by Product Category ($)",
+  chartData: [
+    { label: "Electronics", value: 485000, color: "#2563EB" },
+    { label: "Clothing", value: 342000, color: "#14B8A6" },
+    { label: "Home & Kitchen", value: 289000, color: "#8B5CF6" },
+    { label: "Beauty & Personal", value: 178000, color: "#F59E0B" },
+    { label: "Sports & Outdoors", value: 124000, color: "#EF4444" },
+    { label: "Books & Media", value: 64900, color: "#3B82F6" },
+  ],
+  tableTitle: "Recent E-Commerce Orders",
+  tableHeaders: ["Order ID", "Product Name", "Category", "Revenue ($)", "Quantity", "Order Date", "Status"],
+  tableRows: [
+    { "Order ID": "ORD-8891", "Product Name": "Noise-Canceling Headphones", Category: "Electronics", "Revenue ($)": 249.99, Quantity: 1, "Order Date": "2026-07-26", Status: "Completed" },
+    { "Order ID": "ORD-8892", "Product Name": "Ultra-Light Running Shoes", Category: "Clothing", "Revenue ($)": 129.50, Quantity: 2, "Order Date": "2026-07-26", Status: "Completed" },
+    { "Order ID": "ORD-8893", "Product Name": "Espresso Coffee Machine", Category: "Home & Kitchen", "Revenue ($)": 349.00, Quantity: 1, "Order Date": "2026-07-25", Status: "Processing" },
+    { "Order ID": "ORD-8894", "Product Name": "Smart Fitness Watch V2", Category: "Electronics", "Revenue ($)": 199.99, Quantity: 1, "Order Date": "2026-07-25", Status: "Completed" },
+    { "Order ID": "ORD-8895", "Product Name": "Organic Cotton Bed Sheets", Category: "Home & Kitchen", "Revenue ($)": 85.00, Quantity: 2, "Order Date": "2026-07-24", Status: "Shipped" },
+  ],
+  rawHeaders: ["order_id", "product_name", "category", "price", "quantity", "order_date", "status"],
+  rawRows: [
+    ["ORD-8891", "Noise-Canceling Headphones", "Electronics", "249.99", "1", "2026-07-26", "Completed"],
+    ["ORD-8892", "Ultra-Light Running Shoes", "Clothing", "129.50", "2", "2026-07-26", "Completed"],
+    ["ORD-8893", "Espresso Coffee Machine", "Home & Kitchen", "349.00", "1", "2026-07-25", "Processing"],
+  ],
+};
+
+// Global Retail Preset Dataset
+const defaultEcommerceDataset: DatasetInfo = {
+  name: "Global Retail Analytics.csv",
+  totalRows: "42,100",
+  totalColumns: "18",
+  missingValues: "0",
+  lastUpdated: "26 Jul 2026, 12:00 PM",
+  fileSize: "9.45 MB",
+  status: "active",
+  type: "generic",
+  kpis: [
+    { id: "k1", label: "Active Stores", value: "142", trend: "9 new locations", trendDirection: "up", color: "primary" },
+    { id: "k2", label: "Total Transactions", value: "42,100", trend: "22% vs last month", trendDirection: "up", color: "success" },
+    { id: "k3", label: "Customer Satisfaction", value: "94.8%", trend: "+2.1% CSAT", trendDirection: "up", color: "warning" },
+    { id: "k4", label: "Fulfillment Rate", value: "99.2%", trend: "Optimal logistics", trendDirection: "up", color: "purple" },
+  ],
+  chartTitle: "Regional Sales Distribution ($)",
+  chartData: [
+    { label: "North America", value: 620000, color: "#2563EB" },
+    { label: "Europe & UK", value: 480000, color: "#14B8A6" },
+    { label: "Asia Pacific", value: 390000, color: "#8B5CF6" },
+    { label: "Latin America", value: 210000, color: "#F59E0B" },
+    { label: "Middle East", value: 145000, color: "#EF4444" },
+  ],
+  tableTitle: "Global Retail Outlets Summary",
+  tableHeaders: ["Region", "Country", "Store ID", "Monthly Sales ($)", "CSAT Score", "Status"],
+  tableRows: [
+    { Region: "North America", Country: "USA", "Store ID": "US-NYC-01", "Monthly Sales ($)": 185000, "CSAT Score": "96.4%", Status: "Active" },
+    { Region: "Europe & UK", Country: "UK", "Store ID": "UK-LDN-04", "Monthly Sales ($)": 142000, "CSAT Score": "94.8%", Status: "Active" },
+    { Region: "Asia Pacific", Country: "Japan", "Store ID": "JP-TYO-02", "Monthly Sales ($)": 168000, "CSAT Score": "97.1%", Status: "Active" },
+    { Region: "Latin America", Country: "Brazil", "Store ID": "BR-SAO-01", "Monthly Sales ($)": 94000, "CSAT Score": "92.5%", Status: "Active" },
+  ],
+  rawHeaders: ["region", "country", "store_id", "monthly_sales", "csat_score", "status"],
+  rawRows: [
+    ["North America", "USA", "US-NYC-01", "185000", "96.4%", "Active"],
+    ["Europe & UK", "UK", "UK-LDN-04", "142000", "94.8%", "Active"],
+  ],
+};
+
 const DatasetContext = createContext<DatasetContextType | undefined>(undefined);
 
 export function DatasetProvider({ children }: { children: React.ReactNode }) {
@@ -121,6 +204,21 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
   const clearNotification = () => setNotification(null);
 
+  const switchDatasetPreset = (preset: 'ipl' | 'sales' | 'ecommerce') => {
+    let targetDataset = defaultIplDataset;
+    if (preset === 'sales') targetDataset = defaultSalesDataset;
+    if (preset === 'ecommerce') targetDataset = defaultEcommerceDataset;
+
+    setDataset(targetDataset);
+    try {
+      localStorage.setItem("datavista_dataset", JSON.stringify(targetDataset));
+    } catch (e) {
+      console.warn("Could not save preset to localStorage:", e);
+    }
+    setNotification(`Switched active dataset to "${targetDataset.name}"`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   const uploadDataset = (file: File): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
       const reader = new FileReader();
@@ -140,12 +238,10 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
             let rawRows: string[][] = [];
 
             try {
-              // Use SheetJS (XLSX) to parse binary Excel (.xlsx/.xls) as well as .csv/.tsv/.json files
               const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
               const firstSheetName = workbook.SheetNames[0];
               const worksheet = workbook.Sheets[firstSheetName];
               
-              // Convert sheet to 2D array of rows
               const sheetData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
 
               if (sheetData && sheetData.length > 0) {
@@ -170,7 +266,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
               console.error("XLSX parsing error, falling back to text parser", err);
             }
 
-            // Fallback text parsing if rawHeaders is still empty
             if (rawHeaders.length === 0) {
               try {
                 const textDecoder = new TextDecoder("utf-8");
@@ -197,7 +292,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
             const totalColsCount = rawHeaders.length > 0 ? rawHeaders.length : 5;
             const headersLower = rawHeaders.map((h) => h.toLowerCase());
 
-            // Determine dataset domain
             const isSales =
               fileNameLower.includes("sale") ||
               fileNameLower.includes("order") ||
@@ -314,8 +408,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
                   { label: "Home & Kitchen", value: 28900, color: "#8B5CF6" },
                   { label: "Beauty & Health", value: 21400, color: "#F59E0B" },
                   { label: "Sports", value: 16800, color: "#EF4444" },
-                  { label: "Books", value: 12100, color: "#2563EB" },
-                  { label: "Toys & Games", value: 9500, color: "#14B8A6" },
                 ];
               }
 
@@ -332,9 +424,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
                 tableRows = [
                   { "Order ID": "ORD-9481", Product: "Wireless Headphones", Category: "Electronics", "Sales ($)": 149.99, Quantity: 2, Date: "2026-07-24", Status: "Completed" },
                   { "Order ID": "ORD-9482", Product: "Running Shoes", Category: "Clothing", "Sales ($)": 89.50, Quantity: 1, Date: "2026-07-24", Status: "Completed" },
-                  { "Order ID": "ORD-9483", Product: "Coffee Maker", Category: "Home & Kitchen", "Sales ($)": 120.00, Quantity: 1, Date: "2026-07-25", Status: "Processing" },
-                  { "Order ID": "ORD-9484", Product: "Smart Watch", Category: "Electronics", "Sales ($)": 249.00, Quantity: 1, Date: "2026-07-25", Status: "Completed" },
-                  { "Order ID": "ORD-9485", Product: "Yoga Mat", Category: "Sports", "Sales ($)": 35.00, Quantity: 3, Date: "2026-07-25", Status: "Shipped" },
                 ];
               }
             } else if (type === 'ipl') {
@@ -437,7 +526,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
             setDataset(newDataset);
 
-            // Safe localStorage saving (slice rawRows to 500 max so quota is NEVER exceeded)
             try {
               const storageDataset = {
                 ...newDataset,
@@ -454,7 +542,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
           } catch (parseError) {
             console.error("Dataset parse error:", parseError);
             setNotification("Dataset uploaded with fallback state.");
-            resolve(); // Always resolve so UI spinner never gets stuck!
+            resolve();
           }
         }, 100);
       };
@@ -493,7 +581,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DatasetContext.Provider
-      value={{ dataset, uploadDataset, removeDataset, notification, clearNotification }}
+      value={{ dataset, uploadDataset, switchDatasetPreset, removeDataset, notification, clearNotification }}
     >
       {children}
     </DatasetContext.Provider>
