@@ -92,8 +92,8 @@ export const quickActions: QuickAction[] = [
   },
   {
     id: "qa4",
-    title: "Compare with Power BI",
+    title: "Export & Report",
     description: "",
-    action: "dashboard",
+    action: "report",
   },
 ];
