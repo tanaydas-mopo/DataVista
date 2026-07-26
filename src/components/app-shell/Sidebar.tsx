@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   LayoutDashboard,
   Database,
@@ -23,8 +23,21 @@ import { useNavigate } from "react-router-dom";
 
 export function Sidebar({ className }: { className?: string }) {
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [headerMenuPos, setHeaderMenuPos] = useState<{ top: number; left: number } | null>(null);
   const { dataset, switchDatasetPreset, removeDataset } = useDataset();
   const navigate = useNavigate();
+
+  const toggleHeaderMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isHeaderMenuOpen) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setHeaderMenuPos({ top: rect.bottom + 8, left: rect.left });
+      setIsHeaderMenuOpen(true);
+    } else {
+      setIsHeaderMenuOpen(false);
+    }
+  };
 
   return (
     <aside
@@ -39,23 +52,24 @@ export function Sidebar({ className }: { className?: string }) {
 
         {/* Option 1: Header Three Dots (...) Trigger Button */}
         <button
-          onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
+          onClick={toggleHeaderMenu}
           title="Active Dataset Switcher & Controls"
           className="p-1.5 rounded-xl border border-border bg-surface text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 transition-all shadow-2xs active:scale-95 cursor-pointer"
         >
           <MoreVertical className="h-4 w-4" />
         </button>
 
-        {/* Option 1: Frosted Glassmorphism Context Menu */}
-        {isHeaderMenuOpen && (
+        {/* Option 1: Fixed Position Frosted Glassmorphism Context Menu */}
+        {isHeaderMenuOpen && headerMenuPos && (
           <>
             <div
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
               onClick={() => setIsHeaderMenuOpen(false)}
             />
 
             <div
-              className="absolute left-4 top-full mt-2 z-50 w-64 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150 transform-gpu"
+              style={{ top: headerMenuPos.top, left: headerMenuPos.left }}
+              className="fixed z-50 w-64 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150 transform-gpu"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Active Dataset Status Header */}

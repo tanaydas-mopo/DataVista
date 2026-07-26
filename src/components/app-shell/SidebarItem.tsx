@@ -20,10 +20,23 @@ export function SidebarItem({
 }: SidebarItemProps) {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [isDefaultPage, setIsDefaultPage] = useState(() => {
     return localStorage.getItem("datavista_default_page") === href;
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const toggleMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isMenuOpen) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setMenuPos({ top: Math.min(rect.top, window.innerHeight - 160), left: rect.right + 10 });
+      setIsMenuOpen(true);
+    } else {
+      setIsMenuOpen(false);
+    }
+  };
 
   const handleSetDefault = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,18 +90,14 @@ export function SidebarItem({
             {/* Option 2: Three Dots (...) Action Trigger Button */}
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsMenuOpen((prev) => !prev);
-              }}
+              onClick={toggleMenu}
               title={`Options for ${label}`}
               className={cn(
-                "p-1 rounded-lg transition-all duration-200 shrink-0",
+                "p-1 rounded-lg transition-all duration-200 shrink-0 cursor-pointer",
                 isActive
                   ? "text-white/80 hover:text-white hover:bg-white/20"
                   : "text-textMuted hover:text-textPrimary hover:bg-surface opacity-0 group-hover:opacity-100",
-                isMenuOpen ? "opacity-100 bg-surface/80" : ""
+                isMenuOpen ? "opacity-100 bg-surface/80 text-textPrimary" : ""
               )}
             >
               <MoreVertical className="h-4 w-4" />
@@ -97,16 +106,17 @@ export function SidebarItem({
         )}
       </NavLink>
 
-      {/* Option 2: Frosted Glassmorphism Context Menu */}
-      {isMenuOpen && (
+      {/* Option 2: Fixed Position Frosted Glassmorphism Context Menu (Floats cleanly over everything) */}
+      {isMenuOpen && menuPos && (
         <>
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
             onClick={() => setIsMenuOpen(false)}
           />
 
           <div
-            className="absolute left-full top-0 ml-2 z-50 w-56 bg-surface/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl p-1.5 text-xs animate-in fade-in zoom-in-95 duration-150 transform-gpu"
+            style={{ top: menuPos.top, left: menuPos.left }}
+            className="fixed z-50 w-56 bg-surface/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl p-1.5 text-xs animate-in fade-in zoom-in-95 duration-150 transform-gpu"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-2.5 py-1.5 border-b border-border/60 font-bold text-textMuted uppercase text-[10px] tracking-wider">
