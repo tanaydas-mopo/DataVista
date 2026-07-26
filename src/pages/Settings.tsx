@@ -32,6 +32,7 @@ export function Settings() {
   const [activeTab, setActiveTab] = useState("appearance");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Settings State
   const [defaultLandingPage, setDefaultLandingPage] = useState(() => {
@@ -55,6 +56,7 @@ export function Settings() {
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
+    setHasUnsavedChanges(true);
     localStorage.setItem("datavista_theme", newTheme);
 
     document.documentElement.classList.remove("dark", "extra-dark", "cobalt-dark");
@@ -65,8 +67,9 @@ export function Settings() {
 
   const handleSave = () => {
     localStorage.setItem("datavista_default_page", defaultLandingPage);
+    setHasUnsavedChanges(false);
     setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const tabs = [
@@ -201,9 +204,21 @@ export function Settings() {
             <CardTitle className="text-base font-bold flex items-center gap-2">
               {tabs.find((t) => t.id === activeTab)?.label}
             </CardTitle>
-            <span className="text-[11px] font-bold text-emerald-500 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/30 flex items-center gap-1">
-              <Check className="w-3.5 h-3.5 text-emerald-500" /> Saved
-            </span>
+
+            {/* Dynamic Status Badge: ONLY shows "Saved" after clicking Save Settings! */}
+            {saveSuccess ? (
+              <span className="text-[11px] font-bold text-emerald-500 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/30 flex items-center gap-1.5 animate-in fade-in duration-200">
+                <Check className="w-3.5 h-3.5 text-emerald-500" /> Saved
+              </span>
+            ) : hasUnsavedChanges ? (
+              <span className="text-[11px] font-bold text-amber-500 bg-amber-500/15 px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1.5 animate-in fade-in duration-200">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Unsaved Changes
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-textMuted bg-primary-soft/20 px-2.5 py-1 rounded-lg border border-border">
+                Synced
+              </span>
+            )}
           </CardHeader>
 
           <CardContent className="pt-6 pb-8">
@@ -282,7 +297,10 @@ export function Settings() {
                       <input
                         type="checkbox"
                         checked={glassEffectEnabled}
-                        onChange={(e) => setGlassEffectEnabled(e.target.checked)}
+                        onChange={(e) => {
+                          setGlassEffectEnabled(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -314,6 +332,7 @@ export function Settings() {
                     <input
                       type="text"
                       defaultValue={userName.split(" ")[0]}
+                      onChange={() => setHasUnsavedChanges(true)}
                       className="w-full border border-border bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -322,6 +341,7 @@ export function Settings() {
                     <input
                       type="text"
                       defaultValue={userName.split(" ")[1] || ""}
+                      onChange={() => setHasUnsavedChanges(true)}
                       className="w-full border border-border bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -353,7 +373,10 @@ export function Settings() {
 
                   <select
                     value={defaultLandingPage}
-                    onChange={(e) => setDefaultLandingPage(e.target.value)}
+                    onChange={(e) => {
+                      setDefaultLandingPage(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
                     className="w-full sm:w-80 border border-border bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="/dashboard">📊 Dashboard Overview</option>
@@ -380,7 +403,10 @@ export function Settings() {
                       <input
                         type="checkbox"
                         checked={autoCleanNulls}
-                        onChange={(e) => setAutoCleanNulls(e.target.checked)}
+                        onChange={(e) => {
+                          setAutoCleanNulls(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -420,7 +446,10 @@ export function Settings() {
                     <input
                       type="checkbox"
                       checked={emailAlerts}
-                      onChange={(e) => setEmailAlerts(e.target.checked)}
+                      onChange={(e) => {
+                        setEmailAlerts(e.target.checked);
+                        setHasUnsavedChanges(true);
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -436,7 +465,10 @@ export function Settings() {
                     <input
                       type="checkbox"
                       checked={dataSyncNotifs}
-                      onChange={(e) => setDataSyncNotifs(e.target.checked)}
+                      onChange={(e) => {
+                        setDataSyncNotifs(e.target.checked);
+                        setHasUnsavedChanges(true);
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -458,6 +490,7 @@ export function Settings() {
                       <input
                         type="password"
                         placeholder="••••••••"
+                        onChange={() => setHasUnsavedChanges(true)}
                         className="w-full border border-border bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary"
                       />
                     </div>
@@ -466,11 +499,12 @@ export function Settings() {
                       <input
                         type="password"
                         placeholder="Enter new password"
+                        onChange={() => setHasUnsavedChanges(true)}
                         className="w-full border border-border bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors w-fit shadow-xs">
+                  <button className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors w-fit shadow-xs cursor-pointer">
                     Update Security Password
                   </button>
                 </div>
@@ -485,7 +519,10 @@ export function Settings() {
                       <input
                         type="checkbox"
                         checked={twoFactorAuth}
-                        onChange={(e) => setTwoFactorAuth(e.target.checked)}
+                        onChange={(e) => {
+                          setTwoFactorAuth(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -567,7 +604,7 @@ export function Settings() {
               </div>
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="text-textMuted hover:text-textPrimary transition-colors p-1"
+                className="text-textMuted hover:text-textPrimary transition-colors p-1 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
