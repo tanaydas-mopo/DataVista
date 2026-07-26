@@ -201,8 +201,8 @@ export function Settings() {
             <CardTitle className="text-base font-bold flex items-center gap-2">
               {tabs.find((t) => t.id === activeTab)?.label}
             </CardTitle>
-            <span className="text-[11px] font-semibold text-textMuted bg-primary-soft/30 px-2.5 py-1 rounded-lg border border-border">
-              Auto-Saved Locally
+            <span className="text-[11px] font-bold text-emerald-500 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/30 flex items-center gap-1">
+              <Check className="w-3.5 h-3.5 text-emerald-500" /> Saved
             </span>
           </CardHeader>
 

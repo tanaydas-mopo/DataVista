@@ -15,6 +15,11 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 
+function DefaultRedirect() {
+  const defaultPage = localStorage.getItem("datavista_default_page") || "/dashboard";
+  return <Navigate to={defaultPage} replace />;
+}
+
 function App() {
   // Initialize saved theme preference on boot
   useEffect(() => {
@@ -36,7 +41,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Navigate to="/upload-dataset" replace />} />
+              <Route path="/" element={<DefaultRedirect />} />
               <Route path="/upload-dataset" element={<UploadDataset />} />
               <Route path="/dashboard" element={<AppShell><DashboardOverview /></AppShell>} />
               <Route path="/data-schema" element={<AppShell><DataSchema /></AppShell>} />
