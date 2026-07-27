@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
-import { CloudUpload, FileUp, CheckCircle2, Clock, FolderOpen, LogOut, Trash2, Sparkles, ArrowRight, FileSpreadsheet, RotateCcw, TrendingUp, ShieldCheck } from 'lucide-react';
+import {
+  CloudUpload,
+  FileUp,
+  CheckCircle2,
+  Clock,
+  FolderOpen,
+  LogOut,
+  Trash2,
+  Sparkles,
+  ArrowRight,
+  FileSpreadsheet,
+  RotateCcw,
+  TrendingUp,
+  ShieldCheck,
+  Activity,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
@@ -57,16 +72,16 @@ export function UploadDataset() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary overflow-y-auto font-sans p-6 transition-colors duration-200 transform-gpu">
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary overflow-hidden font-sans p-6 transition-colors duration-200 transform-gpu">
       {/* Dynamic Continuous Floating Ambient Background Orbs */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-36 -left-36 w-[550px] h-[550px] rounded-full bg-blue-500/15 dark:bg-blue-500/20 blur-3xl animate-glow-pulse" />
-        <div className="absolute -bottom-36 -right-36 w-[600px] h-[600px] rounded-full bg-purple-500/15 dark:bg-purple-500/20 blur-3xl animate-glow-pulse" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/15 blur-3xl animate-pulse" />
+        <div className="absolute -top-36 -left-36 w-[600px] h-[600px] rounded-full bg-blue-500/15 dark:bg-blue-500/25 blur-3xl animate-glow-pulse" />
+        <div className="absolute -bottom-36 -right-36 w-[650px] h-[650px] rounded-full bg-purple-500/15 dark:bg-purple-500/25 blur-3xl animate-glow-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/20 blur-3xl animate-pulse" />
 
-        {/* Subtle Tech Pattern Grid Lines */}
+        {/* Subtle Tech Grid Lines */}
         <svg
-          className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.08] stroke-textPrimary pointer-events-none z-0"
+          className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.09] stroke-textPrimary pointer-events-none z-0"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
@@ -78,23 +93,47 @@ export function UploadDataset() {
         </svg>
 
         {/* Floating Zero-Gravity Side Analytics Micro-Widgets */}
-        <div className="hidden lg:flex absolute left-8 top-1/3 z-10 items-center gap-3 p-3 bg-surface/90 backdrop-blur-md rounded-2xl border border-border shadow-lg animate-float-slow transform-gpu">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold">
-            <TrendingUp className="w-4 h-4" />
+        {/* Left Top Card */}
+        <div className="hidden md:flex absolute left-6 lg:left-12 top-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-slow transform-gpu">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold">
+            <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-textPrimary">Auto Chart Engine</p>
+            <p className="text-xs font-bold text-textPrimary">Auto Chart Engine</p>
             <p className="text-[10px] font-medium text-textSecondary">Real-time dynamic visualization</p>
           </div>
         </div>
 
-        <div className="hidden lg:flex absolute right-8 bottom-1/3 z-10 items-center gap-3 p-3 bg-surface/90 backdrop-blur-md rounded-2xl border border-border shadow-lg animate-float-delayed transform-gpu">
-          <div className="w-9 h-9 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold">
-            <ShieldCheck className="w-4 h-4" />
+        {/* Left Bottom Card */}
+        <div className="hidden md:flex absolute left-8 lg:left-16 bottom-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-delayed transform-gpu">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center font-bold">
+            <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-textPrimary">Binary CSV/XLSX Inspection</p>
+            <p className="text-xs font-bold text-textPrimary">AI Data Cleaner</p>
+            <p className="text-[10px] font-medium text-textSecondary">Auto-detects missing nulls</p>
+          </div>
+        </div>
+
+        {/* Right Top Card */}
+        <div className="hidden md:flex absolute right-6 lg:right-12 top-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-delayed transform-gpu">
+          <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-textPrimary">Binary Inspection</p>
             <p className="text-[10px] font-medium text-textSecondary">100% data integrity validation</p>
+          </div>
+        </div>
+
+        {/* Right Bottom Card */}
+        <div className="hidden md:flex absolute right-8 lg:right-16 bottom-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-slow transform-gpu">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-500 flex items-center justify-center font-bold">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-textPrimary">Realtime Cloud Sync</p>
+            <p className="text-[10px] font-medium text-textSecondary">Supabase backend pipeline</p>
           </div>
         </div>
       </div>
@@ -141,7 +180,7 @@ export function UploadDataset() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              {/* Cloud Icon with Continuous Breathing Pulse */}
+              {/* Cloud Icon with Continuous Levitating Pulse */}
               <div
                 className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-md ${
                   file
@@ -170,19 +209,19 @@ export function UploadDataset() {
 
                   {/* Floating Levitating Format Badges */}
                   <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
+                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
                       CSV
                     </span>
                     <span className="text-textMuted">•</span>
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
+                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
                       XLSX
                     </span>
                     <span className="text-textMuted">•</span>
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
+                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
                       TSV
                     </span>
                     <span className="text-textMuted">•</span>
-                    <span className="px-3 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
+                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
                       JSON
                     </span>
                   </div>
