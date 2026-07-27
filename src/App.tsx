@@ -16,7 +16,7 @@ import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 
 function DefaultRedirect() {
-  const defaultPage = localStorage.getItem("datavista_default_page") || "/dashboard";
+  const defaultPage = localStorage.getItem("datavista_default_page") || "/upload-dataset";
   return <Navigate to={defaultPage} replace />;
 }
 

@@ -14,6 +14,7 @@ import {
   Upload,
   Trash2,
   FileText,
+  CloudUpload,
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { cn } from "../../lib/utils";
@@ -238,6 +239,12 @@ export function Sidebar({ className }: { className?: string }) {
       {/* Option 2: Main Navigation Items with Individual Three Dots (...) Menus */}
       <nav className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
         <div className="space-y-1">
+          <SidebarItem
+            href="/upload-dataset"
+            icon={CloudUpload}
+            label="Upload Dataset"
+            quickActionLabel="New Analysis"
+          />
           <SidebarItem
             href="/dashboard"
             icon={LayoutDashboard}
