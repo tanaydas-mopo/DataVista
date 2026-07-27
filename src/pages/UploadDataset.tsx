@@ -29,6 +29,17 @@ export function UploadDataset() {
 
   const isDatasetActive = dataset.status === "active";
 
+  // Helper to format file size intelligently (B, KB, MB) with preset fallback
+  const getFormattedSize = (uploadFile: File | null, fallbackSize?: string) => {
+    if (uploadFile && uploadFile.size > 0) {
+      const bytes = uploadFile.size;
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+    return fallbackSize || "4.82 MB";
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -54,7 +65,12 @@ export function UploadDataset() {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {
+      if (isDatasetActive) {
+        navigate('/dashboard');
+      }
+      return;
+    }
     setIsUploading(true);
     try {
       await uploadDataset(file);
@@ -70,6 +86,8 @@ export function UploadDataset() {
     await supabase.auth.signOut();
     navigate('/login');
   };
+
+  const hasActiveOrSelectedFile = !!file || isDatasetActive;
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary font-sans p-4 sm:p-6 transition-colors duration-200 transform-gpu">
@@ -199,19 +217,21 @@ export function UploadDataset() {
               {/* Cloud Icon with Continuous Levitating Pulse */}
               <div
                 className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-md ${
-                  file
+                  hasActiveOrSelectedFile
                     ? 'bg-emerald-500 text-white scale-110'
                     : 'bg-primary text-white shadow-blue-500/20 animate-float-slow'
                 }`}
               >
-                {file ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
+                {hasActiveOrSelectedFile ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
               </div>
 
-              {file ? (
+              {hasActiveOrSelectedFile ? (
                 <div className="space-y-2 mb-6">
-                  <p className="text-base font-bold text-textPrimary">{file.name}</p>
+                  <p className="text-base font-bold text-textPrimary">
+                    {file ? file.name : dataset.name}
+                  </p>
                   <p className="text-xs font-bold text-emerald-500 bg-emerald-500/15 inline-block px-3.5 py-1 rounded-full border border-emerald-500/30">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB • Ready to analyze
+                    {getFormattedSize(file, dataset.fileSize)} • Ready to analyze
                   </p>
                 </div>
               ) : (
@@ -248,8 +268,8 @@ export function UploadDataset() {
                 </>
               )}
 
-              {/* Browse Button */}
-              {!file ? (
+              {/* Browse & Action Buttons */}
+              {!hasActiveOrSelectedFile ? (
                 <label className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-primary bg-surface border border-primary/40 rounded-xl shadow-xs cursor-pointer hover:bg-primary hover:text-white transition-all duration-200 active:scale-95">
                   <FolderOpen className="w-4 h-4" />
                   Browse Files
