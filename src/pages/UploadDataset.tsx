@@ -72,16 +72,16 @@ export function UploadDataset() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary overflow-hidden font-sans p-6 transition-colors duration-200 transform-gpu">
-      {/* Dynamic Continuous Floating Ambient Background Orbs */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-36 -left-36 w-[600px] h-[600px] rounded-full bg-blue-500/15 dark:bg-blue-500/25 blur-3xl animate-glow-pulse" />
-        <div className="absolute -bottom-36 -right-36 w-[650px] h-[650px] rounded-full bg-purple-500/15 dark:bg-purple-500/25 blur-3xl animate-glow-pulse" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/20 blur-3xl animate-pulse" />
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary font-sans p-4 sm:p-6 transition-colors duration-200 transform-gpu">
+      {/* Background Ambient Glowing Orbs */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-36 -left-36 w-[600px] h-[600px] rounded-full bg-blue-500/20 blur-3xl animate-glow-pulse" />
+        <div className="absolute -bottom-36 -right-36 w-[650px] h-[650px] rounded-full bg-purple-500/20 blur-3xl animate-glow-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-cyan-400/15 blur-3xl animate-pulse" />
 
         {/* Subtle Tech Grid Lines */}
         <svg
-          className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.09] stroke-textPrimary pointer-events-none z-0"
+          className="absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.1] stroke-textPrimary pointer-events-none"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
@@ -91,49 +91,49 @@ export function UploadDataset() {
           </defs>
           <rect width="100%" height="100%" fill="url(#grid-pattern)" />
         </svg>
+      </div>
 
-        {/* Floating Zero-Gravity Side Analytics Micro-Widgets */}
-        {/* Left Top Card */}
-        <div className="hidden md:flex absolute left-6 lg:left-12 top-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-slow transform-gpu">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold">
+      {/* Prominent Floating Zero-Gravity Side Analytics Micro-Widgets (Desktop / Laptops) */}
+      <div className="hidden xl:flex fixed left-6 top-32 z-20 flex-col gap-4 pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-slow transform-gpu max-w-[220px]">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold shrink-0">
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
             <p className="text-xs font-bold text-textPrimary">Auto Chart Engine</p>
-            <p className="text-[10px] font-medium text-textSecondary">Real-time dynamic visualization</p>
+            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Real-time dynamic visualization</p>
           </div>
         </div>
 
-        {/* Left Bottom Card */}
-        <div className="hidden md:flex absolute left-8 lg:left-16 bottom-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-delayed transform-gpu">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center font-bold">
+        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-delayed transform-gpu max-w-[220px]">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center font-bold shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
             <p className="text-xs font-bold text-textPrimary">AI Data Cleaner</p>
-            <p className="text-[10px] font-medium text-textSecondary">Auto-detects missing nulls</p>
+            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Auto-detects missing nulls</p>
           </div>
         </div>
+      </div>
 
-        {/* Right Top Card */}
-        <div className="hidden md:flex absolute right-6 lg:right-12 top-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-delayed transform-gpu">
-          <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold">
+      <div className="hidden xl:flex fixed right-6 top-32 z-20 flex-col gap-4 pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-delayed transform-gpu max-w-[220px]">
+          <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold shrink-0">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
             <p className="text-xs font-bold text-textPrimary">Binary Inspection</p>
-            <p className="text-[10px] font-medium text-textSecondary">100% data integrity validation</p>
+            <p className="text-[10px] font-medium text-textSecondary mt-0.5">100% data integrity validation</p>
           </div>
         </div>
 
-        {/* Right Bottom Card */}
-        <div className="hidden md:flex absolute right-8 lg:right-16 bottom-1/4 z-10 items-center gap-3 p-3.5 bg-surface/90 backdrop-blur-xl rounded-2xl border border-border shadow-xl animate-float-slow transform-gpu">
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-500 flex items-center justify-center font-bold">
+        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-slow transform-gpu max-w-[220px]">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-500 flex items-center justify-center font-bold shrink-0">
             <Activity className="w-5 h-5" />
           </div>
           <div>
             <p className="text-xs font-bold text-textPrimary">Realtime Cloud Sync</p>
-            <p className="text-[10px] font-medium text-textSecondary">Supabase backend pipeline</p>
+            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Supabase backend pipeline</p>
           </div>
         </div>
       </div>
@@ -152,10 +152,10 @@ export function UploadDataset() {
       </header>
 
       {/* Main Content Area */}
-      <main className="relative z-10 max-w-2xl w-full flex flex-col items-center my-auto py-8">
+      <main className="relative z-10 max-w-2xl w-full flex flex-col items-center my-auto py-6">
         <div className="w-full flex flex-col items-center transform-gpu">
           {/* Header Section */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold mb-3 shadow-xs">
               <Sparkles className="w-3.5 h-3.5 animate-pulse" />
               Data Analytics Portal
@@ -166,6 +166,22 @@ export function UploadDataset() {
             <p className="text-sm md:text-base text-textSecondary max-w-lg mx-auto leading-relaxed">
               Upload your dataset to begin your analytics workflow. DataVista will inspect, clean, analyze, and visualize your data.
             </p>
+          </div>
+
+          {/* Floating Mobile/Tablet Micro-Cards (Shown on smaller screens) */}
+          <div className="flex xl:hidden flex-wrap items-center justify-center gap-3 mb-6 w-full">
+            <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-slow">
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+              <span className="text-[11px] font-bold text-textPrimary">Auto Charts</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-delayed">
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              <span className="text-[11px] font-bold text-textPrimary">AI Data Cleaner</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-slow">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span className="text-[11px] font-bold text-textPrimary">100% Binary Check</span>
+            </div>
           </div>
 
           {/* Main Card: Dropzone */}
