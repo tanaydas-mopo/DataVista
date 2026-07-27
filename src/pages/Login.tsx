@@ -28,8 +28,7 @@ export function Login() {
       setError(error.message);
       setLoading(false);
     } else {
-      const defaultPage = localStorage.getItem("datavista_default_page") || "/upload-dataset";
-      navigate(defaultPage);
+      navigate('/upload-dataset');
     }
   };
 
