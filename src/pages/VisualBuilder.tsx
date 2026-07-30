@@ -3,7 +3,7 @@ import {
   BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, Layers, Sparkles, Compass, Settings2, Save, Database, CheckCircle2,
   Filter, Download, Maximize2, SlidersHorizontal, Bot, ArrowUpDown, X,
-  Table, Grid, HelpCircle, AlertCircle, RefreshCw, Eye, Plus, Trash2
+  Table, Grid, HelpCircle, RefreshCw, Eye, Plus, Trash2
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -58,94 +58,58 @@ const ALL_CHART_TYPES = [
 ];
 
 /* ─────────────────────────────────────────────
-   COLUMN TYPE DETECTION
+   ROBUST DYNAMIC AGGREGATION ENGINE
+   - Numeric columns: calculate real Sum, Avg, Max, Min, Median, etc.
+   - Text columns: count record occurrences or count distinct unique items.
 ───────────────────────────────────────────── */
-function detectColType(colName: string, sampleVals: any[]): "text" | "year" | "numeric" {
-  const colLower = colName.toLowerCase();
-  const isYearOrDateNamed = colLower.includes("season") || colLower.includes("year") ||
-    colLower.includes("date") || colLower === "id" || colLower.endsWith("_id");
+function computeSmartAgg(rawVals: any[], mode: string): number {
+  if (!rawVals || rawVals.length === 0) return 0;
 
-  const cleanedStrings = sampleVals.map(v => String(v ?? "").trim()).filter(v => v.length > 0);
-  const numericVals = cleanedStrings.map(Number).filter(n => !isNaN(n));
-  const numericRatio = cleanedStrings.length > 0 ? numericVals.length / cleanedStrings.length : 0;
+  const cleaned = rawVals.map(v => String(v ?? "").trim()).filter(v => v.length > 0);
+  if (cleaned.length === 0) return 0;
 
-  if (numericRatio < 0.5) return "text";
-  if (isYearOrDateNamed) return "year";
-  // Numeric that looks like years (range 1900–2100) 
-  if (numericVals.length > 0 && numericVals.every(n => n >= 1900 && n <= 2100)) return "year";
-  return "numeric";
-}
-
-/* ─────────────────────────────────────────────
-   SMART DYNAMIC AGGREGATION ENGINE
-   Rules:
-   - "count"        → always count raw records regardless of column type
-   - "count-distinct" → always count unique string values
-   - text column    → count distinct values (unless user chose count/count-distinct explicitly)
-   - year column    → show the year label itself (first/most common value); for measures sum = count records, avg = mean year
-   - numeric column → apply math (sum/avg/max/min/median etc.)
-───────────────────────────────────────────── */
-function computeSmartAgg(
-  rawVals: any[],
-  mode: string,
-  colType: "text" | "year" | "numeric"
-): { value: number; autoMode: string } {
-  if (!rawVals || rawVals.length === 0) return { value: 0, autoMode: mode };
-
-  const cleanedStrings = rawVals.map(v => String(v ?? "").trim()).filter(v => v.length > 0);
-  const numericVals = cleanedStrings.map(Number).filter(n => !isNaN(n));
-
-  // Explicit modes that always behave the same regardless of column type
-  if (mode === "count") return { value: rawVals.length, autoMode: "count" };
-  if (mode === "count-distinct") return { value: new Set(cleanedStrings).size, autoMode: "count-distinct" };
-  if (mode === "max") {
-    if (numericVals.length > 0) return { value: Math.max(...numericVals), autoMode: "max" };
-    return { value: 0, autoMode: "max" };
-  }
-  if (mode === "min") {
-    if (numericVals.length > 0) return { value: Math.min(...numericVals), autoMode: "min" };
-    return { value: 0, autoMode: "min" };
+  // Extract numbers (ignoring currency & commas)
+  const numVals: number[] = [];
+  for (const str of cleaned) {
+    const parsed = Number(str.replace(/[\$,]/g, ""));
+    if (!isNaN(parsed)) numVals.push(parsed);
   }
 
-  // Text columns: for sum/avg default → count distinct values in this group
-  if (colType === "text") {
-    const distinct = new Set(cleanedStrings).size;
-    return { value: distinct, autoMode: "distinct" };
+  const isNumericCol = numVals.length >= cleaned.length * 0.5;
+
+  if (mode === "count") return rawVals.length;
+  if (mode === "count-distinct") return new Set(cleaned).size;
+
+  // Non-numeric text column
+  if (!isNumericCol) {
+    if (mode === "count-distinct") return new Set(cleaned).size;
+    return rawVals.length;
   }
 
-  // Year columns: for sum → count records (matches played), avg → mean year (representative)
-  if (colType === "year") {
-    if (mode === "avg") {
-      if (numericVals.length === 0) return { value: 0, autoMode: "avg" };
-      const avg = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
-      return { value: Math.round(avg), autoMode: "avg-year" };
-    }
-    // sum mode on year column → count records (e.g., matches in this season)
-    return { value: rawVals.length, autoMode: "count" };
-  }
-
-  // Pure numeric column: full math
-  if (numericVals.length === 0) return { value: rawVals.length, autoMode: "count" };
-
+  // Numeric column -> exact mathematical computation
   let val = 0;
   if (mode === "avg") {
-    val = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
+    val = numVals.reduce((a, b) => a + b, 0) / numVals.length;
+  } else if (mode === "max") {
+    val = Math.max(...numVals);
+  } else if (mode === "min") {
+    val = Math.min(...numVals);
   } else if (mode === "median") {
-    const s = [...numericVals].sort((a, b) => a - b);
+    const s = [...numVals].sort((a, b) => a - b);
     const m = Math.floor(s.length / 2);
     val = s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
   } else if (mode === "stddev") {
-    const m = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
-    val = Math.sqrt(numericVals.reduce((a, b) => a + (b - m) ** 2, 0) / numericVals.length);
+    const mean = numVals.reduce((a, b) => a + b, 0) / numVals.length;
+    val = Math.sqrt(numVals.reduce((a, b) => a + (b - mean) ** 2, 0) / numVals.length);
   } else if (mode === "variance") {
-    const m = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
-    val = numericVals.reduce((a, b) => a + (b - m) ** 2, 0) / numericVals.length;
+    const mean = numVals.reduce((a, b) => a + b, 0) / numVals.length;
+    val = numVals.reduce((a, b) => a + (b - mean) ** 2, 0) / numVals.length;
   } else {
-    // sum (default)
-    val = numericVals.reduce((a, b) => a + b, 0);
+    // Default sum
+    val = numVals.reduce((a, b) => a + b, 0);
   }
 
-  return { value: Math.round(val * 100) / 100, autoMode: mode };
+  return Math.round(val * 100) / 100;
 }
 
 function formatVal(n: number, fmt: string, decimals: number, curr: string): string {
@@ -160,7 +124,7 @@ function formatVal(n: number, fmt: string, decimals: number, curr: string): stri
 }
 
 /* ─────────────────────────────────────────────
-   GAUGE CHART (SVG arc-based)
+   SVG GAUGE CHART
 ───────────────────────────────────────────── */
 function GaugeChart({ value, maxValue, color, label }: { value: number; maxValue: number; color: string; label: string }) {
   const pct = Math.min(Math.max(value / (maxValue || 1), 0), 1);
@@ -169,6 +133,7 @@ function GaugeChart({ value, maxValue, color, label }: { value: number; maxValue
   const cx = 110, cy = 110;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const startAngle = -135, endAngle = -135 + 270;
+
   const arcPath = (fromDeg: number, toDeg: number, stroke: string, opacity = 1) => {
     const sx = cx + r * Math.cos(toRad(fromDeg));
     const sy = cy + r * Math.sin(toRad(fromDeg));
@@ -209,7 +174,7 @@ function GaugeChart({ value, maxValue, color, label }: { value: number; maxValue
 }
 
 /* ─────────────────────────────────────────────
-   FUNNEL CHART (HTML-based)
+   HTML FUNNEL CHART
 ───────────────────────────────────────────── */
 function FunnelChart({ data, palette }: { data: { label: string; value: number; color: string }[]; palette: string[] }) {
   if (!data || data.length === 0) return null;
@@ -287,34 +252,14 @@ export function VisualBuilder() {
   const isUploaded = dataset.status === "active";
   const palette = PALETTES[paletteKey] || PALETTES.default;
 
+  /* ── Extract Available Columns ── */
   const columns = useMemo(() => {
     if (dataset.rawHeaders && dataset.rawHeaders.length > 0) return dataset.rawHeaders;
     if (dataset.tableHeaders && dataset.tableHeaders.length > 0) return dataset.tableHeaders;
-    return ["Category", "Sales", "Date", "Quantity"];
+    return ["Team", "Total_Runs", "Matches_Won", "Wickets"];
   }, [dataset]);
 
-  const currentX = selectedX || columns[0] || "Category";
-  const primaryY = selectedYCols[0] || columns[1] || columns[0] || "Sales";
-  const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3500);
-  };
-
-  /* ── AI Recommendation Engine ── */
-  const aiRecommendation = useMemo(() => {
-    const xLower = currentX.toLowerCase();
-    if (xLower.includes("date") || xLower.includes("year") || xLower.includes("month") || xLower.includes("season")) {
-      return { type: "line", title: "Line Chart" };
-    }
-    if (yCols.length > 1) {
-      return { type: "combi", title: "Combo Chart" };
-    }
-    return { type: "bar", title: "Bar Chart" };
-  }, [currentX, yCols]);
-
-  /* ── Extract Raw Rows ── */
+  /* ── Extract All Rows ── */
   const allRows = useMemo((): Record<string, any>[] => {
     if (!isUploaded) return [];
     if (dataset.rawRows && dataset.rawRows.length > 0 && dataset.rawHeaders) {
@@ -328,22 +273,42 @@ export function VisualBuilder() {
     return [];
   }, [dataset, isUploaded]);
 
-  /* ── Detect column types from raw data sample ── */
-  const colTypeMap = useMemo((): Record<string, "text" | "year" | "numeric"> => {
-    if (allRows.length === 0) return {};
-    const sample = allRows.slice(0, Math.min(200, allRows.length));
-    const map: Record<string, "text" | "year" | "numeric"> = {};
+  /* ── Detect numeric vs text columns for UI labels ── */
+  const colTypes = useMemo(() => {
+    const map: Record<string, boolean> = {};
     columns.forEach(col => {
-      const vals = sample.map(r => r[col]);
-      map[col] = detectColType(col, vals);
+      const vals = allRows.slice(0, 100).map(r => String(r[col] ?? "").trim()).filter(v => v.length > 0);
+      const nums = vals.map(v => Number(v.replace(/[\$,]/g, ""))).filter(n => !isNaN(n));
+      map[col] = nums.length >= vals.length * 0.5;
     });
     return map;
-  }, [allRows, columns]);
+  }, [columns, allRows]);
 
-  /* ── Dynamic Dataset Aggregation Engine ── */
-  const { chartData, rawGroupedRows, activeAggNotes, scatterRawData } = useMemo(() => {
+  /* ── Intelligent Default Selections ── */
+  const currentX = selectedX || columns.find(c => !colTypes[c]) || columns[0] || "Team";
+  const defaultY = columns.find(c => colTypes[c] && c !== currentX) || columns[1] || columns[0] || "Total_Runs";
+  const primaryY = selectedYCols[0] || defaultY;
+  const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  /* ── AI Recommendation ── */
+  const aiRecommendation = useMemo(() => {
+    if (yCols.length > 1) return { type: "combi", title: "Combo Chart" };
+    const xLower = currentX.toLowerCase();
+    if (xLower.includes("date") || xLower.includes("year") || xLower.includes("month")) {
+      return { type: "line", title: "Line Chart" };
+    }
+    return { type: "bar", title: "Bar Chart" };
+  }, [currentX, yCols]);
+
+  /* ── Dynamic Dataset Aggregation ── */
+  const { chartData, rawGroupedRows, scatterRawData } = useMemo(() => {
     if (!isUploaded || allRows.length === 0) {
-      return { chartData: [], rawGroupedRows: {}, activeAggNotes: [], scatterRawData: [] };
+      return { chartData: [], rawGroupedRows: {}, scatterRawData: [] };
     }
 
     // Apply Active In-Builder Filters
@@ -360,17 +325,14 @@ export function VisualBuilder() {
       })
     );
 
-    // Build scatter raw data (plot every individual row for scatter/bubble)
+    // Build scatter raw data
     const scatterData = filteredRows.slice(0, 200).map(row => {
-      const xRaw = row[currentX];
-      const yRaw = row[primaryY];
-      const xNum = Number(xRaw);
-      const yNum = Number(yRaw);
+      const xVal = Number(String(row[currentX] ?? "").replace(/[\$,]/g, ""));
+      const yVal = Number(String(row[primaryY] ?? "").replace(/[\$,]/g, ""));
       return {
-        x: isNaN(xNum) ? 0 : xNum,
-        y: isNaN(yNum) ? 0 : yNum,
-        xLabel: String(xRaw ?? ""),
-        name: String(xRaw ?? ""),
+        x: isNaN(xVal) ? 0 : xVal,
+        y: isNaN(yVal) ? 0 : yVal,
+        name: String(row[currentX] ?? ""),
       };
     });
 
@@ -382,7 +344,7 @@ export function VisualBuilder() {
       const xKey = row[currentX] !== undefined && row[currentX] !== null
         ? String(row[currentX]).trim()
         : "General";
-      if (!xKey || xKey.startsWith("PK")) return;
+      if (!xKey) return;
 
       if (!grouped[xKey]) {
         grouped[xKey] = {};
@@ -397,7 +359,6 @@ export function VisualBuilder() {
     });
 
     const keys = Object.keys(grouped);
-    const aggNotes: string[] = [];
 
     // Build data points for each category key
     const dataPoints = keys.map((key, idx) => {
@@ -409,13 +370,9 @@ export function VisualBuilder() {
 
       yCols.forEach(yCol => {
         const rawVals = grouped[key][yCol] || [];
-        const colType = colTypeMap[yCol] || "numeric";
-        const { value, autoMode } = computeSmartAgg(rawVals, measureType, colType);
+        const value = computeSmartAgg(rawVals, measureType);
         item[yCol] = value;
         if (yCols.length === 1) item.value = value;
-        if ((autoMode === "distinct" || autoMode === "count") && colType !== "numeric" && !aggNotes.includes(yCol)) {
-          aggNotes.push(yCol);
-        }
       });
       return item;
     });
@@ -430,12 +387,11 @@ export function VisualBuilder() {
     return {
       chartData: dataPoints.slice(0, 15),
       rawGroupedRows: groupedRawRecords,
-      activeAggNotes: aggNotes,
       scatterRawData: scatterData,
     };
-  }, [allRows, isUploaded, currentX, yCols, primaryY, measureType, activeFilters, sortOrder, palette, colTypeMap]);
+  }, [allRows, isUploaded, currentX, yCols, primaryY, measureType, activeFilters, sortOrder, palette]);
 
-  /* ── Waterfall Data Builder ── */
+  /* ── Waterfall Data ── */
   const waterfallData = useMemo(() => {
     if (chartData.length === 0) return [];
     let running = 0;
@@ -447,12 +403,12 @@ export function VisualBuilder() {
     });
   }, [chartData, primaryY]);
 
-  /* ── Box Plot Stats ── */
+  /* ── Box Plot Data ── */
   const boxPlotData = useMemo(() => {
     if (activeChartType !== "boxplot" || allRows.length === 0) return [];
     return chartData.map(d => {
       const rawVals = (allRows.filter(r => String(r[currentX] ?? "").trim() === d.fullLabel)
-        .map(r => Number(r[primaryY]))
+        .map(r => Number(String(r[primaryY] ?? "").replace(/[\$,]/g, "")))
         .filter(n => !isNaN(n))
         .sort((a, b) => a - b));
       if (rawVals.length === 0) return null;
@@ -469,15 +425,15 @@ export function VisualBuilder() {
   /* ── Histogram Bins ── */
   const histogramBins = useMemo(() => {
     if (activeChartType !== "histogram" || allRows.length === 0) return [];
-    const vals = allRows.map(r => Number(r[primaryY])).filter(n => !isNaN(n));
+    const vals = allRows.map(r => Number(String(r[primaryY] ?? "").replace(/[\$,]/g, ""))).filter(n => !isNaN(n));
     if (vals.length === 0) return [];
     const min = Math.min(...vals);
     const max = Math.max(...vals);
-    const step = (max - min) / 8 || 1;
-    return Array.from({ length: 8 }, (_, i) => {
+    const step = (max - min) / 6 || 1;
+    return Array.from({ length: 6 }, (_, i) => {
       const start = min + i * step;
       const end = min + (i + 1) * step;
-      const count = vals.filter(v => v >= start && v < (i === 7 ? end + 1 : end)).length;
+      const count = vals.filter(v => v >= start && v < (i === 5 ? end + 1 : end)).length;
       return { label: `${Math.round(start)}-${Math.round(end)}`, value: count, color: palette[i % palette.length] };
     }).filter(b => b.value > 0);
   }, [activeChartType, allRows, primaryY, palette]);
@@ -615,7 +571,7 @@ export function VisualBuilder() {
                     className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
                   >
                     {columns.map((col, i) => (
-                      <option key={i} value={col}>{col} [{colTypeMap[col] || "?"}]</option>
+                      <option key={i} value={col}>{col} {colTypes[col] ? "[numeric]" : "[text]"}</option>
                     ))}
                   </select>
                 </div>
@@ -648,21 +604,14 @@ export function VisualBuilder() {
                   >
                     <option value="">+ Add Measure…</option>
                     {columns.filter(c => !yCols.includes(c)).map((col, i) => (
-                      <option key={i} value={col}>{col} [{colTypeMap[col] || "?"}]</option>
+                      <option key={i} value={col}>{col} {colTypes[col] ? "[numeric]" : "[text]"}</option>
                     ))}
                   </select>
                 </div>
 
                 {/* Aggregation Mode */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-textPrimary">Aggregation Mode</label>
-                    {activeAggNotes.length > 0 && (
-                      <span className="text-[10px] text-amber-600 font-bold bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-md border border-amber-400/30">
-                        Auto-adj
-                      </span>
-                    )}
-                  </div>
+                  <label className="text-xs font-bold text-textPrimary block mb-1">Aggregation Mode</label>
                   <select
                     value={measureType}
                     onChange={(e) => setMeasureType(e.target.value)}
@@ -678,11 +627,6 @@ export function VisualBuilder() {
                     <option value="stddev">Standard Deviation</option>
                     <option value="variance">Variance</option>
                   </select>
-                  {activeAggNotes.length > 0 && (
-                    <p className="text-[10px] text-textMuted mt-1 font-medium">
-                      ⚡ Auto mode for: {activeAggNotes.join(", ")} (text/date columns)
-                    </p>
-                  )}
                 </div>
 
                 {/* Controls */}
@@ -713,14 +657,9 @@ export function VisualBuilder() {
                 <CardTitle className="text-base font-bold text-textPrimary">
                   {customTitle || `${currentX} vs ${yCols.join(" & ")}`}
                 </CardTitle>
-                {customSubtitle ? (
+                {customSubtitle && (
                   <p className="text-xs text-textSecondary mt-0.5 font-medium">{customSubtitle}</p>
-                ) : activeAggNotes.length > 0 ? (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5 font-semibold flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    Auto-adjusted aggregation for text/date fields: {activeAggNotes.join(", ")}
-                  </p>
-                ) : null}
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -760,7 +699,7 @@ export function VisualBuilder() {
               ) : (
                 <div className="w-full" style={{ height: "360px", minHeight: "340px" }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    {/* ── BAR (Grouped / Stacked) ── */}
+                    {/* BAR (Grouped / Stacked) */}
                     {activeChartType === "bar" || activeChartType === "stacked-bar" ? (
                       <RechartsBarChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -773,7 +712,7 @@ export function VisualBuilder() {
                         ))}
                       </RechartsBarChart>
 
-                    /* ── HORIZONTAL BAR ── */
+                    /* HORIZONTAL BAR */
                     ) : activeChartType === "horizontal-bar" ? (
                       <RechartsBarChart layout="vertical" data={chartData} margin={{ top: 20, right: 20, left: 30, bottom: 10 }} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -786,7 +725,7 @@ export function VisualBuilder() {
                         ))}
                       </RechartsBarChart>
 
-                    /* ── LINE / MULTI-LINE ── */
+                    /* LINE / MULTI-LINE */
                     ) : activeChartType === "line" || activeChartType === "multi-line" ? (
                       <RechartsLineChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -799,7 +738,7 @@ export function VisualBuilder() {
                         ))}
                       </RechartsLineChart>
 
-                    /* ── AREA / STACKED AREA ── */
+                    /* AREA / STACKED AREA */
                     ) : activeChartType === "area" || activeChartType === "stacked-area" ? (
                       <RechartsAreaChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -812,7 +751,7 @@ export function VisualBuilder() {
                         ))}
                       </RechartsAreaChart>
 
-                    /* ── PIE / DONUT ── */
+                    /* PIE / DONUT */
                     ) : activeChartType === "pie" || activeChartType === "donut" ? (
                       <RechartsPieChart>
                         <Pie data={chartData} dataKey={primaryY} nameKey="label" cx="50%" cy="50%" outerRadius={120} innerRadius={activeChartType === "donut" ? 60 : 0} paddingAngle={3} label={({ name, percent }: any) => `${name} (${(percent * 100).toFixed(0)}%)`} isAnimationActive={false}>
@@ -824,7 +763,7 @@ export function VisualBuilder() {
                         {showLegend && <Legend verticalAlign="top" />}
                       </RechartsPieChart>
 
-                    /* ── RADAR ── */
+                    /* RADAR */
                     ) : activeChartType === "radar" ? (
                       <RechartsRadarChart cx="50%" cy="50%" outerRadius={110} data={chartData}>
                         <PolarGrid stroke="var(--color-border, #CBD5E1)" />
@@ -837,7 +776,7 @@ export function VisualBuilder() {
                         {showLegend && <Legend verticalAlign="top" />}
                       </RechartsRadarChart>
 
-                    /* ── SCATTER / BUBBLE — plots actual X,Y numeric data per row ── */
+                    /* SCATTER / BUBBLE */
                     ) : activeChartType === "scatter" || activeChartType === "bubble" ? (
                       <RechartsScatterChart margin={CHART_MARGIN}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #E2E8F0)" />}
@@ -876,7 +815,7 @@ export function VisualBuilder() {
                         </Scatter>
                       </RechartsScatterChart>
 
-                    /* ── HISTOGRAM ── */
+                    /* HISTOGRAM */
                     ) : activeChartType === "histogram" ? (
                       <RechartsBarChart data={histogramBins} margin={CHART_MARGIN}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -888,7 +827,7 @@ export function VisualBuilder() {
                         </Bar>
                       </RechartsBarChart>
 
-                    /* ── COMBO (Bar + Line) ── */
+                    /* COMBO (Bar + Line) */
                     ) : activeChartType === "combi" ? (
                       <RechartsComposedChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -902,7 +841,7 @@ export function VisualBuilder() {
                         ))}
                       </RechartsComposedChart>
 
-                    /* ── WATERFALL ── */
+                    /* WATERFALL */
                     ) : activeChartType === "waterfall" ? (
                       <RechartsComposedChart data={waterfallData} margin={CHART_MARGIN}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
@@ -913,7 +852,6 @@ export function VisualBuilder() {
                           formatter={(val: any, name: any) => String(name) === "invisible" ? [null, null] : [formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]}
                         />
                         {showLegend && <Legend verticalAlign="top" />}
-                        {/* Invisible baseline bars to float visible bars */}
                         <Bar dataKey="start" name="invisible" fill="transparent" stackId="wf" isAnimationActive={false} />
                         <Bar dataKey="value" name={primaryY} stackId="wf" isAnimationActive={false} radius={[4, 4, 0, 0]}>
                           {waterfallData.map((d, i) => (
@@ -923,7 +861,7 @@ export function VisualBuilder() {
                         <ReferenceLine y={0} stroke="var(--color-border, #E2E8F0)" strokeWidth={1.5} />
                       </RechartsComposedChart>
 
-                    /* ── HEATMAP / MATRIX ── */
+                    /* HEATMAP / MATRIX */
                     ) : activeChartType === "heatmap" || activeChartType === "matrix" ? (
                       <div className="w-full h-full overflow-auto p-1">
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 h-full content-start">
@@ -949,7 +887,7 @@ export function VisualBuilder() {
                         </div>
                       </div>
 
-                    /* ── TREEMAP ── */
+                    /* TREEMAP */
                     ) : activeChartType === "treemap" ? (
                       <RechartsBarChart data={chartData} margin={CHART_MARGIN}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} />}
@@ -961,7 +899,7 @@ export function VisualBuilder() {
                         ))}
                       </RechartsBarChart>
 
-                    /* ── FUNNEL ── */
+                    /* FUNNEL */
                     ) : activeChartType === "funnel" ? (
                       <div className="w-full h-full overflow-auto flex items-center justify-center">
                         <FunnelChart
@@ -970,7 +908,7 @@ export function VisualBuilder() {
                         />
                       </div>
 
-                    /* ── GAUGE ── */
+                    /* GAUGE */
                     ) : activeChartType === "gauge" ? (
                       <div className="w-full h-full flex flex-wrap items-center justify-center gap-6 overflow-auto p-4">
                         {yCols.map((yCol, i) => {
@@ -982,7 +920,7 @@ export function VisualBuilder() {
                         })}
                       </div>
 
-                    /* ── KPI CARD ── */
+                    /* KPI CARD */
                     ) : activeChartType === "kpi" ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full h-full items-center justify-center p-4 overflow-auto">
                         {yCols.map((yCol, i) => {
@@ -1006,7 +944,7 @@ export function VisualBuilder() {
                         })}
                       </div>
 
-                    /* ── TABLE ── */
+                    /* TABLE */
                     ) : activeChartType === "table" ? (
                       <div className="w-full h-full overflow-auto border border-border/80 rounded-xl">
                         <table className="w-full text-left text-xs whitespace-nowrap">
@@ -1031,23 +969,21 @@ export function VisualBuilder() {
                         </table>
                       </div>
 
-                    /* ── BOX PLOT ── */
+                    /* BOX PLOT */
                     ) : activeChartType === "boxplot" ? (
                       <RechartsComposedChart data={boxPlotData} margin={CHART_MARGIN}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
                         <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <Tooltip contentStyle={tooltipStyle} />
-                        {/* Min-Max whisker */}
                         <Bar dataKey="min" name="Min" fill="transparent" isAnimationActive={false} />
-                        {/* IQR box — using Q1 as baseline, value = Q3-Q1 */}
                         <Bar dataKey="q1" name="Q1" fill="transparent" stackId="box" isAnimationActive={false} />
                         <Bar dataKey="median" name="Median" fill={palette[0]} stackId="box" barSize={barWidth} radius={[0, 0, 0, 0]} isAnimationActive={false} />
                         <Bar dataKey="q3" name="Q3" fill={palette[0] + "60"} stackId="box" barSize={barWidth} radius={[4, 4, 0, 0]} isAnimationActive={false} />
                         <Legend verticalAlign="top" />
                       </RechartsComposedChart>
 
-                    /* ── DEFAULT FALLBACK ── */
+                    /* DEFAULT FALLBACK */
                     ) : (
                       <RechartsBarChart data={chartData} margin={CHART_MARGIN}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}

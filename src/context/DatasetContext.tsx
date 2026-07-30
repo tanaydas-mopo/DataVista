@@ -89,11 +89,18 @@ const defaultIplDataset: DatasetInfo = {
     { Player: "Ruturaj Gaikwad", Matches: 14, Runs: 493, Average: 35.21, "Strike Rate": 135.34, "100s": 0, "50s": 3 },
     { Player: "Suryakumar Yadav", Matches: 13, Runs: 472, Average: 39.33, "Strike Rate": 151.12, "100s": 0, "50s": 2 },
   ],
-  rawHeaders: ["match_id", "season", "date", "team1", "team2", "toss_winner", "result", "winner", "win_by_runs"],
+  rawHeaders: ["Team", "Season", "Matches_Played", "Matches_Won", "Matches_Lost", "Total_Runs", "Wickets", "Toss_Winner", "Margin_Runs"],
   rawRows: [
-    ["335982", "2007/08", "2008-04-18", "RCB", "KKR", "RCB", "normal", "KKR", "140"],
-    ["335983", "2007/08", "2008-04-19", "KXIP", "CSK", "CSK", "normal", "CSK", "33"],
-    ["335984", "2007/08", "2008-04-19", "DD", "RR", "RR", "normal", "DD", "9"],
+    ["CSK", "2024", "15", "11", "4", "2480", "105", "CSK", "45"],
+    ["MI", "2024", "15", "10", "5", "2350", "98", "MI", "38"],
+    ["RCB", "2024", "15", "9", "6", "2410", "92", "RCB", "28"],
+    ["KKR", "2024", "15", "9", "6", "2290", "110", "KKR", "35"],
+    ["SRH", "2024", "15", "8", "7", "2520", "88", "SRH", "62"],
+    ["RR", "2024", "15", "7", "8", "2180", "85", "RR", "20"],
+    ["DC", "2024", "15", "6", "9", "2120", "79", "DC", "15"],
+    ["PBKS", "2024", "15", "5", "10", "2050", "74", "PBKS", "12"],
+    ["LSG", "2024", "15", "5", "10", "1990", "70", "LSG", "18"],
+    ["GT", "2024", "15", "4", "11", "1950", "65", "GT", "8"]
   ],
 };
 
