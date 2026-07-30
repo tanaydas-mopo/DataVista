@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import {
   BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, Layers, Sparkles, Compass, Settings2, Save, Database, CheckCircle2,
-  Filter, Download, Maximize2, SlidersHorizontal, Bot, ArrowUpDown, X, ChevronDown,
-  Table, Grid, Check, HelpCircle, AlertCircle, RefreshCw, ZoomIn, ZoomOut, Eye, Plus, Trash2, ArrowRight
+  Filter, Download, Maximize2, SlidersHorizontal, Bot, ArrowUpDown, X,
+  Table, Grid, HelpCircle, AlertCircle, RefreshCw, Eye, Plus, Trash2
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -13,7 +13,7 @@ import {
   PieChart as RechartsPieChart, Pie, AreaChart as RechartsAreaChart, Area,
   RadarChart as RechartsRadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ScatterChart as RechartsScatterChart, Scatter, ComposedChart as RechartsComposedChart,
-  Treemap as RechartsTreemap, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend
 } from "recharts";
 
 /* ─────────────────────────────────────────────
@@ -107,7 +107,6 @@ export function VisualBuilder() {
   /* ── Modals / Panels State ── */
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showAiModal, setShowAiModal] = useState(false);
   const [showDrillThroughModal, setShowDrillThroughModal] = useState<any | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -115,13 +114,12 @@ export function VisualBuilder() {
   const [customTitle, setCustomTitle] = useState("");
   const [customSubtitle, setCustomSubtitle] = useState("");
   const [showLegend, setShowLegend] = useState(true);
-  const [legendPosition, setLegendPosition] = useState<"top" | "bottom" | "left" | "right">("top");
   const [showGrid, setShowGrid] = useState(true);
   const [valueFormat, setValueFormat] = useState<"number" | "currency" | "percent">("number");
-  const [currencySymbol, setCurrencySymbol] = useState("$");
-  const [decimalPlaces, setDecimalPlaces] = useState(2);
+  const [currencySymbol] = useState("$");
+  const [decimalPlaces] = useState(2);
   const [paletteKey, setPaletteKey] = useState<keyof typeof PALETTES>("default");
-  const [barWidth, setBarWidth] = useState(28);
+  const [barWidth] = useState(28);
 
   /* ── Filter State ── */
   const [filterCol, setFilterCol] = useState("");
@@ -525,7 +523,7 @@ export function VisualBuilder() {
                         <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <Tooltip contentStyle={tooltipStyle} formatter={(val: any) => formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign={legendPosition} />}
+                        {showLegend && <Legend verticalAlign="top" />}
                         {yCols.map((yCol, i) => (
                           <Bar key={yCol} dataKey={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} stackId={activeChartType === "stacked-bar" ? "a" : undefined} barSize={barWidth} isAnimationActive={false} />
                         ))}
@@ -544,7 +542,7 @@ export function VisualBuilder() {
                         <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <Tooltip contentStyle={tooltipStyle} />
-                        {showLegend && <Legend verticalAlign={legendPosition} />}
+                        {showLegend && <Legend verticalAlign="top" />}
                         {yCols.map((yCol, i) => (
                           <Line key={yCol} type="monotone" dataKey={yCol} stroke={palette[i % palette.length]} strokeWidth={3} dot={{ r: 5 }} isAnimationActive={false} />
                         ))}
@@ -584,7 +582,7 @@ export function VisualBuilder() {
                           ))}
                         </Pie>
                         <Tooltip contentStyle={tooltipStyle} />
-                        {showLegend && <Legend verticalAlign={legendPosition} />}
+                        {showLegend && <Legend verticalAlign="top" />}
                       </RechartsPieChart>
                     ) : activeChartType === "radar" ? (
                       <RechartsRadarChart cx="50%" cy="50%" outerRadius={110} data={chartData}>
@@ -810,6 +808,27 @@ export function VisualBuilder() {
             <div className="p-4 border-t border-border/60 flex justify-end">
               <button onClick={() => setShowDrillThroughModal(null)} className="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs cursor-pointer">Close Inspector</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Overlay */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-surface p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <h2 className="text-lg font-bold text-textPrimary">{customTitle || `${currentX} vs ${yCols.join(" & ")}`} (Fullscreen)</h2>
+            <button onClick={() => setIsFullscreen(false)} className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold">Exit Fullscreen</button>
+          </div>
+          <div className="flex-1 w-full h-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey={primaryY} fill={palette[0]} radius={[6, 6, 0, 0]} />
+              </RechartsBarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
