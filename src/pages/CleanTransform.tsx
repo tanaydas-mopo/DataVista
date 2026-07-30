@@ -156,39 +156,49 @@ export function CleanTransform() {
   const { dataset, updateTableData } = useDataset();
   const [activeTab, setActiveTab] = useState("transform");
   const [modal, setModal] = useState<ModalType>(null);
+  
+  // Original base dataset (previous values before applied steps)
+  const [originalHeaders, setOriginalHeaders] = useState<string[]>(() => dataset.tableHeaders);
+  const [originalRows, setOriginalRows] = useState<Record<string, any>[]>(() => dataset.tableRows);
+
+  // Transformed dataset (resulting values after applied steps)
+  const [transformedHeaders, setTransformedHeaders] = useState<string[]>(() => dataset.tableHeaders);
+  const [transformedRows, setTransformedRows] = useState<Record<string, any>[]>(() => dataset.tableRows);
+
   const [appliedSteps, setAppliedSteps] = useState<AppliedStep[]>(() => [
     { id: uid(), icon: Trash2, name: "Trimmed Whitespace", detail: `Cleaned text fields in ${dataset.name}`, timestamp: "10:30 AM", undo: () => {} },
     { id: uid(), icon: Type, name: "Verified Column Data Types", detail: `${dataset.totalColumns} columns indexed`, timestamp: "10:31 AM", undo: () => {} },
   ]);
+  
   const isUploaded = dataset.status === "active";
-  const [workingHeaders, setWorkingHeaders] = useState<string[]>(() => dataset.tableHeaders);
-  const [workingRows, setWorkingRows] = useState<Record<string, any>[]>(() => dataset.tableRows);
   const [highlightedCells, setHighlightedCells] = useState<Record<string, boolean>>({});
   const [outlierRows, setOutlierRows] = useState<number[]>([]);
   const currentDatasetName = useRef(dataset.name);
 
-  // Synchronize ONLY if a completely new dataset file or preset is loaded
+  // Synchronize ONLY if a new dataset file or preset is loaded
   useEffect(() => {
     if (currentDatasetName.current !== dataset.name) {
       currentDatasetName.current = dataset.name;
-      setWorkingHeaders(dataset.tableHeaders);
-      setWorkingRows(dataset.tableRows);
+      setOriginalHeaders(dataset.tableHeaders);
+      setOriginalRows(dataset.tableRows);
+      setTransformedHeaders(dataset.tableHeaders);
+      setTransformedRows(dataset.tableRows);
       setHighlightedCells({});
       setOutlierRows([]);
     }
   }, [dataset.name, dataset.tableHeaders, dataset.tableRows]);
 
-  // Helper to commit state changes both locally and to DatasetContext globally
+  // Commit transformed dataset to transformed state & global context
   const commitTransform = useCallback((headers: string[], rows: Record<string, any>[]) => {
-    setWorkingHeaders(headers);
-    setWorkingRows(rows);
+    setTransformedHeaders(headers);
+    setTransformedRows(rows);
     updateTableData(headers, rows);
   }, [updateTableData]);
 
   const addStep = useCallback((icon: any, name: string, detail: string, undo: () => void) => {
     const step: AppliedStep = { id: uid(), icon, name, detail, timestamp: nowStr(), undo };
     setAppliedSteps(prev => [step, ...prev]);
-    setActiveTab("steps");
+    setActiveTab("steps"); // Switch to Applied Steps tab to show the transformed result
   }, []);
 
   const removeStep = (id: string) => {
@@ -197,25 +207,35 @@ export function CleanTransform() {
     setAppliedSteps(prev => prev.filter(s => s.id !== id));
   };
 
+  // Preview headers & rows depend on the active tab:
+  // - "transform" tab shows original/previous values (e.g. 10 rows)
+  // - "steps" tab shows transformed values resulting from applied steps (e.g. 1 row or 6 rows)
+  const displayHeaders = activeTab === "steps" ? transformedHeaders : originalHeaders;
+  const displayRows = activeTab === "steps" ? transformedRows : originalRows;
+
+  // Modals execute on the current base dataset (originalHeaders/Rows)
+  const inputHeaders = originalHeaders;
+  const inputRows = originalRows;
+
   /* ── 1. Remove Duplicates ── */
   const RemoveDuplicatesModal = () => {
-    const [cols, setCols] = useState<string[]>(workingHeaders);
+    const [cols, setCols] = useState<string[]>(inputHeaders);
     const dupes = useMemo(() => {
       const seen = new Set<string>(); let count = 0;
-      for (const row of workingRows) { const key = cols.map(c => String(row[c] ?? "")).join("||"); if (seen.has(key)) count++; else seen.add(key); }
+      for (const row of inputRows) { const key = cols.map(c => String(row[c] ?? "")).join("||"); if (seen.has(key)) count++; else seen.add(key); }
       return count;
     }, [cols]);
     const toggle = (col: string) => setCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
     const apply = () => {
-      const seen = new Set<string>(); const snap = [...workingRows];
-      const newRows = workingRows.filter(row => { const k = cols.map(c => String(row[c] ?? "")).join("||"); if (seen.has(k)) return false; seen.add(k); return true; });
-      commitTransform(workingHeaders, newRows);
-      addStep(Trash2, "Remove Duplicates", `Removed ${dupes} duplicate row(s)`, () => commitTransform(workingHeaders, snap));
+      const seen = new Set<string>(); const snap = [...transformedRows];
+      const newRows = inputRows.filter(row => { const k = cols.map(c => String(row[c] ?? "")).join("||"); if (seen.has(k)) return false; seen.add(k); return true; });
+      commitTransform(inputHeaders, newRows);
+      addStep(Trash2, "Remove Duplicates", `Removed ${dupes} duplicate row(s)`, () => commitTransform(transformedHeaders, snap));
     };
     return (
       <Modal title="Remove Duplicates" subtitle="Detect and eliminate duplicate records across columns" icon={Trash2} onClose={() => setModal(null)}>
         <p className="text-xs text-textSecondary leading-relaxed">Select the column subset to evaluate for uniqueness. Identical rows will be purged.</p>
-        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Columns</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={cols.includes(col)} onClick={() => toggle(col)} />)}</div></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Columns</p><div className="flex flex-wrap gap-2">{inputHeaders.map(col => <Chip key={col} label={col} active={cols.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         <InfoBadge text={`${dupes} duplicate row${dupes !== 1 ? "s" : ""} identified across selected columns`} color={dupes > 0 ? "warning" : "success"} />
         <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel={`Remove ${dupes} Duplicate${dupes !== 1 ? "s" : ""}`} />
       </Modal>
@@ -229,26 +249,26 @@ export function CleanTransform() {
     const isNull = (v: any) => v === null || v === undefined || String(v).trim() === "";
     const toggle = (col: string) => setSelectedCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
     const count = useMemo(() => {
-      if (mode === "rows-any") return workingRows.filter(row => workingHeaders.some(h => isNull(row[h]))).length;
-      if (mode === "rows-selected" && selectedCols.length > 0) return workingRows.filter(row => selectedCols.some(h => isNull(row[h]))).length;
-      if (mode === "cols") return workingHeaders.filter(h => workingRows.some(row => isNull(row[h]))).length;
+      if (mode === "rows-any") return inputRows.filter(row => inputHeaders.some(h => isNull(row[h]))).length;
+      if (mode === "rows-selected" && selectedCols.length > 0) return inputRows.filter(row => selectedCols.some(h => isNull(row[h]))).length;
+      if (mode === "cols") return inputHeaders.filter(h => inputRows.some(row => isNull(row[h]))).length;
       return 0;
     }, [mode, selectedCols]);
     const apply = () => {
-      const snap = { rows: [...workingRows], headers: [...workingHeaders] };
+      const snap = { rows: [...transformedRows], headers: [...transformedHeaders] };
       const restore = () => commitTransform(snap.headers, snap.rows);
       if (mode === "rows-any") {
-        const nr = workingRows.filter(row => !workingHeaders.some(h => isNull(row[h])));
-        commitTransform(workingHeaders, nr);
+        const nr = inputRows.filter(row => !inputHeaders.some(h => isNull(row[h])));
+        commitTransform(inputHeaders, nr);
         addStep(MinusSquare, "Remove Null Rows", `Removed ${count} row(s) with nulls`, restore);
       } else if (mode === "rows-selected" && selectedCols.length > 0) {
-        const nr = workingRows.filter(row => !selectedCols.some(h => isNull(row[h])));
-        commitTransform(workingHeaders, nr);
+        const nr = inputRows.filter(row => !selectedCols.some(h => isNull(row[h])));
+        commitTransform(inputHeaders, nr);
         addStep(MinusSquare, "Remove Null Rows", `Removed rows with nulls in: ${selectedCols.join(", ")}`, restore);
       } else if (mode === "cols") {
-        const nullCols = workingHeaders.filter(h => workingRows.some(row => isNull(row[h])));
-        const nh = workingHeaders.filter(h => !nullCols.includes(h));
-        const nr = workingRows.map(row => { const r = { ...row }; nullCols.forEach(c => delete r[c]); return r; });
+        const nullCols = inputHeaders.filter(h => inputRows.some(row => isNull(row[h])));
+        const nh = inputHeaders.filter(h => !nullCols.includes(h));
+        const nr = inputRows.map(row => { const r = { ...row }; nullCols.forEach(c => delete r[c]); return r; });
         commitTransform(nh, nr);
         addStep(MinusSquare, "Remove Null Columns", `Removed ${nullCols.length} column(s)`, restore);
       }
@@ -263,7 +283,7 @@ export function CleanTransform() {
             </button>
           ))}
         </div>
-        {mode === "rows-selected" && <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2">Select Target Columns</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selectedCols.includes(col)} onClick={() => toggle(col)} />)}</div></div>}
+        {mode === "rows-selected" && <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2">Select Target Columns</p><div className="flex flex-wrap gap-2">{inputHeaders.map(col => <Chip key={col} label={col} active={selectedCols.includes(col)} onClick={() => toggle(col)} />)}</div></div>}
         <InfoBadge text={`${count} ${mode === "cols" ? "column(s)" : "row(s)"} matched for removal`} color="warning" />
         <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Execute Removal" />
       </Modal>
@@ -272,10 +292,10 @@ export function CleanTransform() {
 
   /* ── 3. Fill Missing Values ── */
   const FillMissingModal = () => {
-    const [col, setCol] = useState(workingHeaders[0] || "");
+    const [col, setCol] = useState(inputHeaders[0] || "");
     const [method, setMethod] = useState<"mean" | "median" | "mode" | "zero" | "custom" | "unknown">("mean");
     const [custom, setCustom] = useState("");
-    const colNums = useMemo(() => workingRows.map(r => parseFloat(String(r[col]))).filter(n => !isNaN(n)), [col, workingRows]);
+    const colNums = useMemo(() => inputRows.map(r => parseFloat(String(r[col]))).filter(n => !isNaN(n)), [col]);
     const numericCol = colNums.length > 0;
     const fillValue = useMemo(() => {
       if (method === "mean" && numericCol) return mean(colNums).toFixed(2);
@@ -284,17 +304,17 @@ export function CleanTransform() {
       if (method === "zero") return "0"; if (method === "unknown") return "Unknown"; if (method === "custom") return custom;
       return "-";
     }, [method, custom, colNums, numericCol]);
-    const missingCount = workingRows.filter(r => r[col] === null || r[col] === undefined || String(r[col]).trim() === "").length;
+    const missingCount = inputRows.filter(r => r[col] === null || r[col] === undefined || String(r[col]).trim() === "").length;
     const apply = () => {
-      const snap = [...workingRows]; const hl: Record<string, boolean> = {};
-      const nr = workingRows.map((row, i) => { if (row[col] === null || row[col] === undefined || String(row[col]).trim() === "") { hl[`${i}-${col}`] = true; return { ...row, [col]: fillValue }; } return row; });
-      commitTransform(workingHeaders, nr);
+      const snap = [...transformedRows]; const hl: Record<string, boolean> = {};
+      const nr = inputRows.map((row, i) => { if (row[col] === null || row[col] === undefined || String(row[col]).trim() === "") { hl[`${i}-${col}`] = true; return { ...row, [col]: fillValue }; } return row; });
+      commitTransform(inputHeaders, nr);
       setHighlightedCells(hl);
-      addStep(Sparkles, "Fill Missing Values", `Filled ${missingCount} null(s) in "${col}" with ${method}`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
+      addStep(Sparkles, "Fill Missing Values", `Filled ${missingCount} null(s) in "${col}" with ${method}`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); });
     };
     return (
       <Modal title="Fill Missing Values" subtitle="Impute missing entries with statistical measures or custom values" icon={Sparkles} onClose={() => setModal(null)}>
-        <SelectInput label="Target Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Target Column" value={col} onChange={setCol} options={inputHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Imputation Method</p><div className="flex flex-wrap gap-2">{(["mean", "median", "mode", "zero", "custom", "unknown"] as const).map(m => <Chip key={m} label={m.charAt(0).toUpperCase() + m.slice(1)} active={method === m} onClick={() => setMethod(m)} />)}</div></div>
         {method === "custom" && <TextInput label="Custom Fill Value" value={custom} onChange={setCustom} placeholder="Enter custom value..." />}
         <InfoBadge text={`Will fill ${missingCount} missing cell(s) in "${col}" with calculated value: ${fillValue}`} color={missingCount > 0 ? "primary" : "success"} />
@@ -305,20 +325,20 @@ export function CleanTransform() {
 
   /* ── 4. Rename Column ── */
   const RenameModal = () => {
-    const [oldName, setOldName] = useState(workingHeaders[0] || "");
+    const [oldName, setOldName] = useState(inputHeaders[0] || "");
     const [newName, setNewName] = useState("");
-    const isDupe = newName.trim() !== "" && workingHeaders.includes(newName.trim()) && newName.trim() !== oldName;
+    const isDupe = newName.trim() !== "" && inputHeaders.includes(newName.trim()) && newName.trim() !== oldName;
     const apply = () => {
       if (!newName.trim() || isDupe) return;
-      const snapH = [...workingHeaders]; const snapR = workingRows.map(r => ({ ...r }));
-      const nh = workingHeaders.map(h => h === oldName ? newName.trim() : h);
-      const nr = workingRows.map(row => { const r = { ...row }; if (oldName in r) { r[newName.trim()] = r[oldName]; delete r[oldName]; } return r; });
+      const snapH = [...transformedHeaders]; const snapR = transformedRows.map(r => ({ ...r }));
+      const nh = inputHeaders.map(h => h === oldName ? newName.trim() : h);
+      const nr = inputRows.map(row => { const r = { ...row }; if (oldName in r) { r[newName.trim()] = r[oldName]; delete r[oldName]; } return r; });
       commitTransform(nh, nr);
       addStep(Edit3, "Rename Column", `Renamed "${oldName}" to "${newName.trim()}"`, () => commitTransform(snapH, snapR));
     };
     return (
       <Modal title="Rename Column" subtitle="Modify column header identifier" icon={Edit3} onClose={() => setModal(null)}>
-        <SelectInput label="Select Existing Column" value={oldName} onChange={setOldName} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Select Existing Column" value={oldName} onChange={setOldName} options={inputHeaders.map(h => ({ value: h, label: h }))} />
         <TextInput label="New Header Name" value={newName} onChange={setNewName} placeholder="e.g. Total_Sales" />
         {isDupe && <InfoBadge text={`Header name "${newName}" already exists in dataset`} color="danger" />}
         <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Update Header" />
@@ -328,7 +348,7 @@ export function CleanTransform() {
 
   /* ── 5. Change Data Type ── */
   const ChangeTypeModal = () => {
-    const [col, setCol] = useState(workingHeaders[0] || "");
+    const [col, setCol] = useState(inputHeaders[0] || "");
     const [targetType, setTargetType] = useState("Text");
     const types = ["Text", "Integer", "Decimal", "Boolean", "Date", "DateTime", "Currency", "Percentage"];
     const convert = (val: any) => {
@@ -342,19 +362,19 @@ export function CleanTransform() {
       if (targetType === "DateTime") { const d = new Date(s); return isNaN(d.getTime()) ? null : d.toLocaleString(); }
       return s;
     };
-    const errors = useMemo(() => workingRows.filter(row => convert(row[col]) === null).length, [col, targetType, workingRows]);
+    const errors = useMemo(() => inputRows.filter(row => convert(row[col]) === null).length, [col, targetType]);
     const apply = () => {
-      const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
-      const nr = workingRows.map((row, i) => { const v = convert(row[col]); if (v === null) hl[`${i}-${col}`] = true; return { ...row, [col]: v !== null ? v : row[col] }; });
-      commitTransform(workingHeaders, nr);
+      const snap = transformedRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
+      const nr = inputRows.map((row, i) => { const v = convert(row[col]); if (v === null) hl[`${i}-${col}`] = true; return { ...row, [col]: v !== null ? v : row[col] }; });
+      commitTransform(inputHeaders, nr);
       setHighlightedCells(hl);
-      addStep(Type, "Change Data Type", `Changed "${col}" to ${targetType}${errors > 0 ? ` (${errors} errors)` : ""}`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
+      addStep(Type, "Change Data Type", `Changed "${col}" to ${targetType}${errors > 0 ? ` (${errors} errors)` : ""}`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); });
     };
     return (
       <Modal title="Change Data Type" subtitle="Cast column elements to target format" icon={Type} onClose={() => setModal(null)}>
-        <SelectInput label="Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Column" value={col} onChange={setCol} options={inputHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Data Type</p><div className="flex flex-wrap gap-2">{types.map(t => <Chip key={t} label={t} active={targetType === t} onClick={() => setTargetType(t)} />)}</div></div>
-        {errors > 0 ? <InfoBadge text={`${errors} row(s) cannot be cast and will preserve original value`} color="warning" /> : <InfoBadge text={`All ${workingRows.length} rows successfully valid for ${targetType}`} color="success" />}
+        {errors > 0 ? <InfoBadge text={`${errors} row(s) cannot be cast and will preserve original value`} color="warning" /> : <InfoBadge text={`All ${inputRows.length} rows successfully valid for ${targetType}`} color="success" />}
         <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Cast Data Type" />
       </Modal>
     );
@@ -362,21 +382,21 @@ export function CleanTransform() {
 
   /* ── 6. Split Column ── */
   const SplitColumnModal = () => {
-    const [col, setCol] = useState(workingHeaders[0] || "");
+    const [col, setCol] = useState(inputHeaders[0] || "");
     const [splitBy, setSplitBy] = useState<"space" | "comma" | "dash" | "custom" | "fixed">("comma");
     const [custom, setCustom] = useState("");
     const [fixedLen, setFixedLen] = useState("5");
     const delim = splitBy === "space" ? " " : splitBy === "comma" ? "," : splitBy === "dash" ? "-" : splitBy === "custom" ? custom : "";
     const preview = useMemo(() => {
-      const sample = workingRows[0]?.[col]; if (!sample) return [];
+      const sample = inputRows[0]?.[col]; if (!sample) return [];
       if (splitBy === "fixed") { const len = parseInt(fixedLen) || 5; const p: string[] = []; for (let i = 0; i < String(sample).length; i += len) p.push(String(sample).slice(i, i + len)); return p; }
       return String(sample).split(delim);
-    }, [col, splitBy, custom, fixedLen, workingRows]);
+    }, [col, splitBy, custom, fixedLen]);
     const apply = () => {
-      const snap = { rows: workingRows.map(r => ({ ...r })), headers: [...workingHeaders] };
+      const snap = { rows: transformedRows.map(r => ({ ...r })), headers: [...transformedHeaders] };
       const nc = preview.map((_, i) => `${col}_${i + 1}`);
-      const nh = [...workingHeaders.filter(h => h !== col), ...nc];
-      const nr = workingRows.map(row => {
+      const nh = [...inputHeaders.filter(h => h !== col), ...nc];
+      const nr = inputRows.map(row => {
         const r = { ...row }; const val = String(r[col] ?? ""); let parts: string[];
         if (splitBy === "fixed") { const len = parseInt(fixedLen) || 5; parts = []; for (let i = 0; i < val.length; i += len) parts.push(val.slice(i, i + len)); } else { parts = val.split(delim); }
         delete r[col]; nc.forEach((c, i) => { r[c] = parts[i] ?? ""; }); return r;
@@ -386,7 +406,7 @@ export function CleanTransform() {
     };
     return (
       <Modal title="Split Column" subtitle="Divide text column into multiple distinct fields" icon={Scissors} onClose={() => setModal(null)}>
-        <SelectInput label="Column to Split" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Column to Split" value={col} onChange={setCol} options={inputHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Delimiter</p><div className="flex flex-wrap gap-2">{(["space", "comma", "dash", "custom", "fixed"] as const).map(s => <Chip key={s} label={s.charAt(0).toUpperCase() + s.slice(1)} active={splitBy === s} onClick={() => setSplitBy(s)} />)}</div></div>
         {splitBy === "custom" && <TextInput label="Custom Delimiter Character" value={custom} onChange={setCustom} placeholder="e.g. |" />}
         {splitBy === "fixed" && <TextInput label="Fixed Length (Number of Characters)" value={fixedLen} onChange={setFixedLen} placeholder="5" />}
@@ -403,18 +423,18 @@ export function CleanTransform() {
     const [newName, setNewName] = useState("merged_column");
     const [removeOrig, setRemoveOrig] = useState(true);
     const toggle = (col: string) => setSelected(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
-    const preview = selected.length >= 2 ? selected.map(c => String(workingRows[0]?.[c] ?? "")).join(sep) : "";
+    const preview = selected.length >= 2 ? selected.map(c => String(inputRows[0]?.[c] ?? "")).join(sep) : "";
     const apply = () => {
       if (selected.length < 2) return;
-      const snap = { rows: workingRows.map(r => ({ ...r })), headers: [...workingHeaders] };
-      const nr = workingRows.map(row => { const r = { ...row }; r[newName] = selected.map(c => String(r[c] ?? "")).join(sep); if (removeOrig) selected.forEach(c => { if (c !== newName) delete r[c]; }); return r; });
-      const nh = [...(removeOrig ? workingHeaders.filter(h => !selected.includes(h)) : workingHeaders), newName];
+      const snap = { rows: transformedRows.map(r => ({ ...r })), headers: [...transformedHeaders] };
+      const nr = inputRows.map(row => { const r = { ...row }; r[newName] = selected.map(c => String(r[c] ?? "")).join(sep); if (removeOrig) selected.forEach(c => { if (c !== newName) delete r[c]; }); return r; });
+      const nh = [...(removeOrig ? inputHeaders.filter(h => !selected.includes(h)) : inputHeaders), newName];
       commitTransform(nh, nr);
       addStep(Merge, "Merge Columns", `Merged ${selected.join(" + ")} into "${newName}"`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
       <Modal title="Merge Columns" subtitle="Combine multiple fields into a single unified column" icon={Merge} onClose={() => setModal(null)}>
-        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Select Columns (Minimum 2)</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selected.includes(col)} onClick={() => toggle(col)} />)}</div></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Select Columns (Minimum 2)</p><div className="flex flex-wrap gap-2">{inputHeaders.map(col => <Chip key={col} label={col} active={selected.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Separator Character</p><div className="flex flex-wrap gap-2">{[" ", ",", "-", "_"].map(s => <Chip key={s} label={s === " " ? "Space" : s} active={sep === s} onClick={() => setSep(s)} />)}</div></div>
         <TextInput label="Output Column Name" value={newName} onChange={setNewName} />
         <button onClick={() => setRemoveOrig(!removeOrig)} className="flex items-center gap-2.5 text-xs font-semibold text-textSecondary cursor-pointer hover:text-textPrimary transition-colors">
@@ -429,7 +449,7 @@ export function CleanTransform() {
 
   /* ── 8. Filter Rows ── */
   const FilterRowsModal = () => {
-    const [col, setCol] = useState(workingHeaders[0] || "");
+    const [col, setCol] = useState(inputHeaders[0] || "");
     const [op, setOp] = useState("equals");
     const [val, setVal] = useState("");
 
@@ -447,12 +467,12 @@ export function CleanTransform() {
 
     const sampleValues = useMemo(() => {
       const set = new Set<string>();
-      workingRows.forEach(r => {
+      inputRows.forEach(r => {
         const v = String(r[col] ?? "").trim();
         if (v.length > 0) set.add(v);
       });
       return Array.from(set).slice(0, 10);
-    }, [col, workingRows]);
+    }, [col]);
 
     const matches = (row: Record<string, any>) => {
       const rawCell = String(row[col] ?? "").trim();
@@ -473,20 +493,20 @@ export function CleanTransform() {
       }
     };
 
-    const cnt = useMemo(() => workingRows.filter(matches).length, [workingRows, col, op, val]);
+    const cnt = useMemo(() => inputRows.filter(matches).length, [col, op, val]);
     const isZeroMatch = cnt === 0 && !["is-empty", "is-not-empty"].includes(op);
 
     const apply = () => {
       if (isZeroMatch) return;
-      const snap = [...workingRows];
-      const nr = workingRows.filter(matches);
-      commitTransform(workingHeaders, nr);
-      addStep(Filter, "Filter Rows", `Kept ${cnt} row(s) where "${col}" ${op} "${val}"`, () => commitTransform(workingHeaders, snap));
+      const snap = [...transformedRows];
+      const nr = inputRows.filter(matches);
+      commitTransform(inputHeaders, nr);
+      addStep(Filter, "Filter Rows", `Kept ${cnt} row(s) where "${col}" ${op} "${val}"`, () => commitTransform(transformedHeaders, snap));
     };
 
     return (
       <Modal title="Filter Rows" subtitle="Filter dataset rows according to field conditions" icon={Filter} onClose={() => setModal(null)}>
-        <SelectInput label="Select Column to Filter" value={col} onChange={v => { setCol(v); setVal(""); }} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Select Column to Filter" value={col} onChange={v => { setCol(v); setVal(""); }} options={inputHeaders.map(h => ({ value: h, label: h }))} />
         <SelectInput label="Condition Operator" value={op} onChange={setOp} options={ops} />
         
         {!["is-empty", "is-not-empty"].includes(op) && (
@@ -520,8 +540,8 @@ export function CleanTransform() {
 
         <InfoBadge 
           text={isZeroMatch && val.trim() !== ""
-            ? `⚠️ 0 of ${workingRows.length} rows match "${val}" in column "${col}". Select column "${col}" or choose a sample value above.`
-            : `${cnt} of ${workingRows.length} row(s) satisfy this criteria`
+            ? `⚠️ 0 of ${inputRows.length} rows match "${val}" in column "${col}". Select column "${col}" or choose a sample value above.`
+            : `${cnt} of ${inputRows.length} row(s) satisfy this criteria`
           } 
           color={cnt > 0 ? "primary" : "warning"} 
         />
@@ -537,22 +557,22 @@ export function CleanTransform() {
 
   /* ── 9. Sort Rows ── */
   const SortRowsModal = () => {
-    const [sorts, setSorts] = useState<{ col: string; dir: "asc" | "desc" }[]>([{ col: workingHeaders[0] || "", dir: "asc" }]);
-    const addSort = () => setSorts(prev => [...prev, { col: workingHeaders[0] || "", dir: "asc" }]);
+    const [sorts, setSorts] = useState<{ col: string; dir: "asc" | "desc" }[]>([{ col: inputHeaders[0] || "", dir: "asc" }]);
+    const addSort = () => setSorts(prev => [...prev, { col: inputHeaders[0] || "", dir: "asc" }]);
     const removeSort = (i: number) => setSorts(prev => prev.filter((_, idx) => idx !== i));
     const updateSort = (i: number, field: "col" | "dir", v: string) => setSorts(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: v } : s));
     const apply = () => {
-      const snap = [...workingRows];
-      const nr = [...workingRows].sort((a, b) => { for (const { col, dir } of sorts) { const na = parseFloat(String(a[col])); const nb = parseFloat(String(b[col])); const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : String(a[col]).localeCompare(String(b[col])); if (cmp !== 0) return dir === "asc" ? cmp : -cmp; } return 0; });
-      commitTransform(workingHeaders, nr);
-      addStep(SortAsc, "Sort Rows", `Sorted by ${sorts.map(s => `${s.col} (${s.dir})`).join(", ")}`, () => commitTransform(workingHeaders, snap));
+      const snap = [...transformedRows];
+      const nr = [...inputRows].sort((a, b) => { for (const { col, dir } of sorts) { const na = parseFloat(String(a[col])); const nb = parseFloat(String(b[col])); const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : String(a[col]).localeCompare(String(b[col])); if (cmp !== 0) return dir === "asc" ? cmp : -cmp; } return 0; });
+      commitTransform(inputHeaders, nr);
+      addStep(SortAsc, "Sort Rows", `Sorted by ${sorts.map(s => `${s.col} (${s.dir})`).join(", ")}`, () => commitTransform(transformedHeaders, snap));
     };
     return (
       <Modal title="Sort Rows" subtitle="Re-order rows by single or multi-column criteria" icon={SortAsc} onClose={() => setModal(null)}>
         <div className="flex flex-col gap-3">
           {sorts.map((s, i) => (
             <div key={i} className="flex items-center gap-2.5 bg-primary-soft/20 p-2.5 rounded-xl border border-border/60">
-              <div className="flex-1 relative"><select value={s.col} onChange={e => updateSort(i, "col", e.target.value)} className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary appearance-none cursor-pointer pr-7">{workingHeaders.map(h => <option key={h} value={h}>{h}</option>)}</select><ChevronDown className="w-3.5 h-3.5 text-textMuted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" /></div>
+              <div className="flex-1 relative"><select value={s.col} onChange={e => updateSort(i, "col", e.target.value)} className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary appearance-none cursor-pointer pr-7">{inputHeaders.map(h => <option key={h} value={h}>{h}</option>)}</select><ChevronDown className="w-3.5 h-3.5 text-textMuted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" /></div>
               <div className="relative"><select value={s.dir} onChange={e => updateSort(i, "dir", e.target.value)} className="border border-border/80 bg-surface text-textPrimary rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary appearance-none cursor-pointer pr-7"><option value="asc">Ascending (A-Z, 0-9)</option><option value="desc">Descending (Z-A, 9-0)</option></select><ChevronDown className="w-3.5 h-3.5 text-textMuted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" /></div>
               {i > 0 && <button onClick={() => removeSort(i)} className="text-textMuted hover:text-rose-500 p-1 transition-colors cursor-pointer"><Minus className="w-4 h-4" /></button>}
             </div>
@@ -570,16 +590,16 @@ export function CleanTransform() {
     const toggle = (col: string) => setSelected(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
     const apply = () => {
       if (selected.length === 0) return;
-      const snap = { rows: workingRows.map(r => ({ ...r })), headers: [...workingHeaders] };
-      const nh = workingHeaders.filter(h => !selected.includes(h));
-      const nr = workingRows.map(row => { const r = { ...row }; selected.forEach(c => delete r[c]); return r; });
+      const snap = { rows: transformedRows.map(r => ({ ...r })), headers: [...transformedHeaders] };
+      const nh = inputHeaders.filter(h => !selected.includes(h));
+      const nr = inputRows.map(row => { const r = { ...row }; selected.forEach(c => delete r[c]); return r; });
       commitTransform(nh, nr);
       addStep(Trash2, "Remove Columns", `Removed: ${selected.join(", ")}`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
       <Modal title="Remove Columns" subtitle="Select columns to permanently delete" icon={Trash2} onClose={() => setModal(null)}>
         <p className="text-xs text-textSecondary leading-relaxed">Selected column headers and all corresponding data cells will be removed.</p>
-        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2">Select Columns ({selected.length} selected)</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selected.includes(col)} onClick={() => toggle(col)} />)}</div></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2">Select Columns ({selected.length} selected)</p><div className="flex flex-wrap gap-2">{inputHeaders.map(col => <Chip key={col} label={col} active={selected.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         {selected.length > 0 && <InfoBadge text={`${selected.length} column(s) queued for deletion`} color="danger" />}
         <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Delete Columns" />
       </Modal>
@@ -594,17 +614,17 @@ export function CleanTransform() {
     const [replaceAll, setReplaceAll] = useState(true);
     const [selCols, setSelCols] = useState<string[]>([]);
     const toggle = (col: string) => setSelCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
-    const cols = selCols.length > 0 ? selCols : workingHeaders;
-    const cnt = useMemo(() => { if (!find) return 0; let c = 0; workingRows.forEach(row => cols.forEach(col => { const v = matchCase ? String(row[col] ?? "") : String(row[col] ?? "").toLowerCase(); c += v.split(matchCase ? find : find.toLowerCase()).length - 1; })); return c; }, [find, matchCase, cols, workingRows]);
+    const cols = selCols.length > 0 ? selCols : inputHeaders;
+    const cnt = useMemo(() => { if (!find) return 0; let c = 0; inputRows.forEach(row => cols.forEach(col => { const v = matchCase ? String(row[col] ?? "") : String(row[col] ?? "").toLowerCase(); c += v.split(matchCase ? find : find.toLowerCase()).length - 1; })); return c; }, [find, matchCase, cols]);
     const apply = () => {
       if (!find) return;
-      const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
+      const snap = transformedRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
       const esc = find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const rx = new RegExp(esc, (matchCase ? "" : "i") + (replaceAll ? "g" : ""));
-      const nr = workingRows.map((row, i) => { const r = { ...row }; cols.forEach(col => { const v = String(r[col] ?? ""); const check = matchCase ? v : v.toLowerCase(); if (check.includes(matchCase ? find : find.toLowerCase())) { hl[`${i}-${col}`] = true; r[col] = v.replace(rx, replace); } }); return r; });
-      commitTransform(workingHeaders, nr);
+      const nr = inputRows.map((row, i) => { const r = { ...row }; cols.forEach(col => { const v = String(r[col] ?? ""); const check = matchCase ? v : v.toLowerCase(); if (check.includes(matchCase ? find : find.toLowerCase())) { hl[`${i}-${col}`] = true; r[col] = v.replace(rx, replace); } }); return r; });
+      commitTransform(inputHeaders, nr);
       setHighlightedCells(hl);
-      addStep(Search, "Find and Replace", `Replaced "${find}" with "${replace}" (${cnt} match${cnt !== 1 ? "es" : ""})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
+      addStep(Search, "Find and Replace", `Replaced "${find}" with "${replace}" (${cnt} match${cnt !== 1 ? "es" : ""})`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); });
     };
     return (
       <Modal title="Find & Replace" subtitle="Locate specific values and substitute them" icon={ArrowRightLeft} onClose={() => setModal(null)}>
@@ -617,7 +637,7 @@ export function CleanTransform() {
             </button>
           ))}
         </div>
-        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Columns (Optional)</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selCols.includes(col)} onClick={() => toggle(col)} />)}</div></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Columns (Optional)</p><div className="flex flex-wrap gap-2">{inputHeaders.map(col => <Chip key={col} label={col} active={selCols.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         {find && <InfoBadge text={`${cnt} occurrence(s) found across ${cols.length} column(s)`} color={cnt > 0 ? "primary" : "success"} />}
         <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Execute Replace" />
       </Modal>
@@ -626,10 +646,10 @@ export function CleanTransform() {
 
   /* ── 12. Detect Outliers ── */
   const DetectOutliersModal = () => {
-    const [col, setCol] = useState(workingHeaders[0] || "");
+    const [col, setCol] = useState(inputHeaders[0] || "");
     const [method, setMethod] = useState<"iqr" | "zscore">("iqr");
     const [action, setAction] = useState<"remove" | "keep" | "replace-mean" | "replace-median">("remove");
-    const numRows = useMemo(() => workingRows.map((row, i) => ({ val: parseFloat(String(row[col] ?? "")), i })).filter(r => !isNaN(r.val)), [col, workingRows]);
+    const numRows = useMemo(() => inputRows.map((row, i) => ({ val: parseFloat(String(row[col] ?? "")), i })).filter(r => !isNaN(r.val)), [col]);
     const vals = numRows.map(r => r.val);
     const outIdx = useMemo(() => {
       if (vals.length < 4) return [];
@@ -639,16 +659,16 @@ export function CleanTransform() {
     }, [col, method, numRows, vals]);
     useEffect(() => { setOutlierRows(outIdx); return () => setOutlierRows([]); }, [outIdx]);
     const apply = () => {
-      const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; let rows = [...workingRows];
+      const snap = transformedRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; let rows = [...inputRows];
       const m = vals.length > 0 ? mean(vals) : 0; const med = vals.length > 0 ? median(vals) : 0;
       if (action === "remove") { rows = rows.filter((_, i) => !outIdx.includes(i)); }
       else if (action === "replace-mean" || action === "replace-median") { const rv = action === "replace-mean" ? m.toFixed(2) : med.toFixed(2); rows = rows.map((row, i) => { if (outIdx.includes(i)) { hl[`${i}-${col}`] = true; return { ...row, [col]: rv }; } return row; }); }
-      commitTransform(workingHeaders, rows); setHighlightedCells(hl); setOutlierRows([]);
-      addStep(Eye, "Detect Outliers", `${action} ${outIdx.length} outlier(s) in "${col}" (${method.toUpperCase()})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); setOutlierRows([]); });
+      commitTransform(inputHeaders, rows); setHighlightedCells(hl); setOutlierRows([]);
+      addStep(Eye, "Detect Outliers", `${action} ${outIdx.length} outlier(s) in "${col}" (${method.toUpperCase()})`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); setOutlierRows([]); });
     };
     return (
       <Modal title="Detect Outliers" subtitle="Identify statistical anomalies via IQR or Z-score algorithms" icon={Eye} onClose={() => setModal(null)}>
-        <SelectInput label="Target Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Target Column" value={col} onChange={setCol} options={inputHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Statistical Method</p><div className="flex gap-2.5"><Chip label="Interquartile Range (IQR)" active={method === "iqr"} onClick={() => setMethod("iqr")} /><Chip label="Z-Score Standard Deviation" active={method === "zscore"} onClick={() => setMethod("zscore")} /></div></div>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Action Strategy</p><div className="flex flex-wrap gap-2"><Chip label="Remove Outlier Rows" active={action === "remove"} onClick={() => setAction("remove")} /><Chip label="Highlight Only" active={action === "keep"} onClick={() => setAction("keep")} /><Chip label="Replace with Mean" active={action === "replace-mean"} onClick={() => setAction("replace-mean")} /><Chip label="Replace with Median" active={action === "replace-median"} onClick={() => setAction("replace-median")} /></div></div>
         <InfoBadge text={vals.length < 4 ? `"${col}" lacks sufficient numeric values` : `${outIdx.length} statistical anomaly outlier(s) detected (${method.toUpperCase()})`} color={outIdx.length > 0 ? "warning" : "success"} />
@@ -663,15 +683,15 @@ export function CleanTransform() {
     const suggestions = useMemo(() => {
       const list: { id: string; icon: any; title: string; detail: string; action: () => void }[] = [];
       const seen = new Set<string>(); let dupes = 0;
-      workingRows.forEach(row => { const key = workingHeaders.map(h => String(row[h] ?? "")).join("||"); if (seen.has(key)) dupes++; else seen.add(key); });
+      inputRows.forEach(row => { const key = inputHeaders.map(h => String(row[h] ?? "")).join("||"); if (seen.has(key)) dupes++; else seen.add(key); });
       if (dupes > 0) list.push({ id: "dupes", icon: Trash2, title: `Remove ${dupes} Duplicate Rows`, detail: "Identical rows detected across all columns",
-        action: () => { const s = new Set<string>(); const snap = [...workingRows]; const nr = workingRows.filter(row => { const k = workingHeaders.map(h => String(row[h] ?? "")).join("||"); if (s.has(k)) return false; s.add(k); return true; }); commitTransform(workingHeaders, nr); addStep(Trash2, "Auto Clean: Duplicates", `Removed ${dupes} rows`, () => commitTransform(workingHeaders, snap)); } });
-      let nullCnt = 0; workingHeaders.forEach(h => workingRows.forEach(row => { if (isNull(row[h])) nullCnt++; }));
+        action: () => { const s = new Set<string>(); const snap = [...transformedRows]; const nr = inputRows.filter(row => { const k = inputHeaders.map(h => String(row[h] ?? "")).join("||"); if (s.has(k)) return false; s.add(k); return true; }); commitTransform(inputHeaders, nr); addStep(Trash2, "Auto Clean: Duplicates", `Removed ${dupes} rows`, () => commitTransform(transformedHeaders, snap)); } });
+      let nullCnt = 0; inputHeaders.forEach(h => inputRows.forEach(row => { if (isNull(row[h])) nullCnt++; }));
       if (nullCnt > 0) list.push({ id: "nulls", icon: MinusSquare, title: `Fill ${nullCnt} Missing Values`, detail: "Null/empty cells found — will fill with 'Unknown'",
-        action: () => { const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; const nr = workingRows.map((row, i) => { const r = { ...row }; workingHeaders.forEach(h => { if (isNull(r[h])) { hl[`${i}-${h}`] = true; r[h] = "Unknown"; } }); return r; }); commitTransform(workingHeaders, nr); setHighlightedCells(hl); addStep(MinusSquare, "Auto Clean: Fill Nulls", `Filled ${nullCnt} cells`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); }); } });
+        action: () => { const snap = transformedRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; const nr = inputRows.map((row, i) => { const r = { ...row }; inputHeaders.forEach(h => { if (isNull(r[h])) { hl[`${i}-${h}`] = true; r[h] = "Unknown"; } }); return r; }); commitTransform(inputHeaders, nr); setHighlightedCells(hl); addStep(MinusSquare, "Auto Clean: Fill Nulls", `Filled ${nullCnt} cells`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); }); } });
       if (list.length === 0) list.push({ id: "ok", icon: CheckCircle2, title: "Dataset looks clean!", detail: "No duplicates or missing values detected", action: () => {} });
       return list;
-    }, [workingHeaders, workingRows]);
+    }, []);
     const [applied, setApplied] = useState<string[]>([]);
     const applyAll = () => { suggestions.filter(s => s.id !== "ok").forEach(s => s.action()); setApplied(suggestions.map(s => s.id)); setModal(null); };
     return (
@@ -714,7 +734,7 @@ export function CleanTransform() {
   ];
 
   const discardChanges = () => {
-    commitTransform(dataset.tableHeaders, dataset.tableRows);
+    commitTransform(originalHeaders, originalRows);
     setHighlightedCells({}); setOutlierRows([]);
     setAppliedSteps([
       { id: uid(), icon: Trash2, name: "Trimmed Whitespace", detail: `Cleaned text fields in ${dataset.name}`, timestamp: nowStr(), undo: () => {} },
@@ -794,18 +814,18 @@ export function CleanTransform() {
                 <CardTitle className="text-sm font-bold text-textPrimary">Data Preview — {dataset.name}</CardTitle>
               </div>
               <span className="text-[11px] text-primary bg-primary-soft/50 px-3 py-1 rounded-full border border-primary/20 font-bold shadow-xs">
-                {workingRows.length} rows loaded
+                {displayRows.length} rows loaded {activeTab === "transform" ? "(Original Base Data)" : "(Transformed Result)"}
               </span>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-auto">
               <table className="w-full text-left text-xs whitespace-nowrap">
                 <thead className="bg-primary-soft/20 text-textSecondary sticky top-0 shadow-xs border-b border-border/80 backdrop-blur-md">
-                  <tr>{workingHeaders.map((header, idx) => <th key={idx} className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">{header}</th>)}</tr>
+                  <tr>{displayHeaders.map((header, idx) => <th key={idx} className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">{header}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-border/60 bg-surface">
-                  {workingRows.map((row, rowIdx) => (
+                  {displayRows.map((row, rowIdx) => (
                     <tr key={rowIdx} className={`hover:bg-primary-soft/15 transition-colors ${outlierRows.includes(rowIdx) ? "bg-amber-500/10" : ""}`}>
-                      {workingHeaders.map((header, colIdx) => (
+                      {displayHeaders.map((header, colIdx) => (
                         <td key={colIdx} className={`px-4 py-3 font-medium transition-colors ${highlightedCells[`${rowIdx}-${header}`] ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold" : "text-textPrimary"}`}>
                           {row[header] !== undefined ? String(row[header]) : "—"}
                         </td>
