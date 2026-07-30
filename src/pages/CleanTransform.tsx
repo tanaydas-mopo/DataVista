@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Filter, Trash2, Edit3, ArrowRightLeft, Type, Sparkles, CheckCircle2, Database,
   X, ChevronDown, Merge, Scissors, SortAsc, Eye,
@@ -153,7 +153,7 @@ function ActionRow({ onApply, onClose, applyLabel = "Apply", disabled = false }:
 }
 
 export function CleanTransform() {
-  const { dataset } = useDataset();
+  const { dataset, updateTableData } = useDataset();
   const [activeTab, setActiveTab] = useState("transform");
   const [modal, setModal] = useState<ModalType>(null);
   const [appliedSteps, setAppliedSteps] = useState<AppliedStep[]>(() => [
@@ -165,13 +165,25 @@ export function CleanTransform() {
   const [workingRows, setWorkingRows] = useState<Record<string, any>[]>(() => dataset.tableRows);
   const [highlightedCells, setHighlightedCells] = useState<Record<string, boolean>>({});
   const [outlierRows, setOutlierRows] = useState<number[]>([]);
+  const currentDatasetName = useRef(dataset.name);
 
+  // Synchronize ONLY if a completely new dataset file or preset is loaded
   useEffect(() => {
-    setWorkingHeaders(dataset.tableHeaders);
-    setWorkingRows(dataset.tableRows);
-    setHighlightedCells({});
-    setOutlierRows([]);
-  }, [dataset]);
+    if (currentDatasetName.current !== dataset.name) {
+      currentDatasetName.current = dataset.name;
+      setWorkingHeaders(dataset.tableHeaders);
+      setWorkingRows(dataset.tableRows);
+      setHighlightedCells({});
+      setOutlierRows([]);
+    }
+  }, [dataset.name, dataset.tableHeaders, dataset.tableRows]);
+
+  // Helper to commit state changes both locally and to DatasetContext globally
+  const commitTransform = useCallback((headers: string[], rows: Record<string, any>[]) => {
+    setWorkingHeaders(headers);
+    setWorkingRows(rows);
+    updateTableData(headers, rows);
+  }, [updateTableData]);
 
   const addStep = useCallback((icon: any, name: string, detail: string, undo: () => void) => {
     const step: AppliedStep = { id: uid(), icon, name, detail, timestamp: nowStr(), undo };
@@ -196,8 +208,9 @@ export function CleanTransform() {
     const toggle = (col: string) => setCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
     const apply = () => {
       const seen = new Set<string>(); const snap = [...workingRows];
-      setWorkingRows(workingRows.filter(row => { const k = cols.map(c => String(row[c] ?? "")).join("||"); if (seen.has(k)) return false; seen.add(k); return true; }));
-      addStep(Trash2, "Remove Duplicates", `Removed ${dupes} duplicate row(s)`, () => setWorkingRows(snap));
+      const newRows = workingRows.filter(row => { const k = cols.map(c => String(row[c] ?? "")).join("||"); if (seen.has(k)) return false; seen.add(k); return true; });
+      commitTransform(workingHeaders, newRows);
+      addStep(Trash2, "Remove Duplicates", `Removed ${dupes} duplicate row(s)`, () => commitTransform(workingHeaders, snap));
     };
     return (
       <Modal title="Remove Duplicates" subtitle="Detect and eliminate duplicate records across columns" icon={Trash2} onClose={() => setModal(null)}>
@@ -223,10 +236,22 @@ export function CleanTransform() {
     }, [mode, selectedCols]);
     const apply = () => {
       const snap = { rows: [...workingRows], headers: [...workingHeaders] };
-      const restore = () => { setWorkingRows(snap.rows); setWorkingHeaders(snap.headers); };
-      if (mode === "rows-any") { setWorkingRows(workingRows.filter(row => !workingHeaders.some(h => isNull(row[h])))); addStep(MinusSquare, "Remove Null Rows", `Removed ${count} row(s) with nulls`, restore); }
-      else if (mode === "rows-selected" && selectedCols.length > 0) { setWorkingRows(workingRows.filter(row => !selectedCols.some(h => isNull(row[h])))); addStep(MinusSquare, "Remove Null Rows", `Removed rows with nulls in: ${selectedCols.join(", ")}`, restore); }
-      else if (mode === "cols") { const nullCols = workingHeaders.filter(h => workingRows.some(row => isNull(row[h]))); setWorkingHeaders(workingHeaders.filter(h => !nullCols.includes(h))); setWorkingRows(workingRows.map(row => { const r = { ...row }; nullCols.forEach(c => delete r[c]); return r; })); addStep(MinusSquare, "Remove Null Columns", `Removed ${nullCols.length} column(s)`, restore); }
+      const restore = () => commitTransform(snap.headers, snap.rows);
+      if (mode === "rows-any") {
+        const nr = workingRows.filter(row => !workingHeaders.some(h => isNull(row[h])));
+        commitTransform(workingHeaders, nr);
+        addStep(MinusSquare, "Remove Null Rows", `Removed ${count} row(s) with nulls`, restore);
+      } else if (mode === "rows-selected" && selectedCols.length > 0) {
+        const nr = workingRows.filter(row => !selectedCols.some(h => isNull(row[h])));
+        commitTransform(workingHeaders, nr);
+        addStep(MinusSquare, "Remove Null Rows", `Removed rows with nulls in: ${selectedCols.join(", ")}`, restore);
+      } else if (mode === "cols") {
+        const nullCols = workingHeaders.filter(h => workingRows.some(row => isNull(row[h])));
+        const nh = workingHeaders.filter(h => !nullCols.includes(h));
+        const nr = workingRows.map(row => { const r = { ...row }; nullCols.forEach(c => delete r[c]); return r; });
+        commitTransform(nh, nr);
+        addStep(MinusSquare, "Remove Null Columns", `Removed ${nullCols.length} column(s)`, restore);
+      }
     };
     return (
       <Modal title="Remove Null Values" subtitle="Clean incomplete records or empty columns" icon={MinusSquare} onClose={() => setModal(null)}>
@@ -250,7 +275,7 @@ export function CleanTransform() {
     const [col, setCol] = useState(workingHeaders[0] || "");
     const [method, setMethod] = useState<"mean" | "median" | "mode" | "zero" | "custom" | "unknown">("mean");
     const [custom, setCustom] = useState("");
-    const colNums = useMemo(() => workingRows.map(r => parseFloat(String(r[col]))).filter(n => !isNaN(n)), [col]);
+    const colNums = useMemo(() => workingRows.map(r => parseFloat(String(r[col]))).filter(n => !isNaN(n)), [col, workingRows]);
     const numericCol = colNums.length > 0;
     const fillValue = useMemo(() => {
       if (method === "mean" && numericCol) return mean(colNums).toFixed(2);
@@ -258,13 +283,14 @@ export function CleanTransform() {
       if (method === "mode" && numericCol) return modeVal(colNums).toString();
       if (method === "zero") return "0"; if (method === "unknown") return "Unknown"; if (method === "custom") return custom;
       return "-";
-    }, [method, col, custom, colNums, numericCol]);
+    }, [method, custom, colNums, numericCol]);
     const missingCount = workingRows.filter(r => r[col] === null || r[col] === undefined || String(r[col]).trim() === "").length;
     const apply = () => {
       const snap = [...workingRows]; const hl: Record<string, boolean> = {};
-      setWorkingRows(workingRows.map((row, i) => { if (row[col] === null || row[col] === undefined || String(row[col]).trim() === "") { hl[`${i}-${col}`] = true; return { ...row, [col]: fillValue }; } return row; }));
+      const nr = workingRows.map((row, i) => { if (row[col] === null || row[col] === undefined || String(row[col]).trim() === "") { hl[`${i}-${col}`] = true; return { ...row, [col]: fillValue }; } return row; });
+      commitTransform(workingHeaders, nr);
       setHighlightedCells(hl);
-      addStep(Sparkles, "Fill Missing Values", `Filled ${missingCount} null(s) in "${col}" with ${method}`, () => { setWorkingRows(snap); setHighlightedCells({}); });
+      addStep(Sparkles, "Fill Missing Values", `Filled ${missingCount} null(s) in "${col}" with ${method}`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
     };
     return (
       <Modal title="Fill Missing Values" subtitle="Impute missing entries with statistical measures or custom values" icon={Sparkles} onClose={() => setModal(null)}>
@@ -285,9 +311,10 @@ export function CleanTransform() {
     const apply = () => {
       if (!newName.trim() || isDupe) return;
       const snapH = [...workingHeaders]; const snapR = workingRows.map(r => ({ ...r }));
-      setWorkingHeaders(workingHeaders.map(h => h === oldName ? newName.trim() : h));
-      setWorkingRows(workingRows.map(row => { const r = { ...row }; if (oldName in r) { r[newName.trim()] = r[oldName]; delete r[oldName]; } return r; }));
-      addStep(Edit3, "Rename Column", `Renamed "${oldName}" to "${newName.trim()}"`, () => { setWorkingHeaders(snapH); setWorkingRows(snapR); });
+      const nh = workingHeaders.map(h => h === oldName ? newName.trim() : h);
+      const nr = workingRows.map(row => { const r = { ...row }; if (oldName in r) { r[newName.trim()] = r[oldName]; delete r[oldName]; } return r; });
+      commitTransform(nh, nr);
+      addStep(Edit3, "Rename Column", `Renamed "${oldName}" to "${newName.trim()}"`, () => commitTransform(snapH, snapR));
     };
     return (
       <Modal title="Rename Column" subtitle="Modify column header identifier" icon={Edit3} onClose={() => setModal(null)}>
@@ -315,12 +342,13 @@ export function CleanTransform() {
       if (targetType === "DateTime") { const d = new Date(s); return isNaN(d.getTime()) ? null : d.toLocaleString(); }
       return s;
     };
-    const errors = useMemo(() => workingRows.filter(row => convert(row[col]) === null).length, [col, targetType]);
+    const errors = useMemo(() => workingRows.filter(row => convert(row[col]) === null).length, [col, targetType, workingRows]);
     const apply = () => {
       const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
-      setWorkingRows(workingRows.map((row, i) => { const v = convert(row[col]); if (v === null) hl[`${i}-${col}`] = true; return { ...row, [col]: v !== null ? v : row[col] }; }));
+      const nr = workingRows.map((row, i) => { const v = convert(row[col]); if (v === null) hl[`${i}-${col}`] = true; return { ...row, [col]: v !== null ? v : row[col] }; });
+      commitTransform(workingHeaders, nr);
       setHighlightedCells(hl);
-      addStep(Type, "Change Data Type", `Changed "${col}" to ${targetType}${errors > 0 ? ` (${errors} errors)` : ""}`, () => { setWorkingRows(snap); setHighlightedCells({}); });
+      addStep(Type, "Change Data Type", `Changed "${col}" to ${targetType}${errors > 0 ? ` (${errors} errors)` : ""}`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
     };
     return (
       <Modal title="Change Data Type" subtitle="Cast column elements to target format" icon={Type} onClose={() => setModal(null)}>
@@ -343,17 +371,18 @@ export function CleanTransform() {
       const sample = workingRows[0]?.[col]; if (!sample) return [];
       if (splitBy === "fixed") { const len = parseInt(fixedLen) || 5; const p: string[] = []; for (let i = 0; i < String(sample).length; i += len) p.push(String(sample).slice(i, i + len)); return p; }
       return String(sample).split(delim);
-    }, [col, splitBy, custom, fixedLen]);
+    }, [col, splitBy, custom, fixedLen, workingRows]);
     const apply = () => {
       const snap = { rows: workingRows.map(r => ({ ...r })), headers: [...workingHeaders] };
       const nc = preview.map((_, i) => `${col}_${i + 1}`);
-      setWorkingHeaders([...workingHeaders.filter(h => h !== col), ...nc]);
-      setWorkingRows(workingRows.map(row => {
+      const nh = [...workingHeaders.filter(h => h !== col), ...nc];
+      const nr = workingRows.map(row => {
         const r = { ...row }; const val = String(r[col] ?? ""); let parts: string[];
         if (splitBy === "fixed") { const len = parseInt(fixedLen) || 5; parts = []; for (let i = 0; i < val.length; i += len) parts.push(val.slice(i, i + len)); } else { parts = val.split(delim); }
         delete r[col]; nc.forEach((c, i) => { r[c] = parts[i] ?? ""; }); return r;
-      }));
-      addStep(Scissors, "Split Column", `Split "${col}" into ${nc.length} columns`, () => { setWorkingHeaders(snap.headers); setWorkingRows(snap.rows); });
+      });
+      commitTransform(nh, nr);
+      addStep(Scissors, "Split Column", `Split "${col}" into ${nc.length} columns`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
       <Modal title="Split Column" subtitle="Divide text column into multiple distinct fields" icon={Scissors} onClose={() => setModal(null)}>
@@ -378,9 +407,10 @@ export function CleanTransform() {
     const apply = () => {
       if (selected.length < 2) return;
       const snap = { rows: workingRows.map(r => ({ ...r })), headers: [...workingHeaders] };
-      setWorkingRows(workingRows.map(row => { const r = { ...row }; r[newName] = selected.map(c => String(r[c] ?? "")).join(sep); if (removeOrig) selected.forEach(c => { if (c !== newName) delete r[c]; }); return r; }));
-      setWorkingHeaders([...(removeOrig ? workingHeaders.filter(h => !selected.includes(h)) : workingHeaders), newName]);
-      addStep(Merge, "Merge Columns", `Merged ${selected.join(" + ")} into "${newName}"`, () => { setWorkingRows(snap.rows); setWorkingHeaders(snap.headers); });
+      const nr = workingRows.map(row => { const r = { ...row }; r[newName] = selected.map(c => String(r[c] ?? "")).join(sep); if (removeOrig) selected.forEach(c => { if (c !== newName) delete r[c]; }); return r; });
+      const nh = [...(removeOrig ? workingHeaders.filter(h => !selected.includes(h)) : workingHeaders), newName];
+      commitTransform(nh, nr);
+      addStep(Merge, "Merge Columns", `Merged ${selected.join(" + ")} into "${newName}"`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
       <Modal title="Merge Columns" subtitle="Combine multiple fields into a single unified column" icon={Merge} onClose={() => setModal(null)}>
@@ -397,7 +427,7 @@ export function CleanTransform() {
     );
   };
 
-  /* ── 8. Filter Rows (ENHANCED: Case-insensitive, Quick-select Chips & Safe Guard against 0 matches) ── */
+  /* ── 8. Filter Rows ── */
   const FilterRowsModal = () => {
     const [col, setCol] = useState(workingHeaders[0] || "");
     const [op, setOp] = useState("equals");
@@ -415,7 +445,6 @@ export function CleanTransform() {
       { value: "is-not-empty", label: "Is Not Empty" }
     ];
 
-    // Auto-extract sample unique values for quick-select chip suggestions
     const sampleValues = useMemo(() => {
       const set = new Set<string>();
       workingRows.forEach(r => {
@@ -450,8 +479,9 @@ export function CleanTransform() {
     const apply = () => {
       if (isZeroMatch) return;
       const snap = [...workingRows];
-      setWorkingRows(workingRows.filter(matches));
-      addStep(Filter, "Filter Rows", `Kept ${cnt} row(s) where "${col}" ${op} "${val}"`, () => setWorkingRows(snap));
+      const nr = workingRows.filter(matches);
+      commitTransform(workingHeaders, nr);
+      addStep(Filter, "Filter Rows", `Kept ${cnt} row(s) where "${col}" ${op} "${val}"`, () => commitTransform(workingHeaders, snap));
     };
 
     return (
@@ -513,8 +543,9 @@ export function CleanTransform() {
     const updateSort = (i: number, field: "col" | "dir", v: string) => setSorts(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: v } : s));
     const apply = () => {
       const snap = [...workingRows];
-      setWorkingRows([...workingRows].sort((a, b) => { for (const { col, dir } of sorts) { const na = parseFloat(String(a[col])); const nb = parseFloat(String(b[col])); const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : String(a[col]).localeCompare(String(b[col])); if (cmp !== 0) return dir === "asc" ? cmp : -cmp; } return 0; }));
-      addStep(SortAsc, "Sort Rows", `Sorted by ${sorts.map(s => `${s.col} (${s.dir})`).join(", ")}`, () => setWorkingRows(snap));
+      const nr = [...workingRows].sort((a, b) => { for (const { col, dir } of sorts) { const na = parseFloat(String(a[col])); const nb = parseFloat(String(b[col])); const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : String(a[col]).localeCompare(String(b[col])); if (cmp !== 0) return dir === "asc" ? cmp : -cmp; } return 0; });
+      commitTransform(workingHeaders, nr);
+      addStep(SortAsc, "Sort Rows", `Sorted by ${sorts.map(s => `${s.col} (${s.dir})`).join(", ")}`, () => commitTransform(workingHeaders, snap));
     };
     return (
       <Modal title="Sort Rows" subtitle="Re-order rows by single or multi-column criteria" icon={SortAsc} onClose={() => setModal(null)}>
@@ -540,9 +571,10 @@ export function CleanTransform() {
     const apply = () => {
       if (selected.length === 0) return;
       const snap = { rows: workingRows.map(r => ({ ...r })), headers: [...workingHeaders] };
-      setWorkingHeaders(workingHeaders.filter(h => !selected.includes(h)));
-      setWorkingRows(workingRows.map(row => { const r = { ...row }; selected.forEach(c => delete r[c]); return r; }));
-      addStep(Trash2, "Remove Columns", `Removed: ${selected.join(", ")}`, () => { setWorkingRows(snap.rows); setWorkingHeaders(snap.headers); });
+      const nh = workingHeaders.filter(h => !selected.includes(h));
+      const nr = workingRows.map(row => { const r = { ...row }; selected.forEach(c => delete r[c]); return r; });
+      commitTransform(nh, nr);
+      addStep(Trash2, "Remove Columns", `Removed: ${selected.join(", ")}`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
       <Modal title="Remove Columns" subtitle="Select columns to permanently delete" icon={Trash2} onClose={() => setModal(null)}>
@@ -569,9 +601,10 @@ export function CleanTransform() {
       const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
       const esc = find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const rx = new RegExp(esc, (matchCase ? "" : "i") + (replaceAll ? "g" : ""));
-      setWorkingRows(workingRows.map((row, i) => { const r = { ...row }; cols.forEach(col => { const v = String(r[col] ?? ""); const check = matchCase ? v : v.toLowerCase(); if (check.includes(matchCase ? find : find.toLowerCase())) { hl[`${i}-${col}`] = true; r[col] = v.replace(rx, replace); } }); return r; }));
+      const nr = workingRows.map((row, i) => { const r = { ...row }; cols.forEach(col => { const v = String(r[col] ?? ""); const check = matchCase ? v : v.toLowerCase(); if (check.includes(matchCase ? find : find.toLowerCase())) { hl[`${i}-${col}`] = true; r[col] = v.replace(rx, replace); } }); return r; });
+      commitTransform(workingHeaders, nr);
       setHighlightedCells(hl);
-      addStep(Search, "Find and Replace", `Replaced "${find}" with "${replace}" (${cnt} match${cnt !== 1 ? "es" : ""})`, () => { setWorkingRows(snap); setHighlightedCells({}); });
+      addStep(Search, "Find and Replace", `Replaced "${find}" with "${replace}" (${cnt} match${cnt !== 1 ? "es" : ""})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
     };
     return (
       <Modal title="Find & Replace" subtitle="Locate specific values and substitute them" icon={ArrowRightLeft} onClose={() => setModal(null)}>
@@ -610,8 +643,8 @@ export function CleanTransform() {
       const m = vals.length > 0 ? mean(vals) : 0; const med = vals.length > 0 ? median(vals) : 0;
       if (action === "remove") { rows = rows.filter((_, i) => !outIdx.includes(i)); }
       else if (action === "replace-mean" || action === "replace-median") { const rv = action === "replace-mean" ? m.toFixed(2) : med.toFixed(2); rows = rows.map((row, i) => { if (outIdx.includes(i)) { hl[`${i}-${col}`] = true; return { ...row, [col]: rv }; } return row; }); }
-      setWorkingRows(rows); setHighlightedCells(hl); setOutlierRows([]);
-      addStep(Eye, "Detect Outliers", `${action} ${outIdx.length} outlier(s) in "${col}" (${method.toUpperCase()})`, () => { setWorkingRows(snap); setHighlightedCells({}); setOutlierRows([]); });
+      commitTransform(workingHeaders, rows); setHighlightedCells(hl); setOutlierRows([]);
+      addStep(Eye, "Detect Outliers", `${action} ${outIdx.length} outlier(s) in "${col}" (${method.toUpperCase()})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); setOutlierRows([]); });
     };
     return (
       <Modal title="Detect Outliers" subtitle="Identify statistical anomalies via IQR or Z-score algorithms" icon={Eye} onClose={() => setModal(null)}>
@@ -632,13 +665,13 @@ export function CleanTransform() {
       const seen = new Set<string>(); let dupes = 0;
       workingRows.forEach(row => { const key = workingHeaders.map(h => String(row[h] ?? "")).join("||"); if (seen.has(key)) dupes++; else seen.add(key); });
       if (dupes > 0) list.push({ id: "dupes", icon: Trash2, title: `Remove ${dupes} Duplicate Rows`, detail: "Identical rows detected across all columns",
-        action: () => { const s = new Set<string>(); const snap = [...workingRows]; setWorkingRows(workingRows.filter(row => { const k = workingHeaders.map(h => String(row[h] ?? "")).join("||"); if (s.has(k)) return false; s.add(k); return true; })); addStep(Trash2, "Auto Clean: Duplicates", `Removed ${dupes} rows`, () => setWorkingRows(snap)); } });
+        action: () => { const s = new Set<string>(); const snap = [...workingRows]; const nr = workingRows.filter(row => { const k = workingHeaders.map(h => String(row[h] ?? "")).join("||"); if (s.has(k)) return false; s.add(k); return true; }); commitTransform(workingHeaders, nr); addStep(Trash2, "Auto Clean: Duplicates", `Removed ${dupes} rows`, () => commitTransform(workingHeaders, snap)); } });
       let nullCnt = 0; workingHeaders.forEach(h => workingRows.forEach(row => { if (isNull(row[h])) nullCnt++; }));
       if (nullCnt > 0) list.push({ id: "nulls", icon: MinusSquare, title: `Fill ${nullCnt} Missing Values`, detail: "Null/empty cells found — will fill with 'Unknown'",
-        action: () => { const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; setWorkingRows(workingRows.map((row, i) => { const r = { ...row }; workingHeaders.forEach(h => { if (isNull(r[h])) { hl[`${i}-${h}`] = true; r[h] = "Unknown"; } }); return r; })); setHighlightedCells(hl); addStep(MinusSquare, "Auto Clean: Fill Nulls", `Filled ${nullCnt} cells`, () => { setWorkingRows(snap); setHighlightedCells({}); }); } });
+        action: () => { const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; const nr = workingRows.map((row, i) => { const r = { ...row }; workingHeaders.forEach(h => { if (isNull(r[h])) { hl[`${i}-${h}`] = true; r[h] = "Unknown"; } }); return r; }); commitTransform(workingHeaders, nr); setHighlightedCells(hl); addStep(MinusSquare, "Auto Clean: Fill Nulls", `Filled ${nullCnt} cells`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); }); } });
       if (list.length === 0) list.push({ id: "ok", icon: CheckCircle2, title: "Dataset looks clean!", detail: "No duplicates or missing values detected", action: () => {} });
       return list;
-    }, []);
+    }, [workingHeaders, workingRows]);
     const [applied, setApplied] = useState<string[]>([]);
     const applyAll = () => { suggestions.filter(s => s.id !== "ok").forEach(s => s.action()); setApplied(suggestions.map(s => s.id)); setModal(null); };
     return (
@@ -681,7 +714,8 @@ export function CleanTransform() {
   ];
 
   const discardChanges = () => {
-    setWorkingHeaders(dataset.tableHeaders); setWorkingRows(dataset.tableRows); setHighlightedCells({}); setOutlierRows([]);
+    commitTransform(dataset.tableHeaders, dataset.tableRows);
+    setHighlightedCells({}); setOutlierRows([]);
     setAppliedSteps([
       { id: uid(), icon: Trash2, name: "Trimmed Whitespace", detail: `Cleaned text fields in ${dataset.name}`, timestamp: nowStr(), undo: () => {} },
       { id: uid(), icon: Type, name: "Verified Column Data Types", detail: `${dataset.totalColumns} columns indexed`, timestamp: nowStr(), undo: () => {} },

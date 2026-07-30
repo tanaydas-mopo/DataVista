@@ -41,6 +41,7 @@ interface DatasetContextType {
   switchDatasetPreset: (preset: 'ipl' | 'sales' | 'ecommerce') => void;
   removeDataset: () => void;
   updateChartVisual: (title: string, data: DynamicChartItem[]) => void;
+  updateTableData: (headers: string[], rows: Array<Record<string, any>>) => void;
   notification: string | null;
   clearNotification: () => void;
 }
@@ -601,9 +602,33 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setNotification(null), 4000);
   };
 
+  const updateTableData = (headers: string[], rows: Array<Record<string, any>>) => {
+    setDataset(prev => {
+      const rawRows = rows.map(r => headers.map(h => String(r[h] ?? "")));
+      const updated: DatasetInfo = {
+        ...prev,
+        totalRows: rows.length.toLocaleString(),
+        totalColumns: headers.length.toString(),
+        tableHeaders: headers,
+        tableRows: rows,
+        rawHeaders: headers,
+        rawRows: rawRows,
+      };
+      try {
+        localStorage.setItem("datavista_dataset", JSON.stringify({
+          ...updated,
+          rawRows: rawRows.slice(0, 500),
+        }));
+      } catch (e) {
+        console.warn("Could not save updated table data to localStorage:", e);
+      }
+      return updated;
+    });
+  };
+
   return (
     <DatasetContext.Provider
-      value={{ dataset, uploadDataset, switchDatasetPreset, removeDataset, updateChartVisual, notification, clearNotification }}
+      value={{ dataset, uploadDataset, switchDatasetPreset, removeDataset, updateChartVisual, updateTableData, notification, clearNotification }}
     >
       {children}
     </DatasetContext.Provider>
