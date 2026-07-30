@@ -57,45 +57,63 @@ const ALL_CHART_TYPES = [
 ];
 
 /* ─────────────────────────────────────────────
-   SMART AGGREGATION COMPUTATION ENGINE
+   SMART DYNAMIC AGGREGATION ENGINE
 ───────────────────────────────────────────── */
-function computeSmartAgg(rawVals: any[], mode: string, colName: string): { value: number; isCountFallback: boolean } {
-  if (!rawVals || rawVals.length === 0) return { value: 0, isCountFallback: false };
-
-  // Parse numeric values
-  const numericVals: number[] = [];
-  let nonNumericCount = 0;
-
-  for (const v of rawVals) {
-    if (v === null || v === undefined || String(v).trim() === "") continue;
-    const num = Number(v);
-    if (!isNaN(num)) {
-      numericVals.push(num);
-    } else {
-      nonNumericCount++;
-    }
-  }
+function computeSmartAgg(rawVals: any[], mode: string, colName: string): { value: number; metricLabel: string } {
+  if (!rawVals || rawVals.length === 0) return { value: 0, metricLabel: mode };
 
   const colLower = colName.toLowerCase();
   const isYearOrDateCol = colLower.includes("season") || colLower.includes("year") || colLower.includes("date") || colLower.includes("id");
-  const isTextCol = nonNumericCount > numericVals.length;
 
-  // If text column or year/season column with 'sum' mode, count records instead of summing years/strings!
-  if (isTextCol || (isYearOrDateCol && mode === "sum")) {
-    if (mode === "count-distinct") {
-      return { value: new Set(rawVals.map(v => String(v ?? "").trim())).size, isCountFallback: isTextCol || isYearOrDateCol };
-    }
-    return { value: rawVals.length, isCountFallback: true };
+  const cleanedStrings = rawVals.map(v => String(v ?? "").trim()).filter(v => v.length > 0);
+  const numericVals: number[] = [];
+
+  for (const s of cleanedStrings) {
+    const num = Number(s);
+    if (!isNaN(num)) numericVals.push(num);
   }
 
-  // Pure numeric calculations
-  if (numericVals.length === 0) return { value: rawVals.length, isCountFallback: true };
+  const isTextCol = numericVals.length < cleanedStrings.length * 0.5;
+
+  // 1. Text / Categorical Column (e.g. City, Player_of_Match, Winner, Team, Status)
+  if (isTextCol) {
+    if (mode === "count") {
+      return { value: rawVals.length, metricLabel: "Count" };
+    }
+    // Sum/Avg on Text -> Count Distinct (Unique items count)
+    const distinctCount = new Set(cleanedStrings).size;
+    return { value: distinctCount, metricLabel: "Distinct Count" };
+  }
+
+  // 2. Year / Date / ID Column (e.g. Season=2024, Match_ID=335982)
+  if (isYearOrDateCol) {
+    if (mode === "avg" && numericVals.length > 0) {
+      const avgYear = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
+      return { value: Math.round(avgYear), metricLabel: "Avg" };
+    }
+    if (mode === "min" && numericVals.length > 0) {
+      return { value: Math.min(...numericVals), metricLabel: "Min" };
+    }
+    if (mode === "max" && numericVals.length > 0) {
+      return { value: Math.max(...numericVals), metricLabel: "Max" };
+    }
+    if (mode === "count") {
+      return { value: rawVals.length, metricLabel: "Count" };
+    }
+    // Sum on Year/ID -> Count Distinct (Unique Years/IDs count)
+    const distinctCount = new Set(cleanedStrings).size;
+    return { value: distinctCount, metricLabel: "Distinct Count" };
+  }
+
+  // 3. Numeric Column (e.g. Margin_Runs, Runs, Sales, Revenue, Price, Quantity)
+  if (numericVals.length === 0) {
+    return { value: rawVals.length, metricLabel: "Count" };
+  }
 
   let val = 0;
-  if (mode === "sum") val = numericVals.reduce((a, b) => a + b, 0);
-  else if (mode === "avg") val = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
+  if (mode === "avg") val = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
   else if (mode === "count") val = rawVals.length;
-  else if (mode === "count-distinct") val = new Set(rawVals.map(v => String(v ?? "").trim())).size;
+  else if (mode === "count-distinct") val = new Set(cleanedStrings).size;
   else if (mode === "max") val = Math.max(...numericVals);
   else if (mode === "min") val = Math.min(...numericVals);
   else if (mode === "median") {
@@ -110,10 +128,11 @@ function computeSmartAgg(rawVals: any[], mode: string, colName: string): { value
     const m = numericVals.reduce((a, b) => a + b, 0) / numericVals.length;
     val = numericVals.reduce((a, b) => a + (b - m) ** 2, 0) / numericVals.length;
   } else {
+    // sum
     val = numericVals.reduce((a, b) => a + b, 0);
   }
 
-  return { value: Math.round(val * 100) / 100, isCountFallback: false };
+  return { value: Math.round(val * 100) / 100, metricLabel: mode.toUpperCase() };
 }
 
 function formatVal(n: number, fmt: string, decimals: number, curr: string): string {
@@ -177,7 +196,7 @@ export function VisualBuilder() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  /* ── AI Recommendation Logic ── */
+  /* ── AI Recommendation Engine ── */
   const aiRecommendation = useMemo(() => {
     const xLower = currentX.toLowerCase();
     if (xLower.includes("date") || xLower.includes("year") || xLower.includes("month") || xLower.includes("season")) {
@@ -193,7 +212,7 @@ export function VisualBuilder() {
   const { chartData, rawGroupedRows, isInvalidConfig, activeAggNotes } = useMemo(() => {
     if (!isUploaded) return { chartData: [], rawGroupedRows: {}, isInvalidConfig: false, activeAggNotes: [] };
 
-    // Raw rows extraction
+    // Extract all rows dynamically from dataset
     let rows: Record<string, any>[] = [];
     if (dataset.rawRows && dataset.rawRows.length > 0 && dataset.rawHeaders) {
       rows = dataset.rawRows.map(rowArr => {
@@ -252,11 +271,12 @@ export function VisualBuilder() {
 
       yCols.forEach(yCol => {
         const rawVals = grouped[key][yCol] || [];
-        const { value, isCountFallback } = computeSmartAgg(rawVals, measureType, yCol);
+        const { value, metricLabel } = computeSmartAgg(rawVals, measureType, yCol);
         item[yCol] = value;
+        item[`${yCol}_label`] = metricLabel;
         if (yCols.length === 1) item.value = value;
 
-        if (isCountFallback && !aggNotes.includes(yCol)) {
+        if (metricLabel.includes("Distinct") && !aggNotes.includes(yCol)) {
           aggNotes.push(yCol);
         }
       });
@@ -310,13 +330,12 @@ export function VisualBuilder() {
     const min = Math.min(...vals);
     const max = Math.max(...vals);
     const step = (max - min) / 5 || 10;
-    const bins = Array.from({ length: 5 }, (_, i) => {
+    return Array.from({ length: 5 }, (_, i) => {
       const start = Math.round(min + i * step);
       const end = Math.round(min + (i + 1) * step);
       const count = vals.filter(v => v >= start && v < (i === 4 ? end + 1 : end)).length;
       return { label: `${start}-${end}`, value: count, color: palette[i % palette.length] };
     });
-    return bins;
   }, [activeChartType, chartData, primaryY, palette]);
 
   return (
@@ -481,7 +500,7 @@ export function VisualBuilder() {
                     <option value="sum">Sum of Values</option>
                     <option value="avg">Average of Values</option>
                     <option value="count">Count of Records</option>
-                    <option value="count-distinct">Count Distinct</option>
+                    <option value="count-distinct">Count Distinct (Unique)</option>
                     <option value="max">Maximum Value</option>
                     <option value="min">Minimum Value</option>
                     <option value="median">Median Value</option>
@@ -523,7 +542,7 @@ export function VisualBuilder() {
                 ) : activeAggNotes.length > 0 ? (
                   <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5 font-semibold flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    Count metric auto-applied for non-numeric field ({activeAggNotes.join(", ")})
+                    Distinct count calculated for text/date fields ({activeAggNotes.join(", ")})
                   </p>
                 ) : null}
               </div>
@@ -591,12 +610,12 @@ export function VisualBuilder() {
                         ))}
                       </RechartsBarChart>
                     ) : activeChartType === "horizontal-bar" ? (
-                      /* Fixed Multi-Measure Horizontal Bar Chart */
+                      /* Multi-Measure Horizontal Bar Chart */
                       <RechartsBarChart layout="vertical" data={chartData} margin={{ top: 20, right: 20, left: 30, bottom: 25 }} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
                         {showGrid && <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border, #E2E8F0)" />}
                         <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <YAxis type="category" dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <Tooltip contentStyle={tooltipStyle} formatter={(val: any) => formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol)} />
                         {showLegend && <Legend verticalAlign="top" />}
                         {yCols.map((yCol, i) => (
                           <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[0, 6, 6, 0]} barSize={barWidth} isAnimationActive={false} />
@@ -607,7 +626,7 @@ export function VisualBuilder() {
                         {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
                         <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <Tooltip contentStyle={tooltipStyle} formatter={(val: any) => formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol)} />
                         {showLegend && <Legend verticalAlign="top" />}
                         {yCols.map((yCol, i) => (
                           <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} strokeWidth={3} dot={{ r: 5 }} isAnimationActive={false} />
@@ -694,12 +713,12 @@ export function VisualBuilder() {
                           const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
                           return (
                             <div key={yCol} className="p-5 bg-surface border border-border/80 rounded-2xl shadow-xs flex flex-col gap-2">
-                              <span className="text-xs font-bold uppercase tracking-wider text-textSecondary">{yCol} ({measureType})</span>
+                              <span className="text-xs font-bold uppercase tracking-wider text-textSecondary">{yCol}</span>
                               <div className="text-3xl font-extrabold text-primary tracking-tight">
                                 {formatVal(total, valueFormat, decimalPlaces, currencySymbol)}
                               </div>
                               <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 w-fit">
-                                {chartData.length} categories aggregated
+                                {chartData.length} categories aggregated ({measureType.toUpperCase()})
                               </span>
                             </div>
                           );
@@ -712,7 +731,7 @@ export function VisualBuilder() {
                           <thead className="bg-primary-soft/30 sticky top-0 border-b border-border/80">
                             <tr>
                               <th className="px-4 py-2.5 font-bold">{currentX}</th>
-                              {yCols.map(c => <th key={c} className="px-4 py-2.5 font-bold text-right">{c} ({measureType})</th>)}
+                              {yCols.map(c => <th key={c} className="px-4 py-2.5 font-bold text-right">{c}</th>)}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border/60 bg-surface">
@@ -914,7 +933,7 @@ export function VisualBuilder() {
         <div className="fixed inset-0 z-50 bg-surface p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <h2 className="text-lg font-bold text-textPrimary">{customTitle || `${currentX} vs ${yCols.join(" & ")}`} (Fullscreen)</h2>
-            <button onClick={() => setIsFullscreen(false)} className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold">Exit Fullscreen</button>
+            <button onClick={() => setIsFullscreen(false)} className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold cursor-pointer">Exit Fullscreen</button>
           </div>
           <div className="flex-1 w-full h-full">
             <ResponsiveContainer width="100%" height="100%">
