@@ -40,6 +40,7 @@ interface DatasetContextType {
   uploadDataset: (file: File) => Promise<void>;
   switchDatasetPreset: (preset: 'ipl' | 'sales' | 'ecommerce') => void;
   removeDataset: () => void;
+  updateChartVisual: (title: string, data: DynamicChartItem[]) => void;
   notification: string | null;
   clearNotification: () => void;
 }
@@ -579,9 +580,23 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setNotification(null), 4000);
   };
 
+  const updateChartVisual = (title: string, data: DynamicChartItem[]) => {
+    setDataset(prev => {
+      const updated = { ...prev, chartTitle: title, chartData: data };
+      try {
+        localStorage.setItem("datavista_dataset", JSON.stringify(updated));
+      } catch (e) {
+        console.warn("Could not save updated chart to localStorage:", e);
+      }
+      return updated;
+    });
+    setNotification(`Saved chart "${title}" to Dashboard canvas.`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   return (
     <DatasetContext.Provider
-      value={{ dataset, uploadDataset, switchDatasetPreset, removeDataset, notification, clearNotification }}
+      value={{ dataset, uploadDataset, switchDatasetPreset, removeDataset, updateChartVisual, notification, clearNotification }}
     >
       {children}
     </DatasetContext.Provider>
