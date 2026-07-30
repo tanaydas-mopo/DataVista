@@ -677,42 +677,289 @@ export function CleanTransform() {
     );
   };
 
-  /* ── 13. Auto Clean ── */
+  /* ── 13. AI Supercharged Auto Clean Modal ── */
   const AutoCleanModal = () => {
-    const isNull = (v: any) => v === null || v === undefined || String(v).trim() === "";
-    const suggestions = useMemo(() => {
-      const list: { id: string; icon: any; title: string; detail: string; action: () => void }[] = [];
-      const seen = new Set<string>(); let dupes = 0;
-      inputRows.forEach(row => { const key = inputHeaders.map(h => String(row[h] ?? "")).join("||"); if (seen.has(key)) dupes++; else seen.add(key); });
-      if (dupes > 0) list.push({ id: "dupes", icon: Trash2, title: `Remove ${dupes} Duplicate Rows`, detail: "Identical rows detected across all columns",
-        action: () => { const s = new Set<string>(); const snap = [...transformedRows]; const nr = inputRows.filter(row => { const k = inputHeaders.map(h => String(row[h] ?? "")).join("||"); if (s.has(k)) return false; s.add(k); return true; }); commitTransform(inputHeaders, nr); addStep(Trash2, "Auto Clean: Duplicates", `Removed ${dupes} rows`, () => commitTransform(transformedHeaders, snap)); } });
-      let nullCnt = 0; inputHeaders.forEach(h => inputRows.forEach(row => { if (isNull(row[h])) nullCnt++; }));
-      if (nullCnt > 0) list.push({ id: "nulls", icon: MinusSquare, title: `Fill ${nullCnt} Missing Values`, detail: "Null/empty cells found — will fill with 'Unknown'",
-        action: () => { const snap = transformedRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; const nr = inputRows.map((row, i) => { const r = { ...row }; inputHeaders.forEach(h => { if (isNull(r[h])) { hl[`${i}-${h}`] = true; r[h] = "Unknown"; } }); return r; }); commitTransform(inputHeaders, nr); setHighlightedCells(hl); addStep(MinusSquare, "Auto Clean: Fill Nulls", `Filled ${nullCnt} cells`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); }); } });
-      if (list.length === 0) list.push({ id: "ok", icon: CheckCircle2, title: "Dataset looks clean!", detail: "No duplicates or missing values detected", action: () => {} });
-      return list;
-    }, []);
+    const isNull = (v: any) => v === null || v === undefined || String(v).trim() === "" || ["n/a", "null", "nan", "none", "-"].includes(String(v).trim().toLowerCase());
+
+    const isExcelDate = (val: any) => {
+      const n = Number(val);
+      return !isNaN(n) && n >= 35000 && n <= 50000;
+    };
+
+    const excelDateToStr = (serial: number) => {
+      const utcDays = Math.floor(serial - 25569);
+      const utcValue = utcDays * 86400;
+      const dateInfo = new Date(utcValue * 1000);
+      return dateInfo.toISOString().split('T')[0];
+    };
+
+    const audit = useMemo(() => {
+      const suggestions: {
+        id: string;
+        icon: any;
+        title: string;
+        detail: string;
+        risk: "high" | "medium" | "low";
+        action: () => void;
+      }[] = [];
+
+      let healthScore = 100;
+
+      // 1. Duplicate Rows Audit
+      const seen = new Set<string>();
+      let dupes = 0;
+      inputRows.forEach(row => {
+        const key = inputHeaders.map(h => String(row[h] ?? "")).join("||");
+        if (seen.has(key)) dupes++;
+        else seen.add(key);
+      });
+
+      if (dupes > 0) {
+        healthScore -= Math.min(25, dupes * 5);
+        suggestions.push({
+          id: "dupes",
+          icon: Trash2,
+          title: `Purge ${dupes} Duplicate Row${dupes > 1 ? "s" : ""}`,
+          detail: `Identical records detected across all ${inputHeaders.length} columns.`,
+          risk: "high",
+          action: () => {
+            const s = new Set<string>();
+            const snap = [...transformedRows];
+            const nr = inputRows.filter(row => {
+              const k = inputHeaders.map(h => String(row[h] ?? "")).join("||");
+              if (s.has(k)) return false;
+              s.add(k);
+              return true;
+            });
+            commitTransform(inputHeaders, nr);
+            addStep(Trash2, "AI Auto Clean: Purged Duplicates", `Removed ${dupes} duplicate row(s)`, () => commitTransform(transformedHeaders, snap));
+          }
+        });
+      }
+
+      // 2. Untrimmed Whitespace Audit
+      let untrimmedCells = 0;
+      inputHeaders.forEach(h => {
+        inputRows.forEach(row => {
+          const raw = String(row[h] ?? "");
+          if (raw !== raw.trim()) untrimmedCells++;
+        });
+      });
+
+      if (untrimmedCells > 0) {
+        healthScore -= 10;
+        suggestions.push({
+          id: "whitespace",
+          icon: Sparkles,
+          title: `Trim ${untrimmedCells} Untrimmed Text Cell${untrimmedCells > 1 ? "s" : ""}`,
+          detail: "Leading or trailing spaces detected in text columns.",
+          risk: "low",
+          action: () => {
+            const snap = [...transformedRows];
+            const nr = inputRows.map(row => {
+              const r = { ...row };
+              inputHeaders.forEach(h => {
+                if (typeof r[h] === "string") r[h] = r[h].trim();
+              });
+              return r;
+            });
+            commitTransform(inputHeaders, nr);
+            addStep(Sparkles, "AI Auto Clean: Trimmed Whitespace", `Cleaned whitespace in ${untrimmedCells} cell(s)`, () => commitTransform(transformedHeaders, snap));
+          }
+        });
+      }
+
+      // 3. Excel Date Serial Conversion Audit
+      let excelDates = 0;
+      const dateCols: string[] = [];
+      inputHeaders.forEach(h => {
+        const isDateHeader = h.toLowerCase().includes("date") || h.toLowerCase().includes("time");
+        let countInCol = 0;
+        inputRows.forEach(row => {
+          if (isExcelDate(row[h])) countInCol++;
+        });
+        if (isDateHeader && countInCol > 0) {
+          excelDates += countInCol;
+          dateCols.push(h);
+        }
+      });
+
+      if (excelDates > 0) {
+        healthScore -= 15;
+        suggestions.push({
+          id: "excel-dates",
+          icon: Zap,
+          title: `Format ${excelDates} Excel Serial Date${excelDates > 1 ? "s" : ""}`,
+          detail: `Raw numeric dates (e.g. 41604) in column(s): ${dateCols.join(", ")} will be converted to YYYY-MM-DD.`,
+          risk: "medium",
+          action: () => {
+            const snap = [...transformedRows];
+            const nr = inputRows.map(row => {
+              const r = { ...row };
+              dateCols.forEach(h => {
+                if (isExcelDate(r[h])) r[h] = excelDateToStr(Number(r[h]));
+              });
+              return r;
+            });
+            commitTransform(inputHeaders, nr);
+            addStep(Zap, "AI Auto Clean: Formatted Dates", `Converted ${excelDates} Excel serial date(s) to YYYY-MM-DD`, () => commitTransform(transformedHeaders, snap));
+          }
+        });
+      }
+
+      // 4. Missing / Null Cells Audit
+      let nullCnt = 0;
+      inputHeaders.forEach(h => {
+        inputRows.forEach(row => {
+          if (isNull(row[h])) nullCnt++;
+        });
+      });
+
+      if (nullCnt > 0) {
+        healthScore -= Math.min(20, nullCnt * 2);
+        suggestions.push({
+          id: "nulls",
+          icon: MinusSquare,
+          title: `Impute ${nullCnt} Missing Value${nullCnt > 1 ? "s" : ""}`,
+          detail: "Null or empty cells detected — fill with 'Unknown' or column mode.",
+          risk: "medium",
+          action: () => {
+            const snap = [...transformedRows];
+            const hl: Record<string, boolean> = {};
+            const nr = inputRows.map((row, i) => {
+              const r = { ...row };
+              inputHeaders.forEach(h => {
+                if (isNull(r[h])) {
+                  hl[`${i}-${h}`] = true;
+                  r[h] = "Unknown";
+                }
+              });
+              return r;
+            });
+            commitTransform(inputHeaders, nr);
+            setHighlightedCells(hl);
+            addStep(MinusSquare, "AI Auto Clean: Imputed Nulls", `Filled ${nullCnt} missing cell(s)`, () => { commitTransform(transformedHeaders, snap); setHighlightedCells({}); });
+          }
+        });
+      }
+
+      // 5. Completely Empty / Zero Variance Columns Audit
+      const emptyCols = inputHeaders.filter(h => inputRows.every(row => isNull(row[h])));
+      if (emptyCols.length > 0) {
+        healthScore -= 15;
+        suggestions.push({
+          id: "empty-cols",
+          icon: Trash2,
+          title: `Drop ${emptyCols.length} Empty Column${emptyCols.length > 1 ? "s" : ""}`,
+          detail: `Column(s) ${emptyCols.join(", ")} contain 100% null entries.`,
+          risk: "high",
+          action: () => {
+            const snap = { rows: [...transformedRows], headers: [...transformedHeaders] };
+            const nh = inputHeaders.filter(h => !emptyCols.includes(h));
+            const nr = inputRows.map(row => {
+              const r = { ...row };
+              emptyCols.forEach(c => delete r[c]);
+              return r;
+            });
+            commitTransform(nh, nr);
+            addStep(Trash2, "AI Auto Clean: Purged Empty Columns", `Removed: ${emptyCols.join(", ")}`, () => commitTransform(snap.headers, snap.rows));
+          }
+        });
+      }
+
+      if (suggestions.length === 0) {
+        suggestions.push({
+          id: "ok",
+          icon: CheckCircle2,
+          title: "Dataset Data Hygiene is Optimal!",
+          detail: "No duplicates, missing values, date format errors, or whitespace issues detected.",
+          risk: "low",
+          action: () => {}
+        });
+      }
+
+      return { healthScore: Math.max(40, healthScore), suggestions };
+    }, [inputHeaders, inputRows, transformedHeaders, transformedRows, commitTransform, addStep]);
+
     const [applied, setApplied] = useState<string[]>([]);
-    const applyAll = () => { suggestions.filter(s => s.id !== "ok").forEach(s => s.action()); setApplied(suggestions.map(s => s.id)); setModal(null); };
+
+    const applyAll = () => {
+      audit.suggestions.filter(s => s.id !== "ok").forEach(s => s.action());
+      setApplied(audit.suggestions.map(s => s.id));
+      setModal(null);
+    };
+
     return (
-      <Modal title="AI Auto Clean Suggestions" subtitle="DataVista engine intelligent data hygiene audit" icon={Sparkles} onClose={() => setModal(null)}>
-        <p className="text-xs text-textSecondary leading-relaxed">Audit completed. Review recommended actions below:</p>
-        <div className="flex flex-col gap-2.5">
-          {suggestions.map(s => (
-            <div key={s.id} className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${applied.includes(s.id) ? "bg-emerald-500/10 border-emerald-500/30" : "bg-surface border-border/80 hover:border-primary/40"}`}>
-              <div className="bg-primary-soft/60 p-2 rounded-xl text-primary shrink-0 flex items-center justify-center"><s.icon className="w-4 h-4" /></div>
-              <div className="flex-1 min-w-0"><p className="text-xs font-bold text-textPrimary">{s.title}</p><p className="text-xs text-textSecondary mt-0.5 truncate">{s.detail}</p></div>
-              {s.id !== "ok" && !applied.includes(s.id) && <button onClick={() => { s.action(); setApplied(prev => [...prev, s.id]); }} className="px-3.5 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all cursor-pointer shrink-0">Apply</button>}
-              {applied.includes(s.id) && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+      <Modal title="AI Supercharged Auto Clean" subtitle="DataVista AI autonomous data hygiene & quality audit" icon={Zap} onClose={() => setModal(null)}>
+        {/* AI Score Banner */}
+        <div className="bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 border border-primary/20 p-4 rounded-2xl flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-blue-500/20">
+              {audit.healthScore}
             </div>
-          ))}
-        </div>
-        {suggestions.some(s => s.id !== "ok") && (
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60 mt-1">
-            <button onClick={() => setModal(null)} className="px-4 py-2.5 text-xs font-bold text-textSecondary bg-primary-soft/40 hover:bg-primary-soft/80 rounded-xl border border-border/60 transition-all cursor-pointer">Close</button>
-            <button onClick={applyAll} className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 cursor-pointer"><Zap className="w-4 h-4" /> Apply All Actions</button>
+            <div>
+              <h4 className="text-xs font-extrabold text-textPrimary">Dataset Hygiene Score</h4>
+              <p className="text-[11px] text-textSecondary mt-0.5 font-medium">
+                {audit.suggestions.filter(s => s.id !== "ok").length} Optimization Opportunity(ies) Identified
+              </p>
+            </div>
           </div>
-        )}
+          {audit.suggestions.some(s => s.id !== "ok") && (
+            <button
+              onClick={applyAll}
+              className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-95 rounded-xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" /> Apply All Fixes
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary" /> Audit Findings & Automated Cleaning Actions
+          </p>
+          {audit.suggestions.map(s => {
+            const isDone = applied.includes(s.id);
+            const riskColor = s.risk === "high" ? "bg-rose-500/10 border-rose-500/30 text-rose-600" : s.risk === "medium" ? "bg-amber-500/10 border-amber-500/30 text-amber-600" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-600";
+            
+            return (
+              <div
+                key={s.id}
+                className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${isDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-surface border-border/80 hover:border-primary/40 shadow-xs"}`}
+              >
+                <div className="bg-primary-soft/60 p-2.5 rounded-xl text-primary shrink-0 flex items-center justify-center">
+                  <s.icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-textPrimary truncate">{s.title}</p>
+                    {s.id !== "ok" && (
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${riskColor}`}>
+                        {s.risk} Priority
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-textSecondary mt-0.5 leading-snug">{s.detail}</p>
+                </div>
+                {s.id !== "ok" && !isDone && (
+                  <button
+                    onClick={() => { s.action(); setApplied(prev => [...prev, s.id]); }}
+                    className="px-3 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+                  >
+                    Fix
+                  </button>
+                )}
+                {isDone && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60 mt-1">
+          <button onClick={() => setModal(null)} className="px-4 py-2.5 text-xs font-bold text-textSecondary bg-primary-soft/40 hover:bg-primary-soft/80 rounded-xl border border-border/60 transition-all cursor-pointer">
+            Close Audit
+          </button>
+        </div>
       </Modal>
     );
   };
