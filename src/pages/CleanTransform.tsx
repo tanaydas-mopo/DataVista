@@ -28,10 +28,19 @@ function Modal({ title, subtitle, icon: Icon, onClose, children }: {
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all animate-in fade-in duration-200" onClick={onClose}>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all animate-in fade-in duration-200 cursor-pointer" 
+      onClick={handleClose}
+    >
       <div 
-        className="w-full max-w-lg bg-surface border border-border/80 rounded-2xl shadow-2xl shadow-primary/5 flex flex-col max-h-[88vh] overflow-hidden transform transition-all animate-in zoom-in-95 duration-200" 
+        className="w-full max-w-lg bg-surface border border-border/80 rounded-2xl shadow-2xl shadow-primary/5 flex flex-col max-h-[88vh] overflow-hidden transform transition-all animate-in zoom-in-95 duration-200 cursor-default" 
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -46,10 +55,12 @@ function Modal({ title, subtitle, icon: Icon, onClose, children }: {
             </div>
           </div>
           <button 
-            onClick={onClose} 
+            type="button"
+            onClick={handleClose} 
             className="w-8 h-8 rounded-xl flex items-center justify-center text-textMuted hover:text-textPrimary hover:bg-primary-soft/60 transition-all duration-200 cursor-pointer"
+            aria-label="Close modal"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 pointer-events-none" />
           </button>
         </div>
 
@@ -65,6 +76,7 @@ function Modal({ title, subtitle, icon: Icon, onClose, children }: {
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button 
+      type="button"
       onClick={onClick} 
       className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer flex items-center gap-1.5 ${
         active 
@@ -128,16 +140,24 @@ function InfoBadge({ text, color = "primary", icon: Icon }: { text: string; colo
 }
 
 function ActionRow({ onApply, onClose, applyLabel = "Apply", disabled = false }: { onApply: () => void; onClose: () => void; applyLabel?: string; disabled?: boolean; }) {
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose();
+  };
+
   return (
     <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60 mt-2">
       <button 
-        onClick={onClose} 
+        type="button"
+        onClick={handleCancel} 
         className="px-4 py-2.5 text-xs font-bold text-textSecondary bg-primary-soft/40 hover:bg-primary-soft/80 rounded-xl border border-border/60 transition-all cursor-pointer hover:text-textPrimary"
       >
         Cancel
       </button>
       <button 
-        onClick={() => { if (!disabled) { onApply(); onClose(); } }} 
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!disabled) { onApply(); onClose(); } }} 
         disabled={disabled}
         className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl transition-all flex items-center gap-2 shadow-md cursor-pointer ${
           disabled 
@@ -156,6 +176,10 @@ export function CleanTransform() {
   const { dataset, updateTableData } = useDataset();
   const [activeTab, setActiveTab] = useState("transform");
   const [modal, setModal] = useState<ModalType>(null);
+
+  const closeModal = useCallback(() => {
+    setModal(null);
+  }, []);
   
   // Working active dataset state (headers & rows reflecting all applied steps)
   const [workingHeaders, setWorkingHeaders] = useState<string[]>(() => dataset.tableHeaders);
@@ -217,11 +241,11 @@ export function CleanTransform() {
       addStep(Trash2, "Remove Duplicates", `Removed ${dupes} duplicate row(s)`, () => commitTransform(workingHeaders, snap));
     };
     return (
-      <Modal title="Remove Duplicates" subtitle="Detect and eliminate duplicate records across columns" icon={Trash2} onClose={() => setModal(null)}>
+      <Modal title="Remove Duplicates" subtitle="Detect and eliminate duplicate records across columns" icon={Trash2} onClose={closeModal}>
         <p className="text-xs text-textSecondary leading-relaxed">Select the column subset to evaluate for uniqueness. Identical rows will be purged.</p>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Columns</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={cols.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         <InfoBadge text={`${dupes} duplicate row${dupes !== 1 ? "s" : ""} identified across selected columns`} color={dupes > 0 ? "warning" : "success"} />
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel={`Remove ${dupes} Duplicate${dupes !== 1 ? "s" : ""}`} />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel={`Remove ${dupes} Duplicate${dupes !== 1 ? "s" : ""}`} />
       </Modal>
     );
   };
@@ -258,18 +282,18 @@ export function CleanTransform() {
       }
     };
     return (
-      <Modal title="Remove Null Values" subtitle="Clean incomplete records or empty columns" icon={MinusSquare} onClose={() => setModal(null)}>
+      <Modal title="Remove Null Values" subtitle="Clean incomplete records or empty columns" icon={MinusSquare} onClose={closeModal}>
         <div className="flex flex-col gap-2">
           <p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-1">Removal Strategy</p>
           {([{ v: "rows-any" as const, l: "Remove rows with ANY missing value" }, { v: "rows-selected" as const, l: "Remove rows with missing values in SELECTED columns" }, { v: "cols" as const, l: "Remove entire COLUMNS containing missing values" }]).map(o => (
-            <button key={o.v} onClick={() => setMode(o.v)} className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-left ${mode === o.v ? "bg-primary/10 border-primary text-primary font-bold shadow-xs" : "border-border/80 text-textSecondary hover:border-primary/40 hover:text-textPrimary bg-surface"}`}>
+            <button key={o.v} type="button" onClick={() => setMode(o.v)} className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-left ${mode === o.v ? "bg-primary/10 border-primary text-primary font-bold shadow-xs" : "border-border/80 text-textSecondary hover:border-primary/40 hover:text-textPrimary bg-surface"}`}>
               <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${mode === o.v ? "border-primary bg-primary text-white" : "border-textMuted"}`}>{mode === o.v && <div className="w-1.5 h-1.5 bg-white rounded-full" />}</div>{o.l}
             </button>
           ))}
         </div>
         {mode === "rows-selected" && <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2">Select Target Columns</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selectedCols.includes(col)} onClick={() => toggle(col)} />)}</div></div>}
         <InfoBadge text={`${count} ${mode === "cols" ? "column(s)" : "row(s)"} matched for removal`} color="warning" />
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Execute Removal" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Execute Removal" />
       </Modal>
     );
   };
@@ -297,12 +321,12 @@ export function CleanTransform() {
       addStep(Sparkles, "Fill Missing Values", `Filled ${missingCount} null(s) in "${col}" with ${method}`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
     };
     return (
-      <Modal title="Fill Missing Values" subtitle="Impute missing entries with statistical measures or custom values" icon={Sparkles} onClose={() => setModal(null)}>
+      <Modal title="Fill Missing Values" subtitle="Impute missing entries with statistical measures or custom values" icon={Sparkles} onClose={closeModal}>
         <SelectInput label="Target Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Imputation Method</p><div className="flex flex-wrap gap-2">{(["mean", "median", "mode", "zero", "custom", "unknown"] as const).map(m => <Chip key={m} label={m.charAt(0).toUpperCase() + m.slice(1)} active={method === m} onClick={() => setMethod(m)} />)}</div></div>
         {method === "custom" && <TextInput label="Custom Fill Value" value={custom} onChange={setCustom} placeholder="Enter custom value..." />}
         <InfoBadge text={`Will fill ${missingCount} missing cell(s) in "${col}" with calculated value: ${fillValue}`} color={missingCount > 0 ? "primary" : "success"} />
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Apply Imputation" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Apply Imputation" />
       </Modal>
     );
   };
@@ -321,11 +345,11 @@ export function CleanTransform() {
       addStep(Edit3, "Rename Column", `Renamed "${oldName}" to "${newName.trim()}"`, () => commitTransform(snapH, snapR));
     };
     return (
-      <Modal title="Rename Column" subtitle="Modify column header identifier" icon={Edit3} onClose={() => setModal(null)}>
+      <Modal title="Rename Column" subtitle="Modify column header identifier" icon={Edit3} onClose={closeModal}>
         <SelectInput label="Select Existing Column" value={oldName} onChange={setOldName} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <TextInput label="New Header Name" value={newName} onChange={setNewName} placeholder="e.g. Total_Sales" />
         {isDupe && <InfoBadge text={`Header name "${newName}" already exists in dataset`} color="danger" />}
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Update Header" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Update Header" />
       </Modal>
     );
   };
@@ -355,11 +379,11 @@ export function CleanTransform() {
       addStep(Type, "Change Data Type", `Changed "${col}" to ${targetType}${errors > 0 ? ` (${errors} errors)` : ""}`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
     };
     return (
-      <Modal title="Change Data Type" subtitle="Cast column elements to target format" icon={Type} onClose={() => setModal(null)}>
+      <Modal title="Change Data Type" subtitle="Cast column elements to target format" icon={Type} onClose={closeModal}>
         <SelectInput label="Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Data Type</p><div className="flex flex-wrap gap-2">{types.map(t => <Chip key={t} label={t} active={targetType === t} onClick={() => setTargetType(t)} />)}</div></div>
         {errors > 0 ? <InfoBadge text={`${errors} row(s) cannot be cast and will preserve original value`} color="warning" /> : <InfoBadge text={`All ${workingRows.length} rows successfully valid for ${targetType}`} color="success" />}
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Cast Data Type" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Cast Data Type" />
       </Modal>
     );
   };
@@ -389,13 +413,13 @@ export function CleanTransform() {
       addStep(Scissors, "Split Column", `Split "${col}" into ${nc.length} columns`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
-      <Modal title="Split Column" subtitle="Divide text column into multiple distinct fields" icon={Scissors} onClose={() => setModal(null)}>
+      <Modal title="Split Column" subtitle="Divide text column into multiple distinct fields" icon={Scissors} onClose={closeModal}>
         <SelectInput label="Column to Split" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Delimiter</p><div className="flex flex-wrap gap-2">{(["space", "comma", "dash", "custom", "fixed"] as const).map(s => <Chip key={s} label={s.charAt(0).toUpperCase() + s.slice(1)} active={splitBy === s} onClick={() => setSplitBy(s)} />)}</div></div>
         {splitBy === "custom" && <TextInput label="Custom Delimiter Character" value={custom} onChange={setCustom} placeholder="e.g. |" />}
         {splitBy === "fixed" && <TextInput label="Fixed Length (Number of Characters)" value={fixedLen} onChange={setFixedLen} placeholder="5" />}
         {preview.length > 0 && <div className="bg-primary-soft/30 rounded-xl p-3.5 border border-border/80 flex flex-col gap-1.5"><p className="text-[11px] font-bold uppercase text-textSecondary">First Row Extraction Preview</p><div className="flex flex-wrap gap-2">{preview.map((p, i) => <span key={i} className="px-2.5 py-1 bg-surface border border-border rounded-lg text-xs font-mono font-bold text-primary shadow-xs">{p || "(empty)"}</span>)}</div></div>}
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Split Column" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Split Column" />
       </Modal>
     );
   };
@@ -417,16 +441,16 @@ export function CleanTransform() {
       addStep(Merge, "Merge Columns", `Merged ${selected.join(" + ")} into "${newName}"`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
-      <Modal title="Merge Columns" subtitle="Combine multiple fields into a single unified column" icon={Merge} onClose={() => setModal(null)}>
+      <Modal title="Merge Columns" subtitle="Combine multiple fields into a single unified column" icon={Merge} onClose={closeModal}>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Select Columns (Minimum 2)</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selected.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Separator Character</p><div className="flex flex-wrap gap-2">{[" ", ",", "-", "_"].map(s => <Chip key={s} label={s === " " ? "Space" : s} active={sep === s} onClick={() => setSep(s)} />)}</div></div>
         <TextInput label="Output Column Name" value={newName} onChange={setNewName} />
-        <button onClick={() => setRemoveOrig(!removeOrig)} className="flex items-center gap-2.5 text-xs font-semibold text-textSecondary cursor-pointer hover:text-textPrimary transition-colors">
+        <button type="button" onClick={() => setRemoveOrig(!removeOrig)} className="flex items-center gap-2.5 text-xs font-semibold text-textSecondary cursor-pointer hover:text-textPrimary transition-colors">
           <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${removeOrig ? "bg-primary border-primary text-white" : "border-border bg-surface"}`}>{removeOrig && <Check className="w-3 h-3" />}</div>
           Purge original columns post-merge
         </button>
         {preview && <InfoBadge text={`Sample Output: "${preview}"`} color="primary" />}
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Merge Columns" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Merge Columns" />
       </Modal>
     );
   };
@@ -489,7 +513,7 @@ export function CleanTransform() {
     };
 
     return (
-      <Modal title="Filter Rows" subtitle="Filter dataset rows according to field conditions" icon={Filter} onClose={() => setModal(null)}>
+      <Modal title="Filter Rows" subtitle="Filter dataset rows according to field conditions" icon={Filter} onClose={closeModal}>
         <SelectInput label="Select Column to Filter" value={col} onChange={v => { setCol(v); setVal(""); }} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <SelectInput label="Condition Operator" value={op} onChange={setOp} options={ops} />
         
@@ -531,7 +555,7 @@ export function CleanTransform() {
         />
         <ActionRow 
           onApply={apply} 
-          onClose={() => setModal(null)} 
+          onClose={closeModal} 
           applyLabel={isZeroMatch ? "No Matches Found" : `Apply Filter (${cnt} Rows)`} 
           disabled={isZeroMatch}
         />
@@ -552,18 +576,18 @@ export function CleanTransform() {
       addStep(SortAsc, "Sort Rows", `Sorted by ${sorts.map(s => `${s.col} (${s.dir})`).join(", ")}`, () => commitTransform(workingHeaders, snap));
     };
     return (
-      <Modal title="Sort Rows" subtitle="Re-order rows by single or multi-column criteria" icon={SortAsc} onClose={() => setModal(null)}>
+      <Modal title="Sort Rows" subtitle="Re-order rows by single or multi-column criteria" icon={SortAsc} onClose={closeModal}>
         <div className="flex flex-col gap-3">
           {sorts.map((s, i) => (
             <div key={i} className="flex items-center gap-2.5 bg-primary-soft/20 p-2.5 rounded-xl border border-border/60">
               <div className="flex-1 relative"><select value={s.col} onChange={e => updateSort(i, "col", e.target.value)} className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary appearance-none cursor-pointer pr-7">{workingHeaders.map(h => <option key={h} value={h}>{h}</option>)}</select><ChevronDown className="w-3.5 h-3.5 text-textMuted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" /></div>
               <div className="relative"><select value={s.dir} onChange={e => updateSort(i, "dir", e.target.value)} className="border border-border/80 bg-surface text-textPrimary rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary appearance-none cursor-pointer pr-7"><option value="asc">Ascending (A-Z, 0-9)</option><option value="desc">Descending (Z-A, 9-0)</option></select><ChevronDown className="w-3.5 h-3.5 text-textMuted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" /></div>
-              {i > 0 && <button onClick={() => removeSort(i)} className="text-textMuted hover:text-rose-500 p-1 transition-colors cursor-pointer"><Minus className="w-4 h-4" /></button>}
+              {i > 0 && <button type="button" onClick={() => removeSort(i)} className="text-textMuted hover:text-rose-500 p-1 transition-colors cursor-pointer"><Minus className="w-4 h-4" /></button>}
             </div>
           ))}
         </div>
-        <button onClick={addSort} className="flex items-center gap-2 text-xs font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer w-fit"><Plus className="w-4 h-4" /> Add Sort Level</button>
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Execute Sort" />
+        <button type="button" onClick={addSort} className="flex items-center gap-2 text-xs font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer w-fit"><Plus className="w-4 h-4" /> Add Sort Level</button>
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Execute Sort" />
       </Modal>
     );
   };
@@ -581,11 +605,11 @@ export function CleanTransform() {
       addStep(Trash2, "Remove Columns", `Removed: ${selected.join(", ")}`, () => commitTransform(snap.headers, snap.rows));
     };
     return (
-      <Modal title="Remove Columns" subtitle="Select columns to permanently delete" icon={Trash2} onClose={() => setModal(null)}>
+      <Modal title="Remove Columns" subtitle="Select columns to permanently delete" icon={Trash2} onClose={closeModal}>
         <p className="text-xs text-textSecondary leading-relaxed">Selected column headers and all corresponding data cells will be removed.</p>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2">Select Columns ({selected.length} selected)</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selected.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         {selected.length > 0 && <InfoBadge text={`${selected.length} column(s) queued for deletion`} color="danger" />}
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Delete Columns" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Delete Columns" />
       </Modal>
     );
   };
@@ -611,19 +635,19 @@ export function CleanTransform() {
       addStep(Search, "Find and Replace", `Replaced "${find}" with "${replace}" (${cnt} match${cnt !== 1 ? "es" : ""})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); });
     };
     return (
-      <Modal title="Find & Replace" subtitle="Locate specific values and substitute them" icon={ArrowRightLeft} onClose={() => setModal(null)}>
+      <Modal title="Find & Replace" subtitle="Locate specific values and substitute them" icon={ArrowRightLeft} onClose={closeModal}>
         <TextInput label="Find Query" value={find} onChange={setFind} placeholder="Search string..." />
         <TextInput label="Replacement Text" value={replace} onChange={setReplace} placeholder="Replace with..." />
         <div className="flex items-center gap-5 pt-1">
           {([{ v: matchCase, fn: () => setMatchCase(!matchCase), l: "Match Case" }, { v: replaceAll, fn: () => setReplaceAll(!replaceAll), l: "Replace All Matches" }] as const).map((o, idx) => (
-            <button key={idx} onClick={o.fn} className="flex items-center gap-2.5 text-xs font-semibold text-textSecondary cursor-pointer hover:text-textPrimary transition-colors">
+            <button key={idx} type="button" onClick={o.fn} className="flex items-center gap-2.5 text-xs font-semibold text-textSecondary cursor-pointer hover:text-textPrimary transition-colors">
               <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${o.v ? "bg-primary border-primary text-white" : "border-border bg-surface"}`}>{o.v && <Check className="w-3 h-3" />}</div>{o.l}
             </button>
           ))}
         </div>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Target Columns (Optional)</p><div className="flex flex-wrap gap-2">{workingHeaders.map(col => <Chip key={col} label={col} active={selCols.includes(col)} onClick={() => toggle(col)} />)}</div></div>
         {find && <InfoBadge text={`${cnt} occurrence(s) found across ${cols.length} column(s)`} color={cnt > 0 ? "primary" : "success"} />}
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Execute Replace" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Execute Replace" />
       </Modal>
     );
   };
@@ -651,12 +675,12 @@ export function CleanTransform() {
       addStep(Eye, "Detect Outliers", `${action} ${outIdx.length} outlier(s) in "${col}" (${method.toUpperCase()})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); setOutlierRows([]); });
     };
     return (
-      <Modal title="Detect Outliers" subtitle="Identify statistical anomalies via IQR or Z-score algorithms" icon={Eye} onClose={() => setModal(null)}>
+      <Modal title="Detect Outliers" subtitle="Identify statistical anomalies via IQR or Z-score algorithms" icon={Eye} onClose={closeModal}>
         <SelectInput label="Target Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Statistical Method</p><div className="flex gap-2.5"><Chip label="Interquartile Range (IQR)" active={method === "iqr"} onClick={() => setMethod("iqr")} /><Chip label="Z-Score Standard Deviation" active={method === "zscore"} onClick={() => setMethod("zscore")} /></div></div>
         <div><p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/60" />Action Strategy</p><div className="flex flex-wrap gap-2"><Chip label="Remove Outlier Rows" active={action === "remove"} onClick={() => setAction("remove")} /><Chip label="Highlight Only" active={action === "keep"} onClick={() => setAction("keep")} /><Chip label="Replace with Mean" active={action === "replace-mean"} onClick={() => setAction("replace-mean")} /><Chip label="Replace with Median" active={action === "replace-median"} onClick={() => setAction("replace-median")} /></div></div>
         <InfoBadge text={vals.length < 4 ? `"${col}" lacks sufficient numeric values` : `${outIdx.length} statistical anomaly outlier(s) detected (${method.toUpperCase()})`} color={outIdx.length > 0 ? "warning" : "success"} />
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Apply Outlier Strategy" />
+        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Apply Outlier Strategy" />
       </Modal>
     );
   };
@@ -870,11 +894,11 @@ export function CleanTransform() {
     const applyAll = () => {
       audit.suggestions.filter(s => s.id !== "ok").forEach(s => s.action());
       setApplied(audit.suggestions.map(s => s.id));
-      setModal(null);
+      closeModal();
     };
 
     return (
-      <Modal title="AI Supercharged Auto Clean" subtitle="DataVista AI autonomous data hygiene & quality audit" icon={Zap} onClose={() => setModal(null)}>
+      <Modal title="AI Supercharged Auto Clean" subtitle="DataVista AI autonomous data hygiene & quality audit" icon={Zap} onClose={closeModal}>
         {/* AI Score Banner */}
         <div className="bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 border border-primary/20 p-4 rounded-2xl flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-3">
@@ -890,6 +914,7 @@ export function CleanTransform() {
           </div>
           {audit.suggestions.some(s => s.id !== "ok") && (
             <button
+              type="button"
               onClick={applyAll}
               className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-95 rounded-xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center gap-1.5 shrink-0"
             >
@@ -927,6 +952,7 @@ export function CleanTransform() {
                 </div>
                 {s.id !== "ok" && !isDone && (
                   <button
+                    type="button"
                     onClick={() => { s.action(); setApplied(prev => [...prev, s.id]); }}
                     className="px-3 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
                   >
@@ -940,7 +966,11 @@ export function CleanTransform() {
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60 mt-1">
-          <button onClick={() => setModal(null)} className="px-4 py-2.5 text-xs font-bold text-textSecondary bg-primary-soft/40 hover:bg-primary-soft/80 rounded-xl border border-border/60 transition-all cursor-pointer">
+          <button 
+            type="button" 
+            onClick={closeModal} 
+            className="px-4 py-2.5 text-xs font-bold text-textSecondary bg-primary-soft/40 hover:bg-primary-soft/80 rounded-xl border border-border/60 transition-all cursor-pointer hover:text-textPrimary"
+          >
             Close Audit
           </button>
         </div>
@@ -982,11 +1012,11 @@ export function CleanTransform() {
         </div>
         {isUploaded && (
           <div className="flex gap-3">
-            <button onClick={discardChanges} className="px-4 py-2 bg-surface text-textPrimary text-xs font-bold rounded-xl hover:bg-primary-soft/40 transition-all border border-border shadow-xs cursor-pointer flex items-center gap-1.5">
+            <button type="button" onClick={discardChanges} className="px-4 py-2 bg-surface text-textPrimary text-xs font-bold rounded-xl hover:bg-primary-soft/40 transition-all border border-border shadow-xs cursor-pointer flex items-center gap-1.5">
               <RefreshCw className="w-3.5 h-3.5 text-textMuted" />
               Discard Changes
             </button>
-            <button onClick={() => setActiveTab("steps")} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 cursor-pointer active:scale-[0.98]">
+            <button type="button" onClick={() => setActiveTab("steps")} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 cursor-pointer active:scale-[0.98]">
               <CheckCircle2 className="w-4 h-4" />Applied Steps ({appliedSteps.length})
             </button>
           </div>
@@ -998,15 +1028,15 @@ export function CleanTransform() {
           <Card className="lg:w-80 h-fit flex-shrink-0 border border-border/80 shadow-sm">
             <CardHeader className="border-b border-border/60 pb-3 bg-surface/50">
               <div className="flex space-x-6">
-                <button className={`text-xs font-bold pb-2.5 border-b-2 transition-all cursor-pointer ${activeTab === "transform" ? "border-primary text-primary font-extrabold" : "border-transparent text-textSecondary hover:text-textPrimary"}`} onClick={() => setActiveTab("transform")}>Transform Operations</button>
-                <button className={`text-xs font-bold pb-2.5 border-b-2 transition-all cursor-pointer ${activeTab === "steps" ? "border-primary text-primary font-extrabold" : "border-transparent text-textSecondary hover:text-textPrimary"}`} onClick={() => setActiveTab("steps")}>Applied Steps ({appliedSteps.length})</button>
+                <button type="button" className={`text-xs font-bold pb-2.5 border-b-2 transition-all cursor-pointer ${activeTab === "transform" ? "border-primary text-primary font-extrabold" : "border-transparent text-textSecondary hover:text-textPrimary"}`} onClick={() => setActiveTab("transform")}>Transform Operations</button>
+                <button type="button" className={`text-xs font-bold pb-2.5 border-b-2 transition-all cursor-pointer ${activeTab === "steps" ? "border-primary text-primary font-extrabold" : "border-transparent text-textSecondary hover:text-textPrimary"}`} onClick={() => setActiveTab("steps")}>Applied Steps ({appliedSteps.length})</button>
               </div>
             </CardHeader>
             <CardContent className="pt-3.5 pb-4 px-3">
               {activeTab === "transform" ? (
                 <div className="flex flex-col gap-1.5 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
                   {operations.map((op, idx) => (
-                    <button key={idx} onClick={() => setModal(op.modal)} className="flex items-start gap-3 p-3 rounded-xl hover:bg-primary-soft/40 transition-all text-left border border-transparent hover:border-border/80 cursor-pointer group">
+                    <button type="button" key={idx} onClick={() => setModal(op.modal)} className="flex items-start gap-3 p-3 rounded-xl hover:bg-primary-soft/40 transition-all text-left border border-transparent hover:border-border/80 cursor-pointer group">
                       <div className="mt-0.5 bg-primary-soft/70 p-2 rounded-xl text-primary group-hover:scale-110 transition-transform flex-shrink-0 flex items-center justify-center">
                         <op.icon className="w-4 h-4" />
                       </div>
@@ -1028,8 +1058,8 @@ export function CleanTransform() {
                         <p className="text-[11px] text-textSecondary truncate mt-0.5">{step.detail}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button title="Undo step" onClick={() => { if (step.undo) step.undo(); removeStep(step.id); }} className="p-1.5 rounded-lg hover:bg-primary-soft text-textMuted hover:text-primary transition-colors cursor-pointer"><Undo2 className="w-3.5 h-3.5" /></button>
-                        <button title="Remove step" onClick={() => removeStep(step.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-textMuted hover:text-rose-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+                        <button type="button" title="Undo step" onClick={() => { if (step.undo) step.undo(); removeStep(step.id); }} className="p-1.5 rounded-lg hover:bg-primary-soft text-textMuted hover:text-primary transition-colors cursor-pointer"><Undo2 className="w-3.5 h-3.5" /></button>
+                        <button type="button" title="Remove step" onClick={() => removeStep(step.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-textMuted hover:text-rose-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   ))}
