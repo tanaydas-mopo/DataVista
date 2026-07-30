@@ -127,7 +127,7 @@ function InfoBadge({ text, color = "primary", icon: Icon }: { text: string; colo
   );
 }
 
-function ActionRow({ onApply, onClose, applyLabel = "Apply" }: { onApply: () => void; onClose: () => void; applyLabel?: string; }) {
+function ActionRow({ onApply, onClose, applyLabel = "Apply", disabled = false }: { onApply: () => void; onClose: () => void; applyLabel?: string; disabled?: boolean; }) {
   return (
     <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60 mt-2">
       <button 
@@ -137,8 +137,13 @@ function ActionRow({ onApply, onClose, applyLabel = "Apply" }: { onApply: () => 
         Cancel
       </button>
       <button 
-        onClick={() => { onApply(); onClose(); }} 
-        className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 cursor-pointer"
+        onClick={() => { if (!disabled) { onApply(); onClose(); } }} 
+        disabled={disabled}
+        className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl transition-all flex items-center gap-2 shadow-md cursor-pointer ${
+          disabled 
+            ? "bg-gray-400 opacity-50 cursor-not-allowed shadow-none" 
+            : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] shadow-blue-500/20"
+        }`}
       >
         <CheckCircle2 className="w-4 h-4" />
         {applyLabel}
@@ -174,7 +179,11 @@ export function CleanTransform() {
     setActiveTab("steps");
   }, []);
 
-  const removeStep = (id: string) => setAppliedSteps(prev => prev.filter(s => s.id !== id));
+  const removeStep = (id: string) => {
+    const step = appliedSteps.find(s => s.id === id);
+    if (step && step.undo) step.undo(); // Execute undo before purging step
+    setAppliedSteps(prev => prev.filter(s => s.id !== id));
+  };
 
   /* ── 1. Remove Duplicates ── */
   const RemoveDuplicatesModal = () => {
@@ -388,25 +397,110 @@ export function CleanTransform() {
     );
   };
 
-  /* ── 8. Filter Rows ── */
+  /* ── 8. Filter Rows (ENHANCED: Case-insensitive, Quick-select Chips & Safe Guard against 0 matches) ── */
   const FilterRowsModal = () => {
     const [col, setCol] = useState(workingHeaders[0] || "");
     const [op, setOp] = useState("equals");
     const [val, setVal] = useState("");
-    const ops = [{ value: "equals", label: "Equals" }, { value: "not-equals", label: "Not Equals" }, { value: "greater", label: "Greater Than" }, { value: "less", label: "Less Than" }, { value: "contains", label: "Contains" }, { value: "starts-with", label: "Starts With" }, { value: "ends-with", label: "Ends With" }, { value: "is-empty", label: "Is Empty" }, { value: "is-not-empty", label: "Is Not Empty" }];
+
+    const ops = [
+      { value: "equals", label: "Equals (Case-insensitive)" },
+      { value: "not-equals", label: "Not Equals" },
+      { value: "contains", label: "Contains" },
+      { value: "greater", label: "Greater Than" },
+      { value: "less", label: "Less Than" },
+      { value: "starts-with", label: "Starts With" },
+      { value: "ends-with", label: "Ends With" },
+      { value: "is-empty", label: "Is Empty" },
+      { value: "is-not-empty", label: "Is Not Empty" }
+    ];
+
+    // Auto-extract sample unique values for quick-select chip suggestions
+    const sampleValues = useMemo(() => {
+      const set = new Set<string>();
+      workingRows.forEach(r => {
+        const v = String(r[col] ?? "").trim();
+        if (v.length > 0) set.add(v);
+      });
+      return Array.from(set).slice(0, 10);
+    }, [col, workingRows]);
+
     const matches = (row: Record<string, any>) => {
-      const v = String(row[col] ?? "");
-      switch (op) { case "equals": return v === val; case "not-equals": return v !== val; case "greater": return parseFloat(v) > parseFloat(val); case "less": return parseFloat(v) < parseFloat(val); case "contains": return v.includes(val); case "starts-with": return v.startsWith(val); case "ends-with": return v.endsWith(val); case "is-empty": return v.trim() === ""; case "is-not-empty": return v.trim() !== ""; default: return true; }
+      const rawCell = String(row[col] ?? "").trim();
+      const cellLower = rawCell.toLowerCase();
+      const targetLower = val.trim().toLowerCase();
+
+      switch (op) {
+        case "equals": return cellLower === targetLower;
+        case "not-equals": return cellLower !== targetLower;
+        case "greater": return parseFloat(rawCell) > parseFloat(val.trim());
+        case "less": return parseFloat(rawCell) < parseFloat(val.trim());
+        case "contains": return cellLower.includes(targetLower);
+        case "starts-with": return cellLower.startsWith(targetLower);
+        case "ends-with": return cellLower.endsWith(targetLower);
+        case "is-empty": return rawCell === "";
+        case "is-not-empty": return rawCell !== "";
+        default: return true;
+      }
     };
-    const cnt = workingRows.filter(matches).length;
-    const apply = () => { const snap = [...workingRows]; setWorkingRows(workingRows.filter(matches)); addStep(Filter, "Filter Rows", `Kept ${cnt} row(s) where "${col}" ${op} "${val}"`, () => setWorkingRows(snap)); };
+
+    const cnt = useMemo(() => workingRows.filter(matches).length, [workingRows, col, op, val]);
+    const isZeroMatch = cnt === 0 && !["is-empty", "is-not-empty"].includes(op);
+
+    const apply = () => {
+      if (isZeroMatch) return;
+      const snap = [...workingRows];
+      setWorkingRows(workingRows.filter(matches));
+      addStep(Filter, "Filter Rows", `Kept ${cnt} row(s) where "${col}" ${op} "${val}"`, () => setWorkingRows(snap));
+    };
+
     return (
       <Modal title="Filter Rows" subtitle="Filter dataset rows according to field conditions" icon={Filter} onClose={() => setModal(null)}>
-        <SelectInput label="Column" value={col} onChange={setCol} options={workingHeaders.map(h => ({ value: h, label: h }))} />
+        <SelectInput label="Select Column to Filter" value={col} onChange={v => { setCol(v); setVal(""); }} options={workingHeaders.map(h => ({ value: h, label: h }))} />
         <SelectInput label="Condition Operator" value={op} onChange={setOp} options={ops} />
-        {!["is-empty", "is-not-empty"].includes(op) && <TextInput label="Target Filter Value" value={val} onChange={setVal} placeholder="Type search value..." />}
-        <InfoBadge text={`${cnt} of ${workingRows.length} row(s) satisfy this criteria`} color={cnt > 0 ? "primary" : "warning"} />
-        <ActionRow onApply={apply} onClose={() => setModal(null)} applyLabel="Apply Filter" />
+        
+        {!["is-empty", "is-not-empty"].includes(op) && (
+          <div className="flex flex-col gap-2">
+            <TextInput label="Target Filter Value" value={val} onChange={setVal} placeholder="Type value or select below..." />
+            {sampleValues.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-textMuted mb-1 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-primary" /> Quick-select sample values from "{col}":
+                </p>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                  {sampleValues.map((sv, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setVal(sv)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                        val.trim().toLowerCase() === sv.toLowerCase()
+                          ? "bg-primary text-white border-primary shadow-xs font-bold scale-[1.02]"
+                          : "bg-surface text-textSecondary border-border/80 hover:border-primary/40 hover:text-textPrimary hover:bg-primary-soft/20"
+                      }`}
+                    >
+                      {sv}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <InfoBadge 
+          text={isZeroMatch && val.trim() !== ""
+            ? `⚠️ 0 of ${workingRows.length} rows match "${val}" in column "${col}". Select column "${col}" or choose a sample value above.`
+            : `${cnt} of ${workingRows.length} row(s) satisfy this criteria`
+          } 
+          color={cnt > 0 ? "primary" : "warning"} 
+        />
+        <ActionRow 
+          onApply={apply} 
+          onClose={() => setModal(null)} 
+          applyLabel={isZeroMatch ? "No Matches Found" : `Apply Filter (${cnt} Rows)`} 
+          disabled={isZeroMatch}
+        />
       </Modal>
     );
   };
@@ -469,7 +563,7 @@ export function CleanTransform() {
     const [selCols, setSelCols] = useState<string[]>([]);
     const toggle = (col: string) => setSelCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
     const cols = selCols.length > 0 ? selCols : workingHeaders;
-    const cnt = useMemo(() => { if (!find) return 0; let c = 0; workingRows.forEach(row => cols.forEach(col => { const v = matchCase ? String(row[col] ?? "") : String(row[col] ?? "").toLowerCase(); c += v.split(matchCase ? find : find.toLowerCase()).length - 1; })); return c; }, [find, matchCase, cols]);
+    const cnt = useMemo(() => { if (!find) return 0; let c = 0; workingRows.forEach(row => cols.forEach(col => { const v = matchCase ? String(row[col] ?? "") : String(row[col] ?? "").toLowerCase(); c += v.split(matchCase ? find : find.toLowerCase()).length - 1; })); return c; }, [find, matchCase, cols, workingRows]);
     const apply = () => {
       if (!find) return;
       const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {};
@@ -502,14 +596,14 @@ export function CleanTransform() {
     const [col, setCol] = useState(workingHeaders[0] || "");
     const [method, setMethod] = useState<"iqr" | "zscore">("iqr");
     const [action, setAction] = useState<"remove" | "keep" | "replace-mean" | "replace-median">("remove");
-    const numRows = useMemo(() => workingRows.map((row, i) => ({ val: parseFloat(String(row[col] ?? "")), i })).filter(r => !isNaN(r.val)), [col]);
+    const numRows = useMemo(() => workingRows.map((row, i) => ({ val: parseFloat(String(row[col] ?? "")), i })).filter(r => !isNaN(r.val)), [col, workingRows]);
     const vals = numRows.map(r => r.val);
     const outIdx = useMemo(() => {
       if (vals.length < 4) return [];
       if (method === "iqr") { const s = [...vals].sort((a, b) => a - b); const q1 = s[Math.floor(s.length * 0.25)]; const q3 = s[Math.floor(s.length * 0.75)]; const iqr = q3 - q1; return numRows.filter(r => r.val < q1 - 1.5 * iqr || r.val > q3 + 1.5 * iqr).map(r => r.i); }
       const m = mean(vals); const std = Math.sqrt(vals.map(v => (v - m) ** 2).reduce((a, b) => a + b, 0) / vals.length);
       return numRows.filter(r => Math.abs(r.val - m) > 3 * std).map(r => r.i);
-    }, [col, method]);
+    }, [col, method, numRows, vals]);
     useEffect(() => { setOutlierRows(outIdx); return () => setOutlierRows([]); }, [outIdx]);
     const apply = () => {
       const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; let rows = [...workingRows];
@@ -649,7 +743,7 @@ export function CleanTransform() {
                         <p className="text-[11px] text-textSecondary truncate mt-0.5">{step.detail}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button title="Undo step" onClick={() => { step.undo(); removeStep(step.id); }} className="p-1.5 rounded-lg hover:bg-primary-soft text-textMuted hover:text-primary transition-colors cursor-pointer"><Undo2 className="w-3.5 h-3.5" /></button>
+                        <button title="Undo step" onClick={() => { if (step.undo) step.undo(); removeStep(step.id); }} className="p-1.5 rounded-lg hover:bg-primary-soft text-textMuted hover:text-primary transition-colors cursor-pointer"><Undo2 className="w-3.5 h-3.5" /></button>
                         <button title="Remove step" onClick={() => removeStep(step.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-textMuted hover:text-rose-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
