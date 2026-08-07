@@ -14,6 +14,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Activity,
+  X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -27,17 +28,17 @@ export function UploadDataset() {
   const navigate = useNavigate();
   const { dataset, uploadDataset, removeDataset } = useDataset();
 
-  const isDatasetActive = dataset.status === "active";
+  const isDatasetActive = dataset.status === "active" && dataset.name !== "";
 
-  // Helper to format file size intelligently (B, KB, MB) with preset fallback
-  const getFormattedSize = (uploadFile: File | null, fallbackSize?: string) => {
+  // Helper to format file size intelligently (B, KB, MB)
+  const getFormattedSize = (uploadFile: File | null) => {
     if (uploadFile && uploadFile.size > 0) {
       const bytes = uploadFile.size;
       if (bytes < 1024) return `${bytes} B`;
       if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
       return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
     }
-    return fallbackSize || "4.82 MB";
+    return "0.00 MB";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -65,12 +66,7 @@ export function UploadDataset() {
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      if (isDatasetActive) {
-        navigate('/dashboard');
-      }
-      return;
-    }
+    if (!file) return;
     setIsUploading(true);
     try {
       await uploadDataset(file);
@@ -87,7 +83,7 @@ export function UploadDataset() {
     navigate('/login');
   };
 
-  const hasActiveOrSelectedFile = !!file || isDatasetActive;
+  const hasSelectedFile = !!file;
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary font-sans p-4 sm:p-6 transition-colors duration-200 transform-gpu">
@@ -161,6 +157,7 @@ export function UploadDataset() {
         <DataVistaLogo size="md" />
 
         <button
+          type="button"
           onClick={handleLogout}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-textSecondary bg-surface hover:bg-primary-soft/30 hover:text-textPrimary rounded-xl border border-border transition-all shadow-xs active:scale-95 cursor-pointer"
         >
@@ -202,7 +199,7 @@ export function UploadDataset() {
             </div>
           </div>
 
-          {/* Main Card: Dropzone */}
+          {/* Main Card: Dropzone (ALWAYS Clean for New Uploads) */}
           <div className="w-full bg-surface/95 rounded-3xl border border-border shadow-xl p-6 sm:p-8 transition-all duration-200">
             <div
               className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 ease-out flex flex-col items-center justify-center text-center ${
@@ -214,36 +211,36 @@ export function UploadDataset() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              {/* Cloud Icon with Continuous Levitating Pulse */}
+              {/* Cloud Icon */}
               <div
                 className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-md ${
-                  hasActiveOrSelectedFile
+                  hasSelectedFile
                     ? 'bg-emerald-500 text-white scale-110'
                     : 'bg-primary text-white shadow-blue-500/20 animate-float-slow'
                 }`}
               >
-                {hasActiveOrSelectedFile ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
+                {hasSelectedFile ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
               </div>
 
-              {hasActiveOrSelectedFile ? (
+              {hasSelectedFile ? (
                 <div className="space-y-2 mb-6">
                   <p className="text-base font-bold text-textPrimary">
-                    {file ? file.name : dataset.name}
+                    {file?.name}
                   </p>
                   <p className="text-xs font-bold text-emerald-500 bg-emerald-500/15 inline-block px-3.5 py-1 rounded-full border border-emerald-500/30">
-                    {getFormattedSize(file, dataset.fileSize)} • Ready to analyze
+                    {getFormattedSize(file)} • Ready to analyze
                   </p>
                 </div>
               ) : (
                 <>
                   <h3 className="text-lg font-bold text-textPrimary mb-1">
-                    Drag & Drop Your Dataset
+                    Drag &amp; Drop Your Dataset
                   </h3>
                   <p className="text-xs text-textSecondary mb-4">
                     Upload CSV, Excel (.xlsx), TSV, or JSON files.
                   </p>
 
-                  {/* Floating Levitating Format Badges */}
+                  {/* Floating Format Badges */}
                   <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
                     <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
                       CSV
@@ -269,7 +266,7 @@ export function UploadDataset() {
               )}
 
               {/* Browse & Action Buttons */}
-              {!hasActiveOrSelectedFile ? (
+              {!hasSelectedFile ? (
                 <label className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-primary bg-surface border border-primary/40 rounded-xl shadow-xs cursor-pointer hover:bg-primary hover:text-white transition-all duration-200 active:scale-95">
                   <FolderOpen className="w-4 h-4" />
                   Browse Files
@@ -283,6 +280,7 @@ export function UploadDataset() {
               ) : (
                 <div className="flex flex-col items-center gap-3 w-full max-w-xs">
                   <button
+                    type="button"
                     onClick={handleUpload}
                     disabled={isUploading}
                     className="w-full inline-flex items-center justify-center gap-2 px-8 py-3 text-xs font-bold text-white bg-primary rounded-xl shadow-md shadow-blue-500/20 hover:bg-primary-hover transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-70"
@@ -303,14 +301,12 @@ export function UploadDataset() {
                     )}
                   </button>
                   <button
-                    onClick={() => {
-                      setFile(null);
-                      removeDataset();
-                    }}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-danger bg-danger-soft hover:bg-danger/20 rounded-xl border border-danger/30 transition-all active:scale-95 cursor-pointer"
+                    type="button"
+                    onClick={() => setFile(null)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-textSecondary bg-surface hover:bg-primary-soft/40 rounded-xl border border-border transition-all active:scale-95 cursor-pointer"
                   >
-                    <Trash2 className="w-4 h-4" />
-                    Remove Dataset
+                    <X className="w-4 h-4" />
+                    Choose Different File
                   </button>
                 </div>
               )}
@@ -322,30 +318,33 @@ export function UploadDataset() {
             <div className="flex items-center justify-between mb-3 border-b border-border pb-3">
               <h4 className="text-xs font-bold text-textPrimary flex items-center gap-2">
                 <Clock className="w-4 h-4 text-primary" />
-                Recent Files & Workflow Details
+                Recent Files &amp; Workflow Details
               </h4>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-textMuted bg-primary-soft/30 px-2.5 py-0.5 rounded-md border border-border">
-                  Auto Sync
-                </span>
-                <button
-                  onClick={() => {
-                    setFile(null);
-                    removeDataset();
-                  }}
-                  title="Clear Recent Dataset Details"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-danger bg-danger-soft hover:bg-danger/20 px-2.5 py-0.5 rounded-md border border-danger/30 transition-all active:scale-95 cursor-pointer"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Clear Recent
-                </button>
-              </div>
+              {isDatasetActive && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-textMuted bg-primary-soft/30 px-2.5 py-0.5 rounded-md border border-border">
+                    Auto Sync
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      removeDataset();
+                    }}
+                    title="Clear Recent Dataset Details"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-danger bg-danger-soft hover:bg-danger/20 px-2.5 py-0.5 rounded-md border border-danger/30 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Clear Recent
+                  </button>
+                </div>
+              )}
             </div>
 
             {isDatasetActive ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold text-lg">
+                  <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold text-lg shrink-0">
                     <FileSpreadsheet className="w-5 h-5" />
                   </div>
                   <div>
@@ -364,8 +363,9 @@ export function UploadDataset() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => navigate("/dashboard")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 self-end sm:self-auto cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 self-end sm:self-auto cursor-pointer shrink-0"
                 >
                   Dashboard
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -373,7 +373,7 @@ export function UploadDataset() {
               </div>
             ) : (
               <p className="text-xs text-textSecondary font-medium py-1">
-                No recent dataset files uploaded. Upload a CSV or Excel file above to view live analysis details.
+                No recent dataset files uploaded. Upload a CSV, Excel, or JSON file above to begin analysis.
               </p>
             )}
           </div>
