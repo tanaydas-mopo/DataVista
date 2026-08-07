@@ -6,7 +6,6 @@ import {
   Clock,
   FolderOpen,
   LogOut,
-  Trash2,
   Sparkles,
   ArrowRight,
   FileSpreadsheet,
