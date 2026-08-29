@@ -101,7 +101,7 @@ export function SidebarItem({
         to={href}
         className={({ isActive }) =>
           cn(
-            "relative flex items-center justify-between rounded-xl px-3.5 py-2.5 text-[15px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar transform-gpu",
+            "relative flex items-center justify-between rounded-full px-4 py-2.5 text-[15px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar transform-gpu",
             isActive
               ? "bg-primary text-white shadow-sm shadow-blue-500/20"
               : "text-textSecondary hover:bg-primary-soft/40 hover:text-textPrimary",
