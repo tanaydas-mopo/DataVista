@@ -9,6 +9,7 @@ export interface SidebarItemProps {
   label: string;
   quickActionLabel?: string;
   className?: string;
+  isCollapsed?: boolean;
 }
 
 export function SidebarItem({
@@ -17,6 +18,7 @@ export function SidebarItem({
   href,
   quickActionLabel = "Quick Open",
   className,
+  isCollapsed = false,
 }: SidebarItemProps) {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -99,9 +101,11 @@ export function SidebarItem({
     <div className="relative group w-full">
       <NavLink
         to={href}
+        title={isCollapsed ? label : undefined}
         className={({ isActive }) =>
           cn(
-            "relative flex items-center justify-between rounded-full px-4 py-2.5 text-[15px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar transform-gpu",
+            "relative flex items-center rounded-full text-[15px] font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar transform-gpu",
+            isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3.5 py-2.5",
             isActive
               ? "bg-primary text-white shadow-sm shadow-blue-500/20"
               : "text-textSecondary hover:bg-primary-soft/40 hover:text-textPrimary",
@@ -111,16 +115,19 @@ export function SidebarItem({
       >
         {({ isActive }) => (
           <>
-            <div className="flex items-center gap-3 min-w-0 pr-2">
+            <div className={cn("flex items-center min-w-0", isCollapsed ? "justify-center" : "gap-3 pr-2")}>
               <Icon
                 className={cn(
                   "h-5 w-5 shrink-0 transition-colors",
                   isActive ? "text-white" : "text-textMuted group-hover:text-textPrimary"
                 )}
               />
-              <span className="truncate">{label}</span>
+              
+              {!isCollapsed && (
+                <span className="truncate transition-opacity duration-300">{label}</span>
+              )}
 
-              {isDefaultPage && (
+              {!isCollapsed && isDefaultPage && (
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded-md border border-emerald-500/30 font-bold shrink-0">
                   Default
                 </span>
@@ -128,27 +135,29 @@ export function SidebarItem({
             </div>
 
             {/* Three Dots (...) Action Trigger Button */}
-            <button
-              ref={buttonRef}
-              type="button"
-              onClick={toggleMenu}
-              title={`Options for ${label}`}
-              className={cn(
-                "p-1 rounded-lg transition-all duration-200 shrink-0 cursor-pointer",
-                isActive
-                  ? "text-white/80 hover:text-white hover:bg-white/20"
-                  : "text-textMuted hover:text-textPrimary hover:bg-surface opacity-0 group-hover:opacity-100",
-                isMenuOpen ? "opacity-100 bg-surface/80 text-textPrimary" : ""
-              )}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
+            {!isCollapsed && (
+              <button
+                ref={buttonRef}
+                type="button"
+                onClick={toggleMenu}
+                title={`Options for ${label}`}
+                className={cn(
+                  "p-1 rounded-lg transition-all duration-200 shrink-0 cursor-pointer",
+                  isActive
+                    ? "text-white/80 hover:text-white hover:bg-white/20"
+                    : "text-textMuted hover:text-textPrimary hover:bg-surface opacity-0 group-hover:opacity-100",
+                  isMenuOpen ? "opacity-100 bg-surface/80 text-textPrimary" : ""
+                )}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            )}
           </>
         )}
       </NavLink>
 
       {/* Fixed Position Frosted Glassmorphism Context Menu */}
-      {isMenuOpen && menuPos && (
+      {isMenuOpen && menuPos && !isCollapsed && (
         <>
           {/* Fullscreen Backdrop Overlay */}
           <div
@@ -167,6 +176,7 @@ export function SidebarItem({
             </div>
 
             <button
+              type="button"
               onClick={handleQuickAction}
               className="w-full text-left px-3 py-2 text-textPrimary hover:bg-primary-soft/50 hover:text-primary rounded-xl transition-all font-semibold flex items-center justify-between cursor-pointer my-0.5"
             >
@@ -178,6 +188,7 @@ export function SidebarItem({
             </button>
 
             <button
+              type="button"
               onClick={handleSetDefault}
               className="w-full text-left px-3 py-2 text-textPrimary hover:bg-primary-soft/50 hover:text-primary rounded-xl transition-all font-semibold flex items-center justify-between cursor-pointer my-0.5"
             >

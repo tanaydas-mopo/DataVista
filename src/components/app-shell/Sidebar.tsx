@@ -14,6 +14,8 @@ import {
   Upload,
   Trash2,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { cn } from "../../lib/utils";
@@ -21,7 +23,13 @@ import { DataVistaLogo } from "../ui/DataVistaLogo";
 import { useDataset } from "../../context/DatasetContext";
 import { useNavigate } from "react-router-dom";
 
-export function Sidebar({ className }: { className?: string }) {
+export interface SidebarProps {
+  className?: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export function Sidebar({ className, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [headerMenuPos, setHeaderMenuPos] = useState<{ top: number; left: number } | null>(null);
   const { dataset, switchDatasetPreset, removeDataset } = useDataset();
@@ -83,26 +91,52 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        "flex h-full w-[260px] flex-col border-r border-border bg-sidebar transition-colors duration-200 transform-gpu",
+        "flex h-full w-full flex-col border-r border-border bg-sidebar transition-all duration-300 transform-gpu overflow-x-hidden",
         className
       )}
     >
-      {/* Header / Animated DV Logo + Option 1 Three Dots (...) Dataset Switcher Menu */}
-      <div className="relative flex items-center justify-between px-5 py-5 border-b border-border/50">
-        <DataVistaLogo size="md" />
+      {/* Header / Animated DV Logo + Option 1 Three Dots (...) Dataset Switcher Menu + Collapse Arrow */}
+      <div className={cn(
+        "relative flex items-center border-b border-border/50 transition-all duration-300 shrink-0",
+        isCollapsed ? "px-3 py-4 justify-between" : "px-4 py-5 justify-between"
+      )}>
+        <div className="flex items-center gap-2 overflow-hidden shrink-0">
+          <DataVistaLogo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} />
+        </div>
 
-        {/* Option 1: Header Three Dots (...) Trigger Button */}
-        <button
-          ref={buttonRef}
-          onClick={toggleHeaderMenu}
-          title="Active Dataset Switcher & Controls"
-          className="p-1.5 rounded-xl border border-border bg-surface text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 transition-all shadow-2xs active:scale-95 cursor-pointer"
-        >
-          <MoreVertical className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Option 1: Header Three Dots (...) Trigger Button (when expanded) */}
+          {!isCollapsed && (
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={toggleHeaderMenu}
+              title="Active Dataset Switcher & Controls"
+              className="p-1.5 rounded-xl border border-border bg-surface text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 transition-all shadow-2xs active:scale-95 cursor-pointer"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Collapse / Expand Arrow Button */}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="p-1.5 rounded-xl border border-border bg-surface text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 transition-all shadow-2xs active:scale-95 cursor-pointer"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4 text-primary" />
+              ) : (
+                <ChevronLeft className="h-4 w-4 text-textSecondary" />
+              )}
+            </button>
+          )}
+        </div>
 
         {/* Option 1: Fixed Position Frosted Glassmorphism Context Menu */}
-        {isHeaderMenuOpen && headerMenuPos && (
+        {isHeaderMenuOpen && headerMenuPos && !isCollapsed && (
           <>
             {/* Backdrop Overlay */}
             <div
@@ -141,6 +175,7 @@ export function Sidebar({ className }: { className?: string }) {
 
               <div className="space-y-0.5 mb-2">
                 <button
+                  type="button"
                   onClick={() => {
                     switchDatasetPreset("ipl");
                     setIsHeaderMenuOpen(false);
@@ -159,6 +194,7 @@ export function Sidebar({ className }: { className?: string }) {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     switchDatasetPreset("sales");
                     setIsHeaderMenuOpen(false);
@@ -177,6 +213,7 @@ export function Sidebar({ className }: { className?: string }) {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     switchDatasetPreset("ecommerce");
                     setIsHeaderMenuOpen(false);
@@ -195,6 +232,7 @@ export function Sidebar({ className }: { className?: string }) {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     setIsHeaderMenuOpen(false);
                     navigate("/upload-dataset");
@@ -209,6 +247,7 @@ export function Sidebar({ className }: { className?: string }) {
               {/* Quick Dataset Operations */}
               <div className="border-t border-border/60 pt-1.5 space-y-0.5">
                 <button
+                  type="button"
                   onClick={() => {
                     setIsHeaderMenuOpen(false);
                     navigate("/export-report");
@@ -220,6 +259,7 @@ export function Sidebar({ className }: { className?: string }) {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     removeDataset();
                     setIsHeaderMenuOpen(false);
@@ -236,49 +276,59 @@ export function Sidebar({ className }: { className?: string }) {
       </div>
 
       {/* Option 2: Main Navigation Items with Individual Three Dots (...) Menus */}
-      <nav className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
+      <nav className={cn(
+        "flex-1 overflow-y-auto py-4 no-scrollbar transition-all duration-300",
+        isCollapsed ? "px-2" : "px-3"
+      )}>
         <div className="space-y-1">
           <SidebarItem
             href="/dashboard"
             icon={LayoutDashboard}
             label="Dashboard"
             quickActionLabel="View Dashboard"
+            isCollapsed={isCollapsed}
           />
           <SidebarItem
             href="/data-schema"
             icon={Database}
             label="Data & Schema"
             quickActionLabel="Inspect Schema"
+            isCollapsed={isCollapsed}
           />
           <SidebarItem
             href="/clean-transform"
             icon={Sparkles}
             label="Clean & Transform"
             quickActionLabel="Auto-Fix Nulls"
+            isCollapsed={isCollapsed}
           />
           <SidebarItem
             href="/visual-builder"
             icon={BarChart}
             label="Visual Builder"
             quickActionLabel="Create Bar Chart"
+            isCollapsed={isCollapsed}
           />
           <SidebarItem
             href="/dashboard-canvas"
             icon={Layout}
             label="Dashboard Canvas"
             quickActionLabel="Layout Canvas"
+            isCollapsed={isCollapsed}
           />
           <SidebarItem
             href="/export-report"
             icon={Download}
             label="Export & Report"
             quickActionLabel="Generate PDF"
+            isCollapsed={isCollapsed}
           />
           <SidebarItem
             href="/settings"
             icon={Settings}
             label="Settings"
             quickActionLabel="Theme Settings"
+            isCollapsed={isCollapsed}
           />
         </div>
       </nav>

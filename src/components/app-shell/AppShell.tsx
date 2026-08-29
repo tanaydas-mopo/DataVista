@@ -7,33 +7,59 @@ import { cn } from "../../lib/utils";
 import { DataVistaLogo } from "../ui/DataVistaLogo";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("datavista_sidebar_collapsed");
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("datavista_sidebar_collapsed", JSON.stringify(next));
+      } catch (e) {
+        console.warn("Could not save sidebar state to localStorage:", e);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-appBackground text-textPrimary">
       {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+      {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Desktop & Mobile Sidebar Container with Smooth Width Transition */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 transform bg-surface transition-transform duration-200 ease-in-out lg:static lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 transform bg-surface transition-[width,transform] duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          isCollapsed ? "w-[72px] lg:w-[72px]" : "w-[220px] lg:w-[220px]"
         )}
       >
-        <Sidebar className="w-[260px]" />
+        <Sidebar
+          isCollapsed={isCollapsed}
+          onToggleCollapse={toggleCollapse}
+          className="w-full"
+        />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Main Content Area - Dynamic Resizing in Flexbox Layout */}
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-all duration-300 ease-in-out">
         {/* Mobile Header Bar */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-surface border-b border-border">
           <DataVistaLogo size="md" />
-          <IconButton onClick={() => setSidebarOpen(true)} variant="ghost">
+          <IconButton onClick={() => setMobileOpen(true)} variant="ghost">
             <Menu className="h-6 w-6 text-textSecondary" />
           </IconButton>
         </div>
@@ -41,10 +67,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="hidden lg:block">
           <TopNavigation />
         </div>
-        
+
         {/* Mobile alternative top nav info */}
         <div className="lg:hidden p-4 bg-surface border-b border-border">
-           <h1 className="text-xl font-bold tracking-tight text-textPrimary">
+          <h1 className="text-xl font-bold tracking-tight text-textPrimary">
             Dashboard
           </h1>
           <p className="text-xs font-medium text-textSecondary">
