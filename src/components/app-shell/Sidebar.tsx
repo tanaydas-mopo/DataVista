@@ -91,13 +91,13 @@ export function Sidebar({ className, isCollapsed = false, onToggleCollapse }: Si
   return (
     <aside
       className={cn(
-        "flex h-full w-full flex-col border-r border-border bg-sidebar transition-all duration-300 transform-gpu overflow-x-hidden",
+        "flex h-full w-full flex-col border-r border-border bg-sidebar transition-colors duration-200 transform-gpu overflow-x-hidden select-none",
         className
       )}
     >
       {/* Header / Animated DV Logo + Option 1 Three Dots (...) Dataset Switcher Menu + Collapse Arrow */}
       <div className={cn(
-        "relative flex items-center border-b border-border/50 transition-all duration-300 shrink-0",
+        "relative flex items-center border-b border-border/50 transition-all duration-200 ease-out shrink-0",
         isCollapsed ? "px-3 py-4 justify-between" : "px-4 py-5 justify-between"
       )}>
         <div className="flex items-center gap-2 overflow-hidden shrink-0">
@@ -275,9 +275,9 @@ export function Sidebar({ className, isCollapsed = false, onToggleCollapse }: Si
         )}
       </div>
 
-      {/* Option 2: Main Navigation Items with Individual Three Dots (...) Menus */}
+      {/* Option 2: Main Navigation Items */}
       <nav className={cn(
-        "flex-1 overflow-y-auto py-4 no-scrollbar transition-all duration-300",
+        "flex-1 overflow-y-auto py-4 no-scrollbar transition-all duration-200 ease-out",
         isCollapsed ? "px-2" : "px-3"
       )}>
         <div className="space-y-1">

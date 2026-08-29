@@ -39,10 +39,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Desktop & Mobile Sidebar Container with Smooth Width Transition */}
+      {/* Desktop & Mobile Sidebar Container with Ultra-Smooth 200ms GPU Accelerated Transition */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 transform bg-surface transition-[width,transform] duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0",
+          "fixed inset-y-0 left-0 z-50 transform bg-surface transition-[width,transform] duration-200 ease-out lg:static lg:translate-x-0 shrink-0 transform-gpu will-change-[width]",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           isCollapsed ? "w-[72px] lg:w-[72px]" : "w-[220px] lg:w-[220px]"
         )}
@@ -54,8 +54,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       </div>
 
-      {/* Main Content Area - Dynamic Resizing in Flexbox Layout */}
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-all duration-300 ease-in-out">
+      {/* Main Content Area - GPU Accelerated Dynamic Resizing */}
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-[flex,width,padding] duration-200 ease-out transform-gpu">
         {/* Mobile Header Bar */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-surface border-b border-border">
           <DataVistaLogo size="md" />
