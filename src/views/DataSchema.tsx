@@ -1,3 +1,5 @@
+"use client";
+
 import { useRef } from "react";
 import { UploadCloud, FileType, Database, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";

@@ -1,3 +1,5 @@
+"use client";
+
 import { useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";

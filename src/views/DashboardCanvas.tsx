@@ -1,3 +1,5 @@
+"use client";
+
 import {
   LayoutGrid,
   Type,
@@ -20,11 +22,11 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 export function DashboardCanvas() {
   const { dataset } = useDataset();
-  const navigate = useNavigate();
+  const router = useRouter();
   const isDatasetActive = dataset.status === "active";
 
   const widgetTypes = [
@@ -100,7 +102,7 @@ export function DashboardCanvas() {
                 Upload a CSV, Excel, or JSON dataset to dynamically populate your dashboard canvas widgets.
               </p>
               <button
-                onClick={() => navigate("/dashboard")}
+                onClick={() => router.push("/dashboard")}
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-primary rounded-xl hover:bg-primary-hover shadow-md shadow-blue-500/20 transition-all active:scale-95"
               >
                 <Upload className="w-4 h-4" />

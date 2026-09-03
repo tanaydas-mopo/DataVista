@@ -1,3 +1,5 @@
+"use client";
+
 import { KpiCard } from "../components/dashboard/KpiCard";
 import { MatchesWonChart } from "../components/dashboard/MatchesWonChart";
 import { DatasetOverview } from "../components/dashboard/DatasetOverview";

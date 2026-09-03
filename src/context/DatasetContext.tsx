@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useState } from 'react';
 import * as XLSX from 'xlsx';
 
@@ -190,17 +192,19 @@ const DatasetContext = createContext<DatasetContextType | undefined>(undefined);
 
 export function DatasetProvider({ children }: { children: React.ReactNode }) {
   const [dataset, setDataset] = useState<DatasetInfo>(() => {
-    const saved = localStorage.getItem("datavista_dataset");
-    if (saved) {
+    if (typeof window !== "undefined") {
       try {
-        const parsed = JSON.parse(saved);
-        if (
-          parsed &&
-          parsed.name &&
-          !String(parsed.name).includes("PK\u0003") &&
-          !JSON.stringify(parsed.rawHeaders || []).includes("Content_Types")
-        ) {
-          return parsed;
+        const saved = localStorage.getItem("datavista_dataset");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            parsed.name &&
+            !String(parsed.name).includes("PK\u0003") &&
+            !JSON.stringify(parsed.rawHeaders || []).includes("Content_Types")
+          ) {
+            return parsed;
+          }
         }
       } catch {
         return defaultIplDataset;

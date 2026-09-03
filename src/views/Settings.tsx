@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import {
   User,
@@ -22,12 +24,12 @@ import {
   Zap,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthProvider";
 
 export function Settings() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("appearance");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -36,7 +38,14 @@ export function Settings() {
 
   // Settings State
   const [defaultLandingPage, setDefaultLandingPage] = useState(() => {
-    return localStorage.getItem("datavista_default_page") || "/dashboard";
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("datavista_default_page") || "/dashboard";
+      } catch {
+        return "/dashboard";
+      }
+    }
+    return "/dashboard";
   });
   const [autoCleanNulls, setAutoCleanNulls] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);
@@ -46,11 +55,17 @@ export function Settings() {
 
   // Theme State
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem("datavista_theme");
-    if (saved) return saved;
-    if (document.documentElement.classList.contains("extra-dark")) return "extra-dark";
-    if (document.documentElement.classList.contains("cobalt-dark")) return "cobalt-dark";
-    if (document.documentElement.classList.contains("dark")) return "dark";
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("datavista_theme");
+        if (saved) return saved;
+        if (document.documentElement.classList.contains("extra-dark")) return "extra-dark";
+        if (document.documentElement.classList.contains("cobalt-dark")) return "cobalt-dark";
+        if (document.documentElement.classList.contains("dark")) return "dark";
+      } catch {
+        return "light";
+      }
+    }
     return "light";
   });
 
@@ -118,7 +133,7 @@ export function Settings() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    router.push('/login');
   };
 
   const userName =

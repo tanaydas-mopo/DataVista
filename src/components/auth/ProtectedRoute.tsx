@@ -1,10 +1,20 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from './AuthProvider';
+"use client";
 
-export function ProtectedRoute() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./AuthProvider";
+
+export function ProtectedRoute({ children }: { children?: React.ReactNode }) {
   const { session, loading } = useAuth();
+  const router = useRouter();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !session) {
+      router.replace("/login");
+    }
+  }, [loading, session, router]);
+
+  if (loading || !session) {
     return (
       <div className="flex h-screen items-center justify-center bg-appBackground">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -12,9 +22,5 @@ export function ProtectedRoute() {
     );
   }
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
+  return <>{children}</>;
 }

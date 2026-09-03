@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import {
   CloudUpload,
@@ -15,7 +17,7 @@ import {
   Activity,
   X
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
 import { DataVistaLogo } from '../components/ui/DataVistaLogo';
@@ -24,7 +26,7 @@ export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
   const { dataset, uploadDataset, removeDataset } = useDataset();
 
   const isDatasetActive = dataset.status === "active" && dataset.name !== "";
@@ -69,7 +71,7 @@ export function UploadDataset() {
     setIsUploading(true);
     try {
       await uploadDataset(file);
-      navigate('/dashboard');
+      router.push('/dashboard');
     } catch (err) {
       console.error("Upload error:", err);
     } finally {
@@ -79,7 +81,7 @@ export function UploadDataset() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    router.push('/login');
   };
 
   const hasSelectedFile = !!file;
@@ -363,7 +365,7 @@ export function UploadDataset() {
 
                 <button
                   type="button"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => router.push("/dashboard")}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 self-end sm:self-auto cursor-pointer shrink-0"
                 >
                   Dashboard

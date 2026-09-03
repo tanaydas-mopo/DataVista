@@ -1,4 +1,6 @@
-import { useNavigate } from "react-router-dom";
+"use client";
+
+import { useRouter } from "next/navigation";
 import {
   Upload,
   Sparkles,
@@ -12,7 +14,7 @@ import { quickActions } from "../../data/dashboardMockData";
 import type { QuickAction } from "../../types/dashboard";
 
 export function QuickActions() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const getIconForAction = (action: QuickAction["action"]) => {
     switch (action) {
@@ -47,19 +49,19 @@ export function QuickActions() {
   const handleActionClick = (action: QuickAction["action"]) => {
     switch (action) {
       case "upload":
-        navigate("/data-schema");
+        router.push("/data-schema");
         break;
       case "clean":
-        navigate("/clean-transform");
+        router.push("/clean-transform");
         break;
       case "chart":
-        navigate("/visual-builder");
+        router.push("/visual-builder");
         break;
       case "dashboard":
-        navigate("/dashboard-canvas");
+        router.push("/dashboard-canvas");
         break;
       case "report":
-        navigate("/export-report");
+        router.push("/export-report");
         break;
     }
   };

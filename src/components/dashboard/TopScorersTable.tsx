@@ -1,11 +1,13 @@
+"use client";
+
 import { ArrowRight, Table } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
 import { useDataset } from "../../context/DatasetContext";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 export function TopScorersTable() {
   const { dataset } = useDataset();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const isDatasetActive = dataset.status === "active" && dataset.tableRows.length > 0;
 
@@ -57,7 +59,7 @@ export function TopScorersTable() {
 
             <div className="mt-6 flex items-center justify-end">
               <button
-                onClick={() => navigate("/data-schema")}
+                onClick={() => router.push("/data-schema")}
                 className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-textPrimary shadow-xs transition-colors hover:bg-primary-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 View Full Dataset Schema

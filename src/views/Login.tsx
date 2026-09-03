@@ -1,11 +1,14 @@
+"use client";
+
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { DataVistaLogo } from '../components/ui/DataVistaLogo';
 
 export function Login() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -28,7 +31,7 @@ export function Login() {
       setError(error.message);
       setLoading(false);
     } else {
-      navigate('/upload-dataset');
+      router.push('/upload-dataset');
     }
   };
 
@@ -204,7 +207,7 @@ export function Login() {
           <div className="mt-6 text-center text-sm text-textSecondary">
             Don't have an account?{' '}
             <Link
-              to="/signup"
+              href="/signup"
               className="font-bold text-primary transition-colors hover:underline"
             >
               Sign Up

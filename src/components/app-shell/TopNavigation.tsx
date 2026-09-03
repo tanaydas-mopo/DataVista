@@ -1,14 +1,16 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Bell, ChevronDown, Filter, Calendar, X, User, Search, Command } from "lucide-react";
 import { IconButton } from "../ui/IconButton";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { useAuth } from "../auth/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 export function TopNavigation() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isAvatarZoomed, setIsAvatarZoomed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -108,7 +110,7 @@ export function TopNavigation() {
                 <button
                   key={opt.path}
                   onMouseDown={() => {
-                    navigate(opt.path);
+                    router.push(opt.path);
                     setSearchQuery("");
                   }}
                   className="w-full text-left px-3 py-2 text-xs font-semibold text-textPrimary hover:bg-primary-soft hover:text-primary rounded-xl transition-colors flex items-center justify-between"
@@ -208,7 +210,7 @@ export function TopNavigation() {
               <button
                 onClick={() => {
                   setIsAvatarZoomed(false);
-                  navigate("/settings");
+                  router.push("/settings");
                 }}
                 className="w-full py-2.5 px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 cursor-pointer"
               >

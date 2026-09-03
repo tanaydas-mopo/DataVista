@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopNavigation } from "./TopNavigation";
@@ -9,12 +11,15 @@ import { DataVistaLogo } from "../ui/DataVistaLogo";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem("datavista_sidebar_collapsed");
-      return saved ? JSON.parse(saved) : false;
-    } catch {
-      return false;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("datavista_sidebar_collapsed");
+        return saved ? JSON.parse(saved) : false;
+      } catch {
+        return false;
+      }
     }
+    return false;
   });
 
   const toggleCollapse = () => {

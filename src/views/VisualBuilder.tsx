@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo } from "react";
 import {
   BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon,
