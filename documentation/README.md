@@ -22,7 +22,7 @@ documentation/
 ├── SRS.md             # Software architecture, data model & screen specs
 ├── design.md          # Visual tokens, component variants & theme rules
 └── README.md          # This documentation portal index
-```
+``
 
 For engineering instructions on local development, see the root [`README.md`](../README.md).
 For database schema migrations and Edge Functions, see [`supabase/README.md`](../supabase/README.md).
