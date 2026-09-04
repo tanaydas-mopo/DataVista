@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/assets/branding/logos/logo-banner-card.png" alt="DataVista — Modern Data Analytics & Visualization Portal" width="500" />
+<img src="./public/assets/branding/logos/datavista-banner.png" alt="DataVista — Modern Data Analytics & Visualization Portal" width="480" />
 
 <br />
 <br />
