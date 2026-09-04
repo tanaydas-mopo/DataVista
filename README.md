@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/assets/branding/logos/datavista-banner.png" alt="DataVista — Modern Data Analytics & Visualization Portal" width="480" />
+<img src="./DataVista/public/assets/branding/logos/datavista-banner.png" alt="DataVista — Modern Data Analytics & Visualization Portal" width="480" />
 
 <br />
 <br />
@@ -20,8 +20,8 @@
   <a href="#tech-stack">Tech Stack</a> •
   <a href="#project-structure">Project Structure</a> •
   <a href="#getting-started">Getting Started</a> •
-  <a href="#environment-variables">Environment Variables</a> •
-  <a href="#deployment">Deployment</a>
+  <a href="#documentation">Documentation</a> •
+  <a href="#supabase-backend">Supabase Backend</a>
 </p>
 
 </div>
@@ -30,122 +30,56 @@
 
 ## 🌟 Overview
 
-**DataVista** is an enterprise-grade, high-performance data analytics and visualization portal built with Next.js 16 App Router, React 19, and Tailwind CSS v4.
+**DataVista** is an enterprise-grade, high-performance data analytics and visualization portal built with Next.js 16 App Router, React 19, and Tailwind CSS v4, backed by Supabase Postgres.
 
 DataVista transforms raw tabular datasets (CSV, Excel, JSON) into interactive visual dashboards and publication-ready analytical reports. Designed with a sleek cyber-data aesthetic, it provides an intuitive visual workflow from ingestion and data wrangling to custom chart composition, dashboard canvas design, and live PDF/PNG/CSV exporting.
 
 ---
 
-## ✨ Key Features
-
-### 📂 1. Multi-Format Dataset Ingestion
-- **Universal File Parsing**: Instant drag-and-drop parsing for `.csv`, `.xlsx`, `.xls`, and `.json` files powered by SheetJS.
-- **Smart Schema Inference**: Automatic detection of column data types, delimiters, date formats, and nullability.
-- **Dataset Switcher & Management**: Work with multiple datasets seamlessly, switch active datasets on the fly, or load curated demo datasets (e.g., Premier League 2024 Analytics).
-
-### 🔍 2. Data Schema Explorer
-- **Deep Column Profiling**: View detailed statistical summaries (mean, min, max, distinct counts, missing value percentages).
-- **Type Casting & Field Renaming**: Coerce and cast columns between string, numeric, boolean, and date formats.
-- **Data Quality Indicators**: Visual null/completeness gauges for every column.
-
-### ⚡ 3. Clean & Transform Pipeline
-- **Interactive Data Wrangling**:
-  - **Imputation**: Handle missing data via mean, median, mode, forward-fill, backward-fill, or drop rows.
-  - **Outlier Filtering**: Statistical IQR and standard deviation outlier detection and truncation.
-  - **Column Operations**: Rename, drop, filter, and apply custom mathematical transformations.
-  - **String Manipulation**: Trim, change casing, extract substrings, and normalize text fields.
-- **Step-by-Step History**: Visual transformation step pipeline with full undo and redo capability.
-
-### 📈 4. Visual Chart Builder
-- **Dynamic Recharts Engine**:
-  - Bar Charts (Vertical, Horizontal, Stacked, Grouped)
-  - Line & Multi-Line Trend Charts
-  - Area Charts (Gradient-filled, Stacked)
-  - Scatter & Correlation Plots
-  - Pie, Donut & Radial Charts
-  - Radar & Composed Charts
-- **Intuitive Mapping**: Drag-and-drop or select X-axis dimensions, Y-axis metrics, aggregation types (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`), and sorting order.
-- **Granular Styling Controls**: Custom color palettes, dark/light theme gradients, gridline toggles, custom tooltips, legends, and reference thresholds.
-- **One-Click Pin to Dashboard**: Save any customized visualization directly to the dashboard canvas.
-
-### 📋 5. Dashboard Canvas
-- **Draggable & Resizable Grid Layout**: Organize charts, summary metric cards (KPIs), and tabular widgets.
-- **Global Synchronized Filtering**: Filter across all widgets simultaneously by date range, category, or threshold.
-- **Multi-Dashboard Workspace**: Create and manage separate workspaces for executive overviews, marketing metrics, and sales analytics.
-
-### 📄 6. Live Report Studio & Real Exports
-- **Real Multi-Format Exporting**:
-  - **PDF Reports**: Generate and download formatted PDF reports with custom metadata and embedded charts.
-  - **High-Res PNG Snapshots**: Export pixel-perfect individual chart snapshots for presentations.
-  - **Clean CSV Data**: Export filtered, cleaned, or aggregated datasets directly to disk.
-- **Report Studio Customizer**: Add titles, executive summaries, analyst notes, and select specific visualizations to include in generated exports.
-
-### 🔐 7. Authentication & Theming
-- **Supabase Integration**: Secure user authentication (Email/Password & Social OAuth) supporting both local fallback and cloud synchronization.
-- **Cyber-Data Themes**: Built-in themes including Light, Dark, Cobalt, and Extra-Dark with smooth 60fps micro-animations.
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology | Description |
-|---|---|---|
-| **Framework** | [Next.js 16](https://nextjs.org/) | App Router, Turbopack, Fast Refresh, Static Prerendering |
-| **Library** | [React 19](https://react.dev/) | React Server Components, Suspense, Hooks |
-| **Language** | [TypeScript 6](https://www.typescriptlang.org/) | Strict type safety, interface-driven architecture |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) | Modern CSS variable design tokens, zero-runtime PostCSS |
-| **Data Visualization** | [Recharts 3](https://recharts.org/) | Responsive SVG charting engine |
-| **Data Parsing** | [SheetJS (xlsx)](https://docs.sheetjs.com/) | Client-side spreadsheet and tabular parsing |
-| **Icons** | [Lucide React](https://lucide.dev/) | Consistent, lightweight SVG icon system |
-| **Auth & Backend** | [Supabase](https://supabase.com/) | User management, session persistence, cloud database |
-
----
-
 ## 📁 Project Structure
 
+The repository is organized into three decoupled, dedicated tiers:
+
 ```text
-DataVista/
-├── public/
-│   ├── favicon.ico                   # Multi-resolution browser icon (16px to 256px)
-│   ├── favicon.svg                   # Scalable vector favicon
-│   ├── apple-touch-icon.png          # iOS 180x180 touch icon
-│   └── assets/
-│       ├── branding/                 # Logos (light, dark, mark, monochrome) & app icons
-│       ├── icons/                    # Custom third-party and social SVG icons
-│       ├── illustrations/            # Empty states (dashboard, data, chart) and system SVGs
-│       └── images/                   # Backgrounds (grid patterns, isometric graphics) & avatars
-├── src/
-│   ├── app/                          # Next.js App Router routes and layout
-│   │   ├── (main)/                   # Core authenticated app views
-│   │   │   ├── clean-transform/      # Data wrangling module
-│   │   │   ├── dashboard/            # Dashboard overview
-│   │   │   ├── dashboard-canvas/     # Freeform grid dashboard
-│   │   │   ├── data-schema/          # Schema explorer & profiling
-│   │   │   ├── export-report/        # PDF/PNG/CSV report exporter
-│   │   │   ├── settings/             # User settings & themes
-│   │   │   └── visual-builder/       # Custom chart generator
-│   │   ├── login/                    # Login page
-│   │   ├── signup/                   # Signup page
-│   │   ├── upload-dataset/           # Dataset upload & ingestion
-│   │   ├── globals.css               # Design tokens and Tailwind CSS rules
-│   │   ├── layout.tsx                # Root layout, metadata & providers
-│   │   └── not-found.tsx             # 404 error screen
-│   ├── components/                   # Modular React components
-│   │   ├── app-shell/                # Navigation, Header, Sidebar
-│   │   ├── clean-transform/          # Wrangling operators & history panels
-│   │   ├── dashboard/                # Dashboard widgets & charts
-│   │   ├── export/                   # Export previewer & download handlers
-│   │   ├── providers/                # Theme and App Context providers
-│   │   ├── ui/                       # Reusable UI primitives (Buttons, Modals, Badges)
-│   │   └── visual-builder/           # Chart config controls & Recharts adapters
-│   ├── context/                      # React context providers (Auth, Dataset, Dashboard)
-│   ├── types/                        # TypeScript domain definitions
-│   └── utils/                        # Data transformation, parsing, formatting utilities
-├── design.md                         # Full design system and brand specification
-├── package.json
-├── next.config.ts
-├── tailwind.config.js
-└── tsconfig.json
+DataVista/ (Repository Root)
+├── DataVista/                        # [Tier 1] Next.js 16 Application Source Code
+│   ├── public/                       # Static brand logos, icons, illustrations, favicons
+│   │   └── assets/                   # Vector SVGs, PNG banners, and empty-state graphics
+│   ├── src/                          # Application source code
+│   │   ├── app/                      # App Router routes, layouts, and page views
+│   │   │   ├── (main)/               # Core authenticated views (dashboard, visual-builder, etc.)
+│   │   │   ├── login/                # Authentication login screen
+│   │   │   ├── signup/               # Registration screen
+│   │   │   ├── upload-dataset/       # Ingestion dropzone screen
+│   │   │   └── globals.css           # Tailwind v4 @theme design tokens
+│   │   ├── components/               # UI primitives, app-shell navigation, dashboard widgets
+│   │   ├── context/                  # React contexts (DatasetContext, AuthContext)
+│   │   ├── lib/                      # Supabase client and utility helpers
+│   │   └── views/                    # View implementation components
+│   ├── package.json                  # Next.js app dependencies and scripts
+│   ├── tsconfig.json                 # TypeScript compiler configuration
+│   ├── next.config.ts                # Next.js framework configuration
+│   └── .env                          # Frontend environment variables
+│
+├── supabase/                         # [Tier 2] Supabase Database & Serverless Functions
+│   ├── migrations/                   # Postgres schema migrations & RLS policies
+│   │   └── 20260904000001_initial_schema.sql # Profiles, Workspaces, Datasets, Dashboards, Reports
+│   ├── functions/                    # Deno Edge Functions
+│   │   ├── clean-dataset/            # Server-side data cleaning (duplicates, nulls, outliers)
+│   │   └── generate-insights/        # Automated statistical analysis & chart recommendations
+│   └── README.md                     # Supabase setup & CI/CD deployment guide
+│
+├── documentation/                    # [Tier 3] Technical Specifications & Design System
+│   ├── PRD.md                        # Product Requirements Document (31 sections)
+│   ├── SRS.md                        # Software Requirements Specification (37 sections)
+│   ├── design.md                     # Visual Design System & UI Specification (50 sections)
+│   └── README.md                     # Documentation suite portal index
+│
+├── .github/                          # Automated CI/CD Pipelines
+│   └── workflows/
+│       └── supabase-ci-cd.yml        # Auto-deploy migrations & edge functions on push to main
+├── .gitignore                        # Git exclusion rules
+└── README.md                         # This file
 ```
 
 ---
@@ -157,11 +91,10 @@ DataVista/
 - **Node.js**: v18.18.0 or later (Node.js 20+ recommended)
 - **npm** or **pnpm** or **yarn**
 
-### Installation
+### Quickstart
 
-1. **Clone the repository**:
+1. **Navigate into the application folder**:
    ```bash
-   git clone https://github.com/tanaydas-mopo/DataVista.git
    cd DataVista
    ```
 
@@ -171,15 +104,13 @@ DataVista/
    ```
 
 3. **Configure Environment Variables**:
-   Create a `.env.local` or `.env` file in the root directory:
+   In `DataVista/.env`:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   # or publishable key:
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
    ```
 
-4. **Start the development server**:
+4. **Run the Development Server**:
    ```bash
    npm run dev
    ```
@@ -187,38 +118,40 @@ DataVista/
 
 ---
 
-## 🔑 Environment Variables
+## 📜 Available Application Scripts (Inside `DataVista/`)
 
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Optional | Your Supabase project URL (e.g. `https://xyz.supabase.co`). |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional | Supabase anonymous / public key for client-side queries. |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Optional | Supabase publishable key format (`sb_publishable_...`). |
+From the `DataVista/` folder, you can run:
 
-> *Note: If Supabase credentials are omitted, DataVista automatically operates in offline / local-storage mode with full access to parsing, transforming, charting, and exporting.*
-
----
-
-## 📜 Available Scripts
-
-- `npm run dev`: Starts the Next.js development server with Turbopack on port 3000.
-- `npm run build`: Compiles the application and generates optimized static pages for production.
-- `npm run start`: Starts the Next.js production server.
-- `npm run lint`: Runs oxlint code inspection across `src/`.
+| Command | Action |
+|---|---|
+| `npm run dev` | Runs the Next.js development server with Turbopack on port 3000 |
+| `npm run build` | Compiles the Next.js production build |
+| `npm run start` | Boots the Next.js production server |
+| `npm run lint` | Runs TypeScript / ESLint checks across `src/` |
 
 ---
 
-## 🎨 Asset Library & Design System
+## 📖 Documentation
 
-DataVista features an organized asset repository in `/public/assets` including:
-- **Official Brand Logos**: Full vector marks in primary, dark, white, and monochrome editions.
-- **Multi-Resolution Favicons**: High-fidelity `.ico` (16px to 256px), `.svg`, and Apple touch icons.
-- **Empty States**: Customized SVG illustrations for empty dashboards, charts, and datasets.
+All technical and architectural documentation is maintained in the [`documentation/`](./documentation) directory:
 
-For design tokens, typography, and color codes, refer to [`design.md`](./design.md) and [`public/assets/README.md`](./public/assets/README.md).
+- [**Product Requirements Document (PRD.md)**](./documentation/PRD.md): Vision, user personas, 31 core functional requirements, and roadmap.
+- [**Software Requirements Specification (SRS.md)**](./documentation/SRS.md): System architecture diagrams, 11 screen specs, data pipelines, and non-functional requirements.
+- [**Design System & UI Specification (design.md)**](./documentation/design.md): 50-section single source of truth for color tokens, 4 themes, typography, and component specifications.
+
+---
+
+## ⚡ Supabase Backend
+
+The backend is fully specified in [`supabase/`](./supabase):
+- **Database Schema**: User profiles, dataset metadata, dashboards, charts, transformation history, and storage buckets.
+- **Row Level Security (RLS)**: Enforces strict user isolation across all tables and file storage.
+- **Edge Functions**: Automated data cleaning (`clean-dataset`) and AI-powered statistical insights (`generate-insights`).
+
+For detailed commands on deploying to Supabase Cloud, refer to [`supabase/README.md`](./supabase/README.md).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**.

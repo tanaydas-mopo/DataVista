@@ -6,16 +6,25 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Environment and Secrets
 .env
+.env*.local
+*.local
+
+# Dependencies and Build Outputs
 node_modules
 dist
 dist-ssr
 .next
 out
-*.local
 *.tsbuildinfo
 
-# Editor directories and files
+# Supabase Local Runtime
+supabase/.temp
+supabase/.branches
+
+# Editor and OS files
 .vscode/*
 !.vscode/extensions.json
 .idea
