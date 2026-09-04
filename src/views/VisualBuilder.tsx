@@ -691,10 +691,14 @@ export function VisualBuilder() {
 
             <CardContent className="p-6 flex-1 flex flex-col justify-center relative">
               {chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType) ? (
-                <div className="flex flex-col items-center justify-center text-center gap-3 p-8">
-                  <HelpCircle className="w-12 h-12 text-textMuted stroke-[1.5]" />
+                <div className="flex flex-col items-center justify-center text-center p-6">
+                  <img
+                    src="/assets/illustrations/empty-states/illustration-empty-chart.svg"
+                    alt="No data to visualize"
+                    className="w-40 h-auto mb-2 opacity-90"
+                  />
                   <h4 className="text-sm font-bold text-textPrimary">No data to visualize</h4>
-                  <p className="text-xs text-textSecondary max-w-sm">
+                  <p className="text-xs text-textSecondary max-w-sm mt-0.5">
                     Select a different X-Axis dimension or clear active filters to display chart data.
                   </p>
                 </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, AlertCircle, User, Eye, EyeOff } from 'lucide-react';
+import { DataVistaLogo } from '../components/ui/DataVistaLogo';
 
 export function Signup() {
   const router = useRouter();
@@ -72,6 +73,13 @@ export function Signup() {
     <div className="flex min-h-screen items-center justify-center bg-appBackground p-4 font-sans">
       <div className="w-full max-w-[400px] overflow-hidden rounded-2xl bg-surface shadow-card border border-border">
         <div className="p-6 pb-8">
+          {/* Animated DV Logo Header */}
+          <div className="mb-6 flex flex-col items-center justify-center text-center">
+            <DataVistaLogo size="lg" animate={true} />
+            <p className="text-xs text-textSecondary mt-2 font-medium">
+              Create your DataVista workspace
+            </p>
+          </div>
           
           <form onSubmit={handleSignup} className="space-y-4">
             {error && (

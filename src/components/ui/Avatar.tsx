@@ -31,10 +31,16 @@ export function Avatar({ className, src, fallback, size = "md", ...props }: Avat
           onError={() => setImgError(true)}
           className="aspect-square h-full w-full object-cover"
         />
-      ) : (
+      ) : fallback ? (
         <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold uppercase shadow-inner">
-          {fallback || "U"}
+          {fallback}
         </div>
+      ) : (
+        <img
+          src="/assets/images/avatars/avatar-default.svg"
+          alt="User avatar placeholder"
+          className="aspect-square h-full w-full object-cover"
+        />
       )}
     </div>
   );

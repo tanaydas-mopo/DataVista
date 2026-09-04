@@ -86,10 +86,14 @@ export const MatchesWonChart = React.memo(function MatchesWonChart() {
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="h-[280px] w-full border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center text-slate-400 gap-2 p-6 text-center">
-            <BarChart2 className="w-12 h-12 text-slate-300 stroke-[1.5]" />
-            <p className="text-sm font-semibold text-slate-600">No Dataset Active</p>
-            <p className="text-xs text-slate-400 max-w-xs">
+          <div className="h-[280px] w-full border-2 border-dashed border-border rounded-2xl bg-surface/50 flex flex-col items-center justify-center p-6 text-center">
+            <img
+              src="/assets/illustrations/empty-states/illustration-empty-dashboard.svg"
+              alt="No Dataset Active"
+              className="w-36 h-auto mb-2 opacity-90"
+            />
+            <p className="text-sm font-bold text-textPrimary">No Dataset Active</p>
+            <p className="text-xs text-textSecondary max-w-xs mt-0.5">
               Upload a dataset to generate interactive charts and visual breakdown.
             </p>
           </div>

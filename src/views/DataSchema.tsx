@@ -193,12 +193,16 @@ export function DataSchema() {
                 </table>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-textMuted gap-3">
-                <Database className="w-12 h-12 opacity-30" />
+              <div className="flex flex-col items-center justify-center min-h-[260px] text-textMuted p-6 text-center">
+                <img
+                  src="/assets/illustrations/empty-states/illustration-empty-data.svg"
+                  alt="No Active Dataset Schema"
+                  className="w-40 h-auto mb-2 opacity-90"
+                />
                 <p className="text-sm font-bold text-textPrimary">
                   No Active Dataset Schema
                 </p>
-                <p className="text-xs text-textSecondary max-w-xs text-center">
+                <p className="text-xs text-textSecondary max-w-xs text-center mt-0.5">
                   Upload a dataset file to inspect column data types, null rates, and live sample values.
                 </p>
               </div>

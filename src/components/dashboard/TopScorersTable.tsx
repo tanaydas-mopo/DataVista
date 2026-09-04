@@ -68,10 +68,14 @@ export function TopScorersTable() {
             </div>
           </>
         ) : (
-          <div className="py-12 border-2 border-dashed border-border rounded-2xl bg-surface flex flex-col items-center justify-center text-textMuted gap-2 text-center">
-            <Table className="w-12 h-12 opacity-30 stroke-[1.5]" />
+          <div className="py-10 border-2 border-dashed border-border rounded-2xl bg-surface/50 flex flex-col items-center justify-center text-center p-6">
+            <img
+              src="/assets/illustrations/empty-states/illustration-empty-data.svg"
+              alt="No Dataset Records"
+              className="w-36 h-auto mb-2 opacity-90"
+            />
             <p className="text-sm font-bold text-textPrimary">No Dataset Records Available</p>
-            <p className="text-xs text-textSecondary max-w-xs">
+            <p className="text-xs text-textSecondary max-w-xs mt-0.5">
               Upload a dataset to view structured table records and data preview.
             </p>
           </div>

@@ -3,10 +3,16 @@ import "./globals.css";
 import { AppProviders } from "../components/providers/AppProviders";
 
 export const metadata: Metadata = {
-  title: "datavista",
-  description: "Data Analytics & Visualization Portal",
+  title: "DataVista — Data Analytics & Visualization Portal",
+  description: "High-performance interactive data analytics, visual chart builder, and report generation portal.",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180" },
+    ],
   },
 };
 

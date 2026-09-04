@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" fill="none">
+  <defs>
+    <linearGradient id="tblGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.04" />
+    </linearGradient>
+    <linearGradient id="cloudGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+    <filter id="tblShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#2563EB" flood-opacity="0.1" />
+    </filter>
+  </defs>
+
+  <!-- Ambient Backdrop Glow -->
+  <ellipse cx="160" cy="120" rx="100" ry="70" fill="#2563EB" fill-opacity="0.05" />
+
+  <!-- Sheet/Table Card -->
+  <g filter="url(#tblShadow)">
+    <rect x="45" y="40" width="230" height="155" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" />
+  </g>
+
+  <!-- Table Header row -->
+  <path d="M 45 54 C 45 46 51 40 60 40 L 260 40 C 269 40 275 46 275 54 L 275 75 L 45 75 Z" fill="#F1F5F9" />
+  <rect x="60" y="52" width="38" height="10" rx="4" fill="#CBD5E1" />
+  <rect x="115" y="52" width="45" height="10" rx="4" fill="#CBD5E1" />
+  <rect x="175" y="52" width="40" height="10" rx="4" fill="#CBD5E1" />
+  <rect x="230" y="52" width="30" height="10" rx="4" fill="#CBD5E1" />
+
+  <!-- Table Row 1 -->
+  <line x1="45" y1="105" x2="275" y2="105" stroke="#F1F5F9" stroke-width="1.5" />
+  <rect x="60" y="86" width="32" height="8" rx="3" fill="#E2E8F0" />
+  <rect x="115" y="86" width="38" height="8" rx="3" fill="#E2E8F0" />
+  <rect x="175" y="86" width="30" height="8" rx="3" fill="#E2E8F0" />
+  <circle cx="242" cy="90" r="4" fill="#10B981" fill-opacity="0.7" />
+
+  <!-- Table Row 2 -->
+  <line x1="45" y1="135" x2="275" y2="135" stroke="#F1F5F9" stroke-width="1.5" />
+  <rect x="60" y="116" width="42" height="8" rx="3" fill="#E2E8F0" />
+  <rect x="115" y="116" width="28" height="8" rx="3" fill="#E2E8F0" />
+  <rect x="175" y="116" width="36" height="8" rx="3" fill="#E2E8F0" />
+  <circle cx="242" cy="120" r="4" fill="#3B82F6" fill-opacity="0.7" />
+
+  <!-- Table Row 3 -->
+  <line x1="45" y1="165" x2="275" y2="165" stroke="#F1F5F9" stroke-width="1.5" />
+  <rect x="60" y="146" width="26" height="8" rx="3" fill="#E2E8F0" />
+  <rect x="115" y="146" width="48" height="8" rx="3" fill="#E2E8F0" />
+  <rect x="175" y="146" width="24" height="8" rx="3" fill="#E2E8F0" />
+  <circle cx="242" cy="150" r="4" fill="#8B5CF6" fill-opacity="0.7" />
+
+  <!-- Floating Data Upload Badge -->
+  <g filter="url(#tblShadow)">
+    <circle cx="160" cy="120" r="32" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" />
+    <circle cx="160" cy="120" r="26" fill="url(#cloudGrad)" />
+    <!-- Arrow Up / Upload Icon -->
+    <path d="M 160 108 L 151 118 L 156 118 L 156 130 L 164 130 L 164 118 L 169 118 Z" fill="#FFFFFF" />
+  </g>
+
+  <!-- Sparkle Accent -->
+  <g transform="translate(255, 30)">
+    <path d="M 8 0 L 10 6 L 16 8 L 10 10 L 8 16 L 6 10 L 0 8 L 6 6 Z" fill="#38BDF8" />
+  </g>
+</svg>
