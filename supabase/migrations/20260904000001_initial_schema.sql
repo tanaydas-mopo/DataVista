@@ -159,15 +159,18 @@ CREATE TABLE IF NOT EXISTS public.reports (
 -- Profiles RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles
     FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- Workspaces RLS
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view workspaces they are members of" ON public.workspaces;
 CREATE POLICY "Users can view workspaces they are members of" ON public.workspaces
     FOR SELECT USING (
         EXISTS (
@@ -177,9 +180,11 @@ CREATE POLICY "Users can view workspaces they are members of" ON public.workspac
         )
     );
 
+DROP POLICY IF EXISTS "Users can create workspaces" ON public.workspaces;
 CREATE POLICY "Users can create workspaces" ON public.workspaces
     FOR INSERT WITH CHECK (auth.uid() = created_by);
 
+DROP POLICY IF EXISTS "Workspace admins can update workspaces" ON public.workspaces;
 CREATE POLICY "Workspace admins can update workspaces" ON public.workspaces
     FOR UPDATE USING (
         EXISTS (
@@ -190,6 +195,7 @@ CREATE POLICY "Workspace admins can update workspaces" ON public.workspaces
         )
     );
 
+DROP POLICY IF EXISTS "Workspace admins can delete workspaces" ON public.workspaces;
 CREATE POLICY "Workspace admins can delete workspaces" ON public.workspaces
     FOR DELETE USING (
         EXISTS (
@@ -203,6 +209,7 @@ CREATE POLICY "Workspace admins can delete workspaces" ON public.workspaces
 -- Workspace Members RLS
 ALTER TABLE public.workspace_members ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Members can view membership in their workspaces" ON public.workspace_members;
 CREATE POLICY "Members can view membership in their workspaces" ON public.workspace_members
     FOR SELECT USING (
         user_id = auth.uid() OR
@@ -216,6 +223,7 @@ CREATE POLICY "Members can view membership in their workspaces" ON public.worksp
 -- Datasets RLS
 ALTER TABLE public.datasets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view datasets in their workspaces" ON public.datasets;
 CREATE POLICY "Users can view datasets in their workspaces" ON public.datasets
     FOR SELECT USING (
         EXISTS (
@@ -225,6 +233,7 @@ CREATE POLICY "Users can view datasets in their workspaces" ON public.datasets
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert datasets into their workspaces" ON public.datasets;
 CREATE POLICY "Users can insert datasets into their workspaces" ON public.datasets
     FOR INSERT WITH CHECK (
         EXISTS (
@@ -235,6 +244,7 @@ CREATE POLICY "Users can insert datasets into their workspaces" ON public.datase
         )
     );
 
+DROP POLICY IF EXISTS "Users can update datasets in their workspaces" ON public.datasets;
 CREATE POLICY "Users can update datasets in their workspaces" ON public.datasets
     FOR UPDATE USING (
         EXISTS (
@@ -245,6 +255,7 @@ CREATE POLICY "Users can update datasets in their workspaces" ON public.datasets
         )
     );
 
+DROP POLICY IF EXISTS "Users can delete datasets in their workspaces" ON public.datasets;
 CREATE POLICY "Users can delete datasets in their workspaces" ON public.datasets
     FOR DELETE USING (
         EXISTS (
@@ -258,6 +269,7 @@ CREATE POLICY "Users can delete datasets in their workspaces" ON public.datasets
 -- Dataset Columns RLS
 ALTER TABLE public.dataset_columns ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view columns of accessible datasets" ON public.dataset_columns;
 CREATE POLICY "Users can view columns of accessible datasets" ON public.dataset_columns
     FOR SELECT USING (
         EXISTS (
@@ -271,6 +283,7 @@ CREATE POLICY "Users can view columns of accessible datasets" ON public.dataset_
 -- Transformations RLS
 ALTER TABLE public.transformations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view transformations of accessible datasets" ON public.transformations;
 CREATE POLICY "Users can view transformations of accessible datasets" ON public.transformations
     FOR SELECT USING (
         EXISTS (
@@ -281,6 +294,7 @@ CREATE POLICY "Users can view transformations of accessible datasets" ON public.
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage transformations of accessible datasets" ON public.transformations;
 CREATE POLICY "Users can manage transformations of accessible datasets" ON public.transformations
     FOR ALL USING (
         EXISTS (
@@ -295,6 +309,7 @@ CREATE POLICY "Users can manage transformations of accessible datasets" ON publi
 -- Visualizations RLS
 ALTER TABLE public.visualizations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view visualizations in accessible workspaces" ON public.visualizations;
 CREATE POLICY "Users can view visualizations in accessible workspaces" ON public.visualizations
     FOR SELECT USING (
         EXISTS (
@@ -304,6 +319,7 @@ CREATE POLICY "Users can view visualizations in accessible workspaces" ON public
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage visualizations in accessible workspaces" ON public.visualizations;
 CREATE POLICY "Users can manage visualizations in accessible workspaces" ON public.visualizations
     FOR ALL USING (
         EXISTS (
@@ -317,6 +333,7 @@ CREATE POLICY "Users can manage visualizations in accessible workspaces" ON publ
 -- Dashboards RLS
 ALTER TABLE public.dashboards ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view dashboards in accessible workspaces" ON public.dashboards;
 CREATE POLICY "Users can view dashboards in accessible workspaces" ON public.dashboards
     FOR SELECT USING (
         EXISTS (
@@ -326,6 +343,7 @@ CREATE POLICY "Users can view dashboards in accessible workspaces" ON public.das
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage dashboards in accessible workspaces" ON public.dashboards;
 CREATE POLICY "Users can manage dashboards in accessible workspaces" ON public.dashboards
     FOR ALL USING (
         EXISTS (
@@ -339,6 +357,7 @@ CREATE POLICY "Users can manage dashboards in accessible workspaces" ON public.d
 -- Dashboard Widgets RLS
 ALTER TABLE public.dashboard_widgets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view widgets in accessible dashboards" ON public.dashboard_widgets;
 CREATE POLICY "Users can view widgets in accessible dashboards" ON public.dashboard_widgets
     FOR SELECT USING (
         EXISTS (
@@ -349,6 +368,7 @@ CREATE POLICY "Users can view widgets in accessible dashboards" ON public.dashbo
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage widgets in accessible dashboards" ON public.dashboard_widgets;
 CREATE POLICY "Users can manage widgets in accessible dashboards" ON public.dashboard_widgets
     FOR ALL USING (
         EXISTS (
@@ -363,6 +383,7 @@ CREATE POLICY "Users can manage widgets in accessible dashboards" ON public.dash
 -- Reports RLS
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view reports in accessible dashboards" ON public.reports;
 CREATE POLICY "Users can view reports in accessible dashboards" ON public.reports
     FOR SELECT USING (
         EXISTS (
@@ -373,6 +394,7 @@ CREATE POLICY "Users can view reports in accessible dashboards" ON public.report
         )
     );
 
+DROP POLICY IF EXISTS "Users can manage reports in accessible dashboards" ON public.reports;
 CREATE POLICY "Users can manage reports in accessible dashboards" ON public.reports
     FOR ALL USING (
         EXISTS (
