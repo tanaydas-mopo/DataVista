@@ -1,6 +1,9 @@
 <div align="center">
 
-# 📊 DataVista
+<img src="./public/assets/branding/logos/logo-banner-card.png" alt="DataVista — Modern Data Analytics & Visualization Portal" width="500" />
+
+<br />
+<br />
 
 **Modern Interactive Data Analytics, Visual Chart Builder & Reporting Portal**
 
