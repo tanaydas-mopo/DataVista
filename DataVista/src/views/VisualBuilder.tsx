@@ -5,7 +5,7 @@ import {
   BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, Layers, Sparkles, Compass, Settings2, Save, Database, CheckCircle2,
   Filter, Download, Maximize2, SlidersHorizontal, Bot, ArrowUpDown, X,
-  Table, Grid, HelpCircle, RefreshCw, Eye, Plus, Trash2
+  Table, Grid, RefreshCw, Eye, Plus, Trash2, Search
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -34,29 +34,35 @@ const PALETTES = {
    23 SUPPORTED CHART TYPES
 ───────────────────────────────────────────── */
 const ALL_CHART_TYPES = [
-  { id: "bar", name: "Bar Chart", icon: BarChartIcon, category: "Comparison" },
-  { id: "stacked-bar", name: "Stacked Bar", icon: BarChartIcon, category: "Comparison" },
-  { id: "horizontal-bar", name: "Horizontal Bar", icon: BarChartIcon, category: "Comparison" },
-  { id: "line", name: "Line Chart", icon: LineChartIcon, category: "Trend" },
-  { id: "multi-line", name: "Multi-Line", icon: LineChartIcon, category: "Trend" },
-  { id: "area", name: "Area Chart", icon: Layers, category: "Trend" },
-  { id: "stacked-area", name: "Stacked Area", icon: Layers, category: "Trend" },
-  { id: "pie", name: "Pie Chart", icon: PieChartIcon, category: "Composition" },
-  { id: "donut", name: "Donut Chart", icon: PieChartIcon, category: "Composition" },
-  { id: "scatter", name: "Scatter Plot", icon: Activity, category: "Distribution" },
-  { id: "bubble", name: "Bubble Chart", icon: Activity, category: "Distribution" },
-  { id: "histogram", name: "Histogram", icon: BarChartIcon, category: "Distribution" },
-  { id: "heatmap", name: "Heat Map", icon: Grid, category: "Matrix" },
-  { id: "treemap", name: "Treemap", icon: Layers, category: "Composition" },
-  { id: "radar", name: "Radar Spider", icon: Compass, category: "Comparison" },
-  { id: "combi", name: "Combo (Bar+Line)", icon: Sparkles, category: "Comparison" },
-  { id: "funnel", name: "Funnel Chart", icon: Filter, category: "Process" },
-  { id: "waterfall", name: "Waterfall Chart", icon: BarChartIcon, category: "Process" },
-  { id: "gauge", name: "Gauge Chart", icon: Activity, category: "KPI" },
-  { id: "kpi", name: "KPI Card", icon: Sparkles, category: "KPI" },
-  { id: "table", name: "Data Table", icon: Table, category: "Data" },
-  { id: "matrix", name: "Matrix Table", icon: Grid, category: "Data" },
-  { id: "boxplot", name: "Box Plot", icon: Activity, category: "Distribution" },
+  { id: "bar", name: "Bar Chart", icon: BarChartIcon, category: "Comparison", desc: "Compare values across categories" },
+  { id: "stacked-bar", name: "Stacked Bar", icon: BarChartIcon, category: "Comparison", desc: "Show categorical sub-segment breakdown" },
+  { id: "horizontal-bar", name: "Horizontal Bar", icon: BarChartIcon, category: "Comparison", desc: "Best for ranking and long text labels" },
+  { id: "radar", name: "Radar Spider", icon: Compass, category: "Comparison", desc: "Multi-dimensional performance comparison" },
+  { id: "combi", name: "Combo (Bar+Line)", icon: Sparkles, category: "Comparison", desc: "Dual-metric comparison (e.g. Volume & Rate)" },
+
+  { id: "line", name: "Line Chart", icon: LineChartIcon, category: "Trend", desc: "Track continuous performance trends over time" },
+  { id: "multi-line", name: "Multi-Line", icon: LineChartIcon, category: "Trend", desc: "Compare multiple trend trajectories" },
+  { id: "area", name: "Area Chart", icon: Layers, category: "Trend", desc: "Volume accumulation over time" },
+  { id: "stacked-area", name: "Stacked Area", icon: Layers, category: "Trend", desc: "Cumulative group contributions over time" },
+
+  { id: "pie", name: "Pie Chart", icon: PieChartIcon, category: "Composition", desc: "Share of whole for small category counts" },
+  { id: "donut", name: "Donut Chart", icon: PieChartIcon, category: "Composition", desc: "Ring breakdown with center metric focus" },
+  { id: "treemap", name: "Treemap", icon: Layers, category: "Composition", desc: "Hierarchical nested rectangle areas" },
+
+  { id: "scatter", name: "Scatter Plot", icon: Activity, category: "Distribution", desc: "Relationship & correlation between two metrics" },
+  { id: "bubble", name: "Bubble Chart", icon: Activity, category: "Distribution", desc: "Three-dimensional distribution analysis" },
+  { id: "histogram", name: "Histogram", icon: BarChartIcon, category: "Distribution", desc: "Frequency distribution across value buckets" },
+  { id: "boxplot", name: "Box Plot", icon: Activity, category: "Distribution", desc: "Statistical quartiles and distribution spread" },
+
+  { id: "funnel", name: "Funnel Chart", icon: Filter, category: "Process", desc: "Stage-by-stage pipeline drop-off rates" },
+  { id: "waterfall", name: "Waterfall Chart", icon: BarChartIcon, category: "Process", desc: "Incremental positive & negative adjustments" },
+
+  { id: "kpi", name: "KPI Card", icon: Sparkles, category: "KPI", desc: "High-impact single metric highlight card" },
+  { id: "gauge", name: "Gauge Chart", icon: Activity, category: "KPI", desc: "Radial speedometer against target threshold" },
+
+  { id: "table", name: "Data Table", icon: Table, category: "Data", desc: "Tabular view with raw aggregated values" },
+  { id: "heatmap", name: "Heat Map", icon: Grid, category: "Data", desc: "2D intensity grid via color variations" },
+  { id: "matrix", name: "Matrix Table", icon: Grid, category: "Data", desc: "Pivot style intersection table" },
 ];
 
 /* ─────────────────────────────────────────────
@@ -73,7 +79,7 @@ function computeSmartAgg(rawVals: any[], mode: string): number {
   // Extract numbers (ignoring currency & commas)
   const numVals: number[] = [];
   for (const str of cleaned) {
-    const parsed = Number(str.replace(/[\$,]/g, ""));
+    const parsed = Number(str.replace(/[$,]/g, ""));
     if (!isNaN(parsed)) numVals.push(parsed);
   }
 
@@ -222,6 +228,10 @@ export function VisualBuilder() {
 
   /* ── Core State ── */
   const [activeChartType, setActiveChartType] = useState<string>("bar");
+  const [chartFamily, setChartFamily] = useState<string>("All");
+  const [chartSearch, setChartSearch] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"chart" | "table">("chart");
+  const [showWhyChart, setShowWhyChart] = useState<boolean>(true);
   const [selectedX, setSelectedX] = useState<string>("");
   const [selectedYCols, setSelectedYCols] = useState<string[]>([]);
   const [measureType, setMeasureType] = useState<string>("sum");
@@ -254,6 +264,16 @@ export function VisualBuilder() {
   const isUploaded = dataset.status === "active";
   const palette = PALETTES[paletteKey] || PALETTES.default;
 
+  /* ── Filtered Chart Types by Family & Search ── */
+  const filteredChartTypes = useMemo(() => {
+    return ALL_CHART_TYPES.filter(t => {
+      const matchCat = chartFamily === "All" || t.category === chartFamily;
+      const q = chartSearch.trim().toLowerCase();
+      const matchSearch = !q || t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
+      return matchCat && matchSearch;
+    });
+  }, [chartFamily, chartSearch]);
+
   /* ── Extract Available Columns ── */
   const columns = useMemo(() => {
     if (dataset.rawHeaders && dataset.rawHeaders.length > 0) return dataset.rawHeaders;
@@ -280,7 +300,7 @@ export function VisualBuilder() {
     const map: Record<string, boolean> = {};
     columns.forEach(col => {
       const vals = allRows.slice(0, 100).map(r => String(r[col] ?? "").trim()).filter(v => v.length > 0);
-      const nums = vals.map(v => Number(v.replace(/[\$,]/g, ""))).filter(n => !isNaN(n));
+      const nums = vals.map(v => Number(v.replace(/[$,]/g, ""))).filter(n => !isNaN(n));
       map[col] = nums.length >= vals.length * 0.5;
     });
     return map;
@@ -288,7 +308,22 @@ export function VisualBuilder() {
 
   /* ── Intelligent Default Selections ── */
   const currentX = selectedX || columns.find(c => !colTypes[c]) || columns[0] || "Team";
-  const defaultY = columns.find(c => colTypes[c] && c !== currentX) || columns[1] || columns[0] || "Total_Runs";
+
+  // Exclude year/season/id/date columns from default numeric measure selection to avoid summing 2024
+  const isYearOrIdCol = (c: string) => {
+    const l = c.toLowerCase();
+    return l.includes("season") || l.includes("year") || l === "id" || l.endsWith("_id");
+  };
+
+  const defaultY = useMemo(() => {
+    return (
+      columns.find(c => colTypes[c] && c !== currentX && !isYearOrIdCol(c)) ||
+      columns.find(c => colTypes[c] && c !== currentX) ||
+      columns.find(c => c.toLowerCase().includes("run") || c.toLowerCase().includes("won") || c.toLowerCase().includes("point")) ||
+      "Total_Runs"
+    );
+  }, [columns, colTypes, currentX]);
+
   const primaryY = selectedYCols[0] || defaultY;
   const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
 
@@ -306,6 +341,44 @@ export function VisualBuilder() {
     }
     return { type: "bar", title: "Bar Chart" };
   }, [currentX, yCols]);
+
+  /* ── "Why this chart?" Contextual Explanation ── */
+  const whyChartExplanation = useMemo(() => {
+    const chartMeta = ALL_CHART_TYPES.find(c => c.id === activeChartType);
+    const chartName = chartMeta?.name || "Chart";
+    const xName = currentX;
+    const yNames = yCols.join(", ");
+    const isComparison = ["bar", "stacked-bar", "horizontal-bar", "radar", "combi"].includes(activeChartType);
+    const isTrend = ["line", "multi-line", "area", "stacked-area"].includes(activeChartType);
+    const isComposition = ["pie", "donut", "treemap"].includes(activeChartType);
+    const isDistribution = ["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType);
+    const isKPI = ["kpi", "gauge"].includes(activeChartType);
+
+    let rationale = "";
+    let tip = "";
+
+    if (isComparison) {
+      rationale = `Comparing ${yNames} (${measureType.toUpperCase()}) across distinct ${xName} categories. ${chartName} reveals rankings and relative performance differences at a glance.`;
+      tip = "Tip: Sort descending to spotlight high performers, or switch to Horizontal Bar if labels are long.";
+    } else if (isTrend) {
+      rationale = `Evaluating trajectory of ${yNames} across ${xName}. Ideal for visualizing continuity, momentum, and rate of change.`;
+      tip = "Tip: Best when the X dimension has an inherent sequential order (e.g. chronological dates).";
+    } else if (isComposition) {
+      rationale = `Displaying relative segment proportions of ${primaryY} across ${xName}.`;
+      tip = "Tip: Most effective with 2 to 6 slices. Hover over sections for precise percentage breakdown.";
+    } else if (isDistribution) {
+      rationale = `Examining dispersion, clusters, and statistical relationships for ${yNames} across ${xName}.`;
+      tip = "Tip: Inspect outlier points lying noticeably outside the dominant group cluster.";
+    } else if (isKPI) {
+      rationale = `Providing quick executive summary numbers and operational target tracking.`;
+      tip = "Tip: Click 'Save to Dashboard' to feature this metric on your team canvas.";
+    } else {
+      rationale = `Displaying tabular aggregated data matrix for ${currentX} against ${yNames}.`;
+      tip = "Tip: Click table headers or toggle to chart view for visual pattern discovery.";
+    }
+
+    return { chartName, rationale, tip };
+  }, [activeChartType, currentX, yCols, primaryY, measureType]);
 
   /* ── Dynamic Dataset Aggregation ── */
   const { chartData, rawGroupedRows, scatterRawData } = useMemo(() => {
@@ -329,8 +402,8 @@ export function VisualBuilder() {
 
     // Build scatter raw data
     const scatterData = filteredRows.slice(0, 200).map(row => {
-      const xVal = Number(String(row[currentX] ?? "").replace(/[\$,]/g, ""));
-      const yVal = Number(String(row[primaryY] ?? "").replace(/[\$,]/g, ""));
+      const xVal = Number(String(row[currentX] ?? "").replace(/[$,]/g, ""));
+      const yVal = Number(String(row[primaryY] ?? "").replace(/[$,]/g, ""));
       return {
         x: isNaN(xVal) ? 0 : xVal,
         y: isNaN(yVal) ? 0 : yVal,
@@ -410,7 +483,7 @@ export function VisualBuilder() {
     if (activeChartType !== "boxplot" || allRows.length === 0) return [];
     return chartData.map(d => {
       const rawVals = (allRows.filter(r => String(r[currentX] ?? "").trim() === d.fullLabel)
-        .map(r => Number(String(r[primaryY] ?? "").replace(/[\$,]/g, "")))
+        .map(r => Number(String(r[primaryY] ?? "").replace(/[$,]/g, "")))
         .filter(n => !isNaN(n))
         .sort((a, b) => a - b));
       if (rawVals.length === 0) return null;
@@ -427,7 +500,7 @@ export function VisualBuilder() {
   /* ── Histogram Bins ── */
   const histogramBins = useMemo(() => {
     if (activeChartType !== "histogram" || allRows.length === 0) return [];
-    const vals = allRows.map(r => Number(String(r[primaryY] ?? "").replace(/[\$,]/g, ""))).filter(n => !isNaN(n));
+    const vals = allRows.map(r => Number(String(r[primaryY] ?? "").replace(/[$,]/g, ""))).filter(n => !isNaN(n));
     if (vals.length === 0) return [];
     const min = Math.min(...vals);
     const max = Math.max(...vals);
@@ -468,6 +541,25 @@ export function VisualBuilder() {
 
   const CHART_MARGIN = { top: 20, right: 20, left: 10, bottom: 25 };
 
+  const exportTableCSV = () => {
+    if (chartData.length === 0) return;
+    const headerRow = [currentX, ...yCols.map(c => `${c} (${measureType.toUpperCase()})`)].join(",");
+    const dataRows = chartData.map(d => {
+      const xVal = `"${String(d.label).replace(/"/g, '""')}"`;
+      const yVals = yCols.map(c => Number(d[c] ?? 0));
+      return [xVal, ...yVals].join(",");
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + [headerRow, ...dataRows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${(customTitle || "chart-data").toLowerCase().replace(/\s+/g, "_")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Data table exported as CSV.");
+  };
+
   return (
     <div className="flex flex-col gap-6 pb-8 h-full">
       {/* Header */}
@@ -489,7 +581,7 @@ export function VisualBuilder() {
             <button
               onClick={() => {
                 setSelectedX(columns[0]);
-                setSelectedYCols([columns[1] || columns[0]]);
+                setSelectedYCols([defaultY]);
                 setActiveChartType("bar");
                 setMeasureType("sum");
                 setActiveFilters([]);
@@ -530,35 +622,86 @@ export function VisualBuilder() {
               </button>
             </CardHeader>
 
-            <CardContent className="pt-4 flex flex-col gap-5">
+            <CardContent className="pt-4 flex flex-col gap-4">
               {/* Chart Types */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold text-textPrimary">
-                    Chart Type ({ALL_CHART_TYPES.length} Available)
+                    Chart Type ({ALL_CHART_TYPES.length})
                   </label>
                   <span className="text-[10px] font-bold text-primary bg-primary-soft/60 px-2 py-0.5 rounded-md">
                     {ALL_CHART_TYPES.find(c => c.id === activeChartType)?.name || "Bar"}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                  {ALL_CHART_TYPES.map((type) => {
-                    const IconComp = type.icon;
-                    const isSelected = activeChartType === type.id;
-                    return (
-                      <button
-                        key={type.id}
-                        onClick={() => setActiveChartType(type.id)}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${isSelected
-                          ? "border-primary bg-primary text-white font-bold shadow-xs scale-[1.02]"
-                          : "border-border/80 hover:bg-primary-soft/30 text-textSecondary hover:text-textPrimary bg-surface"
+
+                {/* Family Categories Filter */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none">
+                  {["All", "Comparison", "Trend", "Composition", "Distribution", "KPI", "Data"].map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setChartFamily(cat)}
+                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md shrink-0 cursor-pointer transition-colors ${
+                        chartFamily === cat
+                          ? "bg-primary text-white"
+                          : "text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search Input */}
+                <div className="relative mb-2">
+                  <Search className="w-3.5 h-3.5 text-textMuted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search 23 charts..."
+                    value={chartSearch}
+                    onChange={e => setChartSearch(e.target.value)}
+                    className="w-full bg-surface text-textPrimary text-[11px] font-medium pl-8 pr-7 py-1.5 rounded-lg border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-textMuted"
+                  />
+                  {chartSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setChartSearch("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-textMuted hover:text-textPrimary cursor-pointer"
+                      aria-label="Clear chart search"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Grid */}
+                <div className="grid grid-cols-2 gap-1.5 max-h-[190px] overflow-y-auto pr-1">
+                  {filteredChartTypes.length === 0 ? (
+                    <p className="col-span-2 text-xs text-textSecondary text-center py-4">No matching charts.</p>
+                  ) : (
+                    filteredChartTypes.map((type) => {
+                      const IconComp = type.icon;
+                      const isSelected = activeChartType === type.id;
+                      return (
+                        <button
+                          key={type.id}
+                          type="button"
+                          onClick={() => setActiveChartType(type.id)}
+                          title={type.desc}
+                          className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer group ${
+                            isSelected
+                              ? "border-primary bg-primary text-white font-bold shadow-xs scale-[1.02]"
+                              : "border-border/80 hover:bg-primary-soft/30 text-textSecondary hover:text-textPrimary bg-surface"
                           }`}
-                      >
-                        <IconComp className="w-3.5 h-3.5 shrink-0" />
-                        <span className="text-xs truncate">{type.name}</span>
-                      </button>
-                    );
-                  })}
+                        >
+                          <IconComp className="w-3.5 h-3.5 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs truncate block">{type.name}</span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
@@ -665,6 +808,46 @@ export function VisualBuilder() {
               </div>
 
               <div className="flex items-center gap-2">
+                {/* View Switcher: Chart vs Data Table */}
+                <div className="flex items-center rounded-xl bg-primary-soft/40 p-0.5 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("chart")}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                      viewMode === "chart"
+                        ? "bg-surface text-primary shadow-xs"
+                        : "text-textSecondary hover:text-textPrimary"
+                    }`}
+                  >
+                    <BarChartIcon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Chart</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                      viewMode === "table"
+                        ? "bg-surface text-primary shadow-xs"
+                        : "text-textSecondary hover:text-textPrimary"
+                    }`}
+                  >
+                    <Table className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Data Table</span>
+                  </button>
+                </div>
+
+                {!showWhyChart && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWhyChart(true)}
+                    className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary-soft/60 px-2.5 py-1 rounded-lg border border-primary/20 hover:bg-primary-soft transition-colors cursor-pointer"
+                    title="Show Why this chart explanation"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span className="hidden md:inline">Insight</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => setActiveChartType(aiRecommendation.type)}
                   className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary-soft/60 px-3 py-1 rounded-full border border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer"
@@ -680,8 +863,14 @@ export function VisualBuilder() {
                   <Maximize2 className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => showToast("Chart exported as PNG")}
-                  title="Download Chart"
+                  onClick={() => {
+                    if (viewMode === "table") {
+                      exportTableCSV();
+                    } else {
+                      showToast("Chart exported as PNG");
+                    }
+                  }}
+                  title={viewMode === "table" ? "Export Table CSV" : "Download Chart PNG"}
                   className="p-1.5 text-textMuted hover:text-textPrimary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
@@ -689,8 +878,79 @@ export function VisualBuilder() {
               </div>
             </CardHeader>
 
-            <CardContent className="p-6 flex-1 flex flex-col justify-center relative">
-              {chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType) ? (
+            <CardContent className="p-6 flex-1 flex flex-col justify-start relative">
+              {/* "Why this chart?" Contextual Banner */}
+              {showWhyChart && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-primary-soft/40 to-indigo-500/10 border border-primary/20 flex items-start justify-between gap-3 text-xs shadow-xs">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-textPrimary tracking-tight">Why this chart: {whyChartExplanation.chartName}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary border border-primary/20">
+                          {currentX} vs {yCols.join(", ")}
+                        </span>
+                      </div>
+                      <p className="text-textSecondary mt-1 leading-relaxed">{whyChartExplanation.rationale}</p>
+                      <p className="text-[11px] text-textMuted mt-1 font-medium italic">{whyChartExplanation.tip}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowWhyChart(false)}
+                    className="text-textMuted hover:text-textPrimary p-1 rounded-lg hover:bg-primary-soft/40 transition-colors shrink-0 cursor-pointer"
+                    title="Dismiss chart insight"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {viewMode === "table" ? (
+                /* Accessible Aggregated Data Table View */
+                <div className="flex-1 flex flex-col min-h-[340px] border border-border/70 rounded-xl overflow-hidden bg-surface shadow-xs">
+                  <div className="p-3 bg-surface/80 border-b border-border/60 flex items-center justify-between">
+                    <span className="text-xs font-bold text-textPrimary">Aggregated Data Summary ({chartData.length} entries)</span>
+                    <button
+                      type="button"
+                      onClick={exportTableCSV}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-primary text-white hover:bg-primary-hover rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Download className="w-3 h-3" />
+                      Export CSV
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto max-h-[360px]">
+                    <table className="w-full text-left text-xs whitespace-nowrap">
+                      <thead className="bg-primary-soft/30 text-textSecondary sticky top-0 border-b border-border/80 backdrop-blur-xs">
+                        <tr>
+                          <th className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider">{currentX}</th>
+                          {yCols.map(col => (
+                            <th key={col} className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider text-right">{col} ({measureType.toUpperCase()})</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60 bg-surface">
+                        {chartData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-primary-soft/15 transition-colors">
+                            <td className="px-4 py-2.5 font-semibold text-textPrimary flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.color || palette[idx % palette.length] }} />
+                              <span className="truncate">{row.label}</span>
+                            </td>
+                            {yCols.map(col => (
+                              <td key={col} className="px-4 py-2.5 font-mono text-right text-textPrimary">
+                                {formatVal(Number(row[col] ?? 0), valueFormat, decimalPlaces, currencySymbol)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType) ? (
                 <div className="flex flex-col items-center justify-center text-center p-6">
                   <img
                     src="/assets/illustrations/empty-states/illustration-empty-chart.svg"

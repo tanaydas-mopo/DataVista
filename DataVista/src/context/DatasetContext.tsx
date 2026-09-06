@@ -46,6 +46,8 @@ interface DatasetContextType {
   updateTableData: (headers: string[], rows: Array<Record<string, any>>) => void;
   notification: string | null;
   clearNotification: () => void;
+  restorePreviousDataset: () => void;
+  canUndoDataset: boolean;
 }
 
 // Default colors for chart bars
@@ -92,18 +94,22 @@ const defaultIplDataset: DatasetInfo = {
     { Player: "Ruturaj Gaikwad", Matches: 14, Runs: 493, Average: 35.21, "Strike Rate": 135.34, "100s": 0, "50s": 3 },
     { Player: "Suryakumar Yadav", Matches: 13, Runs: 472, Average: 39.33, "Strike Rate": 151.12, "100s": 0, "50s": 2 },
   ],
-  rawHeaders: ["Team", "Season", "Matches_Played", "Matches_Won", "Matches_Lost", "Total_Runs", "Wickets", "Toss_Winner", "Margin_Runs"],
+  rawHeaders: [
+    "Team", "Season", "Matches_Played", "Matches_Won", "Matches_Lost",
+    "Total_Runs", "Wickets", "Toss_Winner", "Margin_Runs", "High_Score",
+    "Best_Bowling", "Economy_Rate", "Strike_Rate", "Fair_Play_Score", "Points"
+  ],
   rawRows: [
-    ["CSK", "2024", "15", "11", "4", "2480", "105", "CSK", "45"],
-    ["MI", "2024", "15", "10", "5", "2350", "98", "MI", "38"],
-    ["RCB", "2024", "15", "9", "6", "2410", "92", "RCB", "28"],
-    ["KKR", "2024", "15", "9", "6", "2290", "110", "KKR", "35"],
-    ["SRH", "2024", "15", "8", "7", "2520", "88", "SRH", "62"],
-    ["RR", "2024", "15", "7", "8", "2180", "85", "RR", "20"],
-    ["DC", "2024", "15", "6", "9", "2120", "79", "DC", "15"],
-    ["PBKS", "2024", "15", "5", "10", "2050", "74", "PBKS", "12"],
-    ["LSG", "2024", "15", "5", "10", "1990", "70", "LSG", "18"],
-    ["GT", "2024", "15", "4", "11", "1950", "65", "GT", "8"]
+    ["CSK", "2024", "15", "11", "4", "2480", "105", "CSK", "45", "223", "5/18", "8.12", "148.5", "142", "22"],
+    ["MI", "2024", "15", "10", "5", "2350", "98", "MI", "38", "218", "4/20", "8.45", "144.2", "138", "20"],
+    ["RCB", "2024", "15", "9", "6", "2410", "92", "RCB", "28", "241", "4/25", "9.05", "152.0", "136", "18"],
+    ["KKR", "2024", "15", "9", "6", "2290", "110", "KKR", "35", "222", "5/22", "7.98", "146.1", "140", "18"],
+    ["SRH", "2024", "15", "8", "7", "2520", "88", "SRH", "62", "287", "4/19", "9.42", "165.4", "132", "16"],
+    ["RR", "2024", "15", "7", "8", "2180", "85", "RR", "20", "214", "4/24", "8.65", "139.8", "135", "14"],
+    ["DC", "2024", "15", "6", "9", "2120", "79", "DC", "15", "208", "4/28", "8.90", "136.5", "130", "12"],
+    ["PBKS", "2024", "15", "5", "10", "2050", "74", "PBKS", "12", "215", "3/26", "9.15", "138.2", "128", "10"],
+    ["LSG", "2024", "15", "5", "10", "1990", "70", "LSG", "18", "199", "4/30", "8.75", "134.0", "134", "10"],
+    ["GT", "2024", "15", "4", "11", "1950", "65", "GT", "8", "196", "3/22", "9.20", "131.5", "130", "8"]
   ],
 };
 
@@ -213,6 +219,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     return defaultIplDataset;
   });
 
+  const [previousDataset, setPreviousDataset] = useState<DatasetInfo | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   const clearNotification = () => setNotification(null);
@@ -565,6 +572,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeDataset = () => {
+    setPreviousDataset(dataset);
     const emptyDataset: DatasetInfo = {
       name: "No dataset loaded",
       totalRows: "-",
@@ -588,8 +596,22 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore storage errors on remove
     }
-    setNotification("Dataset removed successfully.");
-    setTimeout(() => setNotification(null), 4000);
+    setNotification("Dataset removed. Click Undo to restore.");
+    setTimeout(() => setNotification(null), 6000);
+  };
+
+  const restorePreviousDataset = () => {
+    if (previousDataset) {
+      setDataset(previousDataset);
+      try {
+        localStorage.setItem("datavista_dataset", JSON.stringify(previousDataset));
+      } catch (e) {
+        console.warn("Could not save restored dataset:", e);
+      }
+      setNotification(`Restored dataset "${previousDataset.name}"`);
+      setPreviousDataset(null);
+      setTimeout(() => setNotification(null), 4000);
+    }
   };
 
   const updateChartVisual = (title: string, data: DynamicChartItem[]) => {
@@ -632,7 +654,18 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DatasetContext.Provider
-      value={{ dataset, uploadDataset, switchDatasetPreset, removeDataset, updateChartVisual, updateTableData, notification, clearNotification }}
+      value={{
+        dataset,
+        uploadDataset,
+        switchDatasetPreset,
+        removeDataset,
+        updateChartVisual,
+        updateTableData,
+        notification,
+        clearNotification,
+        restorePreviousDataset,
+        canUndoDataset: !!previousDataset
+      }}
     >
       {children}
     </DatasetContext.Provider>

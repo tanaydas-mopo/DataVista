@@ -1,31 +1,31 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   CloudUpload,
   FileUp,
   CheckCircle2,
-  Clock,
   FolderOpen,
-  LogOut,
   Sparkles,
   ArrowRight,
   FileSpreadsheet,
   RotateCcw,
-  TrendingUp,
   ShieldCheck,
   Activity,
-  X
+  X,
+  Database,
+  Info
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../lib/supabase';
 import { useDataset } from '../context/DatasetContext';
 import { DataVistaLogo } from '../components/ui/DataVistaLogo';
+import Link from 'next/link';
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { dataset, uploadDataset, removeDataset } = useDataset();
 
@@ -79,311 +79,290 @@ export function UploadDataset() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
   };
 
   const hasSelectedFile = !!file;
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary font-sans p-4 sm:p-6 transition-colors duration-200 transform-gpu">
-      {/* Background Ambient Glowing Orbs */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-36 -left-36 w-[600px] h-[600px] rounded-full bg-blue-500/20 blur-3xl animate-glow-pulse" />
-        <div className="absolute -bottom-36 -right-36 w-[650px] h-[650px] rounded-full bg-purple-500/20 blur-3xl animate-glow-pulse" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-cyan-400/15 blur-3xl animate-pulse" />
-
-        {/* Subtle Tech Grid Lines */}
-        <svg
-          className="absolute inset-0 w-full h-full opacity-[0.06] dark:opacity-[0.1] stroke-textPrimary pointer-events-none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-        </svg>
-      </div>
-
-      {/* Prominent Floating Zero-Gravity Side Analytics Micro-Widgets (Desktop / Laptops) */}
-      <div className="hidden xl:flex fixed left-6 top-32 z-20 flex-col gap-4 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-slow transform-gpu max-w-[220px]">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold shrink-0">
-            <TrendingUp className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-textPrimary">Auto Chart Engine</p>
-            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Real-time dynamic visualization</p>
-          </div>
-        </div>
-
-        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-delayed transform-gpu max-w-[220px]">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center font-bold shrink-0">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-textPrimary">AI Data Cleaner</p>
-            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Auto-detects missing nulls</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="hidden xl:flex fixed right-6 top-32 z-20 flex-col gap-4 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-delayed transform-gpu max-w-[220px]">
-          <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-textPrimary">Binary Inspection</p>
-            <p className="text-[10px] font-medium text-textSecondary mt-0.5">100% data integrity validation</p>
-          </div>
-        </div>
-
-        <div className="pointer-events-auto flex items-center gap-3 p-4 bg-surface/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl animate-float-slow transform-gpu max-w-[220px]">
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-500 flex items-center justify-center font-bold shrink-0">
-            <Activity className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-textPrimary">Realtime Cloud Sync</p>
-            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Supabase backend pipeline</p>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-[100dvh] w-full flex flex-col justify-between bg-appBackground text-textPrimary font-sans p-4 sm:p-6 transition-colors duration-200">
       {/* Top Header Bar */}
-      <header className="relative z-10 w-full max-w-6xl flex items-center justify-between py-2">
+      <header className="w-full max-w-5xl mx-auto flex items-center justify-between py-2">
         <DataVistaLogo size="md" />
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-textSecondary bg-surface hover:bg-primary-soft/30 hover:text-textPrimary rounded-xl border border-border transition-all shadow-xs active:scale-95 cursor-pointer"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-textSecondary hover:text-textPrimary bg-surface hover:bg-primary-soft/40 rounded-xl border border-border transition-all shadow-xs"
+          >
+            <span>Back to Dashboard</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="relative z-10 max-w-2xl w-full flex flex-col items-center my-auto py-6">
-        <div className="w-full flex flex-col items-center transform-gpu">
-          {/* Header Section */}
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold mb-3 shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-              Data Analytics Portal
-            </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-textPrimary tracking-tight mb-3">
-              Create New Analysis
-            </h1>
-            <p className="text-sm md:text-base text-textSecondary max-w-lg mx-auto leading-relaxed">
-              Upload your dataset to begin your analytics workflow. DataVista will inspect, clean, analyze, and visualize your data.
-            </p>
+      {/* Main Content Container */}
+      <main className="max-w-3xl w-full mx-auto my-auto py-8 flex flex-col gap-6">
+        {/* Header Title Section */}
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold mb-3 shadow-xs">
+            <Sparkles className="w-3.5 h-3.5" />
+            Data Ingestion Hub
           </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-textPrimary tracking-tight">
+            Import Dataset for Analysis
+          </h1>
+          <p className="text-sm text-textSecondary max-w-lg mx-auto mt-2 leading-relaxed font-medium">
+            Upload your CSV, Excel, or JSON data file. DataVista will instantly infer data types, calculate KPI metrics, and prepare interactive visualizations.
+          </p>
+        </div>
 
-          {/* Floating Mobile/Tablet Micro-Cards (Shown on smaller screens) */}
-          <div className="flex xl:hidden flex-wrap items-center justify-center gap-3 mb-6 w-full">
-            <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-slow">
-              <TrendingUp className="w-4 h-4 text-emerald-500" />
-              <span className="text-[11px] font-bold text-textPrimary">Auto Charts</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-delayed">
-              <Sparkles className="w-4 h-4 text-purple-500" />
-              <span className="text-[11px] font-bold text-textPrimary">AI Data Cleaner</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-slow">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              <span className="text-[11px] font-bold text-textPrimary">100% Binary Check</span>
-            </div>
-          </div>
+        {/* Unified Upload Card */}
+        <div className="w-full bg-surface rounded-3xl border border-border shadow-md p-6 sm:p-8 flex flex-col gap-6">
+          {/* Accessible Dropzone */}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Upload dataset dropzone. Press enter or space to browse files, or drag and drop a file."
+            onKeyDown={handleKeyDown}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary ${
+              isDragging
+                ? "border-primary bg-primary-soft/40 scale-[1.01]"
+                : "border-border/80 bg-primary-soft/10 hover:border-primary/60 hover:bg-primary-soft/20"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              tabIndex={-1}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-none"
+              onChange={handleFileChange}
+              accept=".csv,.xlsx,.xls,.tsv,.json"
+            />
 
-          {/* Main Card: Dropzone (ALWAYS Clean for New Uploads) */}
-          <div className="w-full bg-surface/95 rounded-3xl border border-border shadow-xl p-6 sm:p-8 transition-all duration-200">
+            {/* Icon */}
             <div
-              className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 ease-out flex flex-col items-center justify-center text-center ${
-                isDragging
-                  ? "border-primary bg-primary-soft/40 scale-[1.01]"
-                  : "border-border bg-primary-soft/10 hover:border-primary/60 hover:bg-primary-soft/20"
+              className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-sm ${
+                hasSelectedFile
+                  ? "bg-emerald-500 text-white scale-110"
+                  : "bg-primary text-white shadow-blue-500/20"
               }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
             >
-              {/* Cloud Icon */}
-              <div
-                className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-md ${
-                  hasSelectedFile
-                    ? 'bg-emerald-500 text-white scale-110'
-                    : 'bg-primary text-white shadow-blue-500/20 animate-float-slow'
-                }`}
-              >
-                {hasSelectedFile ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
-              </div>
-
-              {hasSelectedFile ? (
-                <div className="space-y-2 mb-6">
-                  <p className="text-base font-bold text-textPrimary">
-                    {file?.name}
-                  </p>
-                  <p className="text-xs font-bold text-emerald-500 bg-emerald-500/15 inline-block px-3.5 py-1 rounded-full border border-emerald-500/30">
-                    {getFormattedSize(file)} • Ready to analyze
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <h3 className="text-lg font-bold text-textPrimary mb-1">
-                    Drag &amp; Drop Your Dataset
-                  </h3>
-                  <p className="text-xs text-textSecondary mb-4">
-                    Upload CSV, Excel (.xlsx), TSV, or JSON files.
-                  </p>
-
-                  {/* Floating Format Badges */}
-                  <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
-                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
-                      CSV
-                    </span>
-                    <span className="text-textMuted">•</span>
-                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
-                      XLSX
-                    </span>
-                    <span className="text-textMuted">•</span>
-                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-1">
-                      TSV
-                    </span>
-                    <span className="text-textMuted">•</span>
-                    <span className="px-3.5 py-1 bg-surface border border-border rounded-xl text-xs font-bold text-textPrimary shadow-xs animate-float-pill-2">
-                      JSON
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-textMuted mb-6">
-                    Maximum upload size: 100 MB
-                  </p>
-                </>
-              )}
-
-              {/* Browse & Action Buttons */}
-              {!hasSelectedFile ? (
-                <label className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-primary bg-surface border border-primary/40 rounded-xl shadow-xs cursor-pointer hover:bg-primary hover:text-white transition-all duration-200 active:scale-95">
-                  <FolderOpen className="w-4 h-4" />
-                  Browse Files
-                  <input
-                    type="file"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    onChange={handleFileChange}
-                    accept=".csv,.xlsx,.xls,.tsv,.json,.sqlite,.db"
-                  />
-                </label>
-              ) : (
-                <div className="flex flex-col items-center gap-3 w-full max-w-xs">
-                  <button
-                    type="button"
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    className="w-full inline-flex items-center justify-center gap-2 px-8 py-3 text-xs font-bold text-white bg-primary rounded-xl shadow-md shadow-blue-500/20 hover:bg-primary-hover transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-70"
-                  >
-                    {isUploading ? (
-                      <>
-                        <svg className="w-4 h-4 text-white animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Analyzing Dataset...
-                      </>
-                    ) : (
-                      <>
-                        <FileUp className="w-4 h-4" />
-                        Proceed to Analysis
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFile(null)}
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-textSecondary bg-surface hover:bg-primary-soft/40 rounded-xl border border-border transition-all active:scale-95 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                    Choose Different File
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Secondary Card: Recent Files & Active Dataset Workflow */}
-          <div className="w-full mt-4 bg-surface/95 rounded-2xl border border-border p-5 shadow-sm transition-all duration-200">
-            <div className="flex items-center justify-between mb-3 border-b border-border pb-3">
-              <h4 className="text-xs font-bold text-textPrimary flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                Recent Files &amp; Workflow Details
-              </h4>
-              {isDatasetActive && (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-textMuted bg-primary-soft/30 px-2.5 py-0.5 rounded-md border border-border">
-                    Auto Sync
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFile(null);
-                      removeDataset();
-                    }}
-                    title="Clear Recent Dataset Details"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-danger bg-danger-soft hover:bg-danger/20 px-2.5 py-0.5 rounded-md border border-danger/30 transition-all active:scale-95 cursor-pointer"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Clear Recent
-                  </button>
-                </div>
-              )}
+              {hasSelectedFile ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
             </div>
 
-            {isDatasetActive ? (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-bold text-lg shrink-0">
-                    <FileSpreadsheet className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-textPrimary truncate max-w-[200px] sm:max-w-[280px]">
-                        {dataset.name}
-                      </p>
-                      <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-500 bg-emerald-500/15 rounded-full border border-emerald-500/30">
-                        Active
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-textSecondary mt-0.5 font-medium">
-                      {dataset.totalRows} rows • {dataset.totalColumns} columns • Updated {dataset.lastUpdated}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 self-end sm:self-auto cursor-pointer shrink-0"
-                >
-                  Dashboard
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+            {hasSelectedFile ? (
+              <div className="space-y-2 mb-6">
+                <p className="text-base font-bold text-textPrimary">
+                  {file?.name}
+                </p>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 inline-block px-3.5 py-1 rounded-full border border-emerald-500/30">
+                  {getFormattedSize(file)} • Ready to inspect &amp; visualize
+                </span>
               </div>
             ) : (
-              <p className="text-xs text-textSecondary font-medium py-1">
-                No recent dataset files uploaded. Upload a CSV, Excel, or JSON file above to begin analysis.
-              </p>
+              <>
+                <h3 className="text-base sm:text-lg font-bold text-textPrimary mb-1">
+                  Drag &amp; drop your dataset file here
+                </h3>
+                <p className="text-xs text-textSecondary mb-4">
+                  or press <kbd className="px-1.5 py-0.5 rounded bg-primary-soft text-primary font-mono text-[10px] font-bold border border-primary/20">Space</kbd> / click to browse your computer
+                </p>
+
+                {/* Formats Strip */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+                  {["CSV (.csv)", "Excel (.xlsx, .xls)", "JSON (.json)", "TSV (.tsv)"].map((fmt) => (
+                    <span
+                      key={fmt}
+                      className="px-3 py-1 bg-surface border border-border/80 rounded-lg text-xs font-semibold text-textSecondary shadow-2xs"
+                    >
+                      {fmt}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="text-[11px] text-textMuted mb-5">
+                  Maximum file size: 100 MB • Up to 250,000 rows
+                </p>
+              </>
             )}
+
+            {/* Action Buttons */}
+            {!hasSelectedFile ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-primary bg-surface border border-primary/40 rounded-xl shadow-xs cursor-pointer hover:bg-primary hover:text-white transition-all active:scale-95"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Browse Files
+              </button>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
+                <button
+                  type="button"
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-primary rounded-xl shadow-md shadow-blue-500/20 hover:bg-primary-hover transition-all active:scale-95 cursor-pointer disabled:opacity-70"
+                >
+                  {isUploading ? (
+                    <>
+                      <svg className="w-4 h-4 text-white animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Parsing &amp; Validating...
+                    </>
+                  ) : (
+                    <>
+                      <FileUp className="w-4 h-4" />
+                      Import &amp; Analyze
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFile(null);
+                  }}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-textSecondary bg-surface hover:bg-primary-soft/40 rounded-xl border border-border transition-all active:scale-95 cursor-pointer shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Quick-Load Sample Dataset Section */}
+          <div className="pt-2 border-t border-border/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-textPrimary flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-primary" />
+                Or start instantly with sample verified data:
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                className="p-3 bg-surface hover:bg-primary-soft/30 border border-border/80 hover:border-primary/40 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between group"
+              >
+                <div>
+                  <p className="text-xs font-bold text-textPrimary group-hover:text-primary transition-colors">
+                    IPL 2024 Season Stats
+                  </p>
+                  <p className="text-[11px] text-textSecondary mt-0.5">
+                    15 columns • 10 team records • Clean schema
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-textMuted group-hover:text-primary transition-colors" />
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/visual-builder")}
+                className="p-3 bg-surface hover:bg-primary-soft/30 border border-border/80 hover:border-primary/40 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between group"
+              >
+                <div>
+                  <p className="text-xs font-bold text-textPrimary group-hover:text-primary transition-colors">
+                    Visual Chart Sandbox
+                  </p>
+                  <p className="text-[11px] text-textSecondary mt-0.5">
+                    23 chart templates with live data bindings
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-textMuted group-hover:text-primary transition-colors" />
+              </button>
+            </div>
+          </div>
+
+          {/* Active Dataset Status Bar */}
+          {isDatasetActive && (
+            <div className="p-3.5 rounded-2xl bg-primary-soft/30 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary text-white shrink-0">
+                  <FileSpreadsheet className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-textPrimary truncate max-w-[200px] sm:max-w-[300px]">
+                      {dataset.name}
+                    </span>
+                    <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-textSecondary mt-0.5">
+                    {dataset.totalRows} rows • {dataset.totalColumns} columns indexed
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => router.push("/data-schema")}
+                  className="px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-soft rounded-lg transition-colors cursor-pointer"
+                >
+                  View Schema
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeDataset()}
+                  title="Unload current dataset"
+                  className="p-1.5 text-textMuted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Features / Security Callouts */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+          <div className="p-3 rounded-2xl bg-surface/80 border border-border/70 flex flex-col items-center gap-1">
+            <ShieldCheck className="w-4 h-4 text-primary mb-0.5" />
+            <span className="text-xs font-bold text-textPrimary">Client-Side Privacy</span>
+            <span className="text-[11px] text-textSecondary">Data parsed in-memory without third-party tracking</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-surface/80 border border-border/70 flex flex-col items-center gap-1">
+            <Activity className="w-4 h-4 text-emerald-500 mb-0.5" />
+            <span className="text-xs font-bold text-textPrimary">Instant Quality Audit</span>
+            <span className="text-[11px] text-textSecondary">Detects missing values, duplicates, and column types</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-surface/80 border border-border/70 flex flex-col items-center gap-1">
+            <Info className="w-4 h-4 text-primary mb-0.5" />
+            <span className="text-xs font-bold text-textPrimary">23 Chart Visualizations</span>
+            <span className="text-[11px] text-textSecondary">Ready to analyze across Bar, Line, Radar, and Heatmap</span>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full max-w-6xl text-center py-4 text-xs text-textMuted font-medium">
-        © DataVista Analytics • All rights reserved.
+      {/* Clean Global Footer */}
+      <footer className="w-full max-w-5xl mx-auto py-4 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-textMuted">
+        <p>© {new Date().getFullYear()} DataVista Analytics Platform. All rights reserved.</p>
+        <div className="flex items-center gap-4 font-semibold">
+          <Link href="/terms" className="hover:text-textPrimary transition-colors">
+            Terms of Service
+          </Link>
+          <span>•</span>
+          <Link href="/privacy" className="hover:text-textPrimary transition-colors">
+            Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link href="/dashboard" className="hover:text-textPrimary transition-colors">
+            Documentation
+          </Link>
+        </div>
       </footer>
     </div>
   );

@@ -10,7 +10,9 @@ import {
   Sparkles,
   CheckCircle2,
   Table,
-  BarChart2
+  BarChart2,
+  User,
+  Edit3
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -20,6 +22,9 @@ export function ExportReport() {
   const [exportFormat, setExportFormat] = useState<"pdf" | "png" | "csv">("pdf");
   const [pageSize, setPageSize] = useState("A4");
   const [orientation, setOrientation] = useState("Landscape");
+  const [reportTitle, setReportTitle] = useState(dataset.name ? `${dataset.name} — Performance Report` : "Executive Analytics Report");
+  const [reportAuthor, setReportAuthor] = useState("Data Analyst");
+  const [includeNotes, setIncludeNotes] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -68,15 +73,15 @@ export function ExportReport() {
           ctx.fillRect(0, 0, 1200, 100);
 
           ctx.fillStyle = "#FFFFFF";
-          ctx.font = "bold 28px sans-serif";
-          ctx.fillText(`DataVista Analytics — ${dataset.name || "Executive Report"}`, 50, 58);
+          ctx.font = "bold 26px sans-serif";
+          ctx.fillText(reportTitle, 50, 56);
 
           ctx.font = "14px sans-serif";
           ctx.fillStyle = "#E0F2FE";
           ctx.fillText(
-            `Exported: ${new Date().toLocaleDateString()} | Total Rows: ${dataset.totalRows} | Total Columns: ${dataset.totalColumns}`,
+            `Prepared by ${reportAuthor} | ${new Date().toLocaleDateString()} | Rows: ${dataset.totalRows} | Cols: ${dataset.totalColumns}`,
             50,
-            85
+            84
           );
 
           // KPI Cards
@@ -168,20 +173,27 @@ export function ExportReport() {
                   th { background: #2563eb; color: #ffffff; text-align: left; padding: 10px 14px; font-weight: 700; }
                   td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 500; }
                   tr:nth-child(even) { background: #f8fafc; }
+                  .notes-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px; margin-bottom: 24px; font-size: 12px; line-height: 1.6; color: #1e40af; }
                   .footer { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center; }
                 </style>
               </head>
               <body>
                 <div class="header">
                   <div>
-                    <div class="report-title">${dataset.name || "Executive Analytics Report"}</div>
-                    <div class="report-date">Generated on ${new Date().toLocaleDateString()} • DataVista Analytics</div>
+                    <div class="report-title">${reportTitle}</div>
+                    <div class="report-date">Prepared by ${reportAuthor} • Generated on ${new Date().toLocaleDateString()} • DataVista Analytics</div>
                   </div>
                   <div class="brand">DataVista</div>
                 </div>
 
+                ${includeNotes ? `
+                  <div class="notes-box">
+                    <strong>Executive Note:</strong> This report is dynamically compiled from the verified "${dataset.name}" dataset. All ${dataset.totalRows} records and ${dataset.totalColumns} attributes were audited and normalized before generation.
+                  </div>
+                ` : ""}
+
                 <div class="kpi-grid">
-                  ${kpis.map((k) => `
+                  ${kpis.slice(0, 4).map((k) => `
                     <div class="kpi-card">
                       <div class="kpi-lbl">${k.label}</div>
                       <div class="kpi-val">${k.value}</div>
@@ -189,14 +201,14 @@ export function ExportReport() {
                   `).join("")}
                 </div>
 
-                <div class="section-title">Dataset Table Summary (${rows.length} rows)</div>
+                <div class="section-title">Dataset Records Summary (${rows.length} rows)</div>
                 <table>
                   <thead>
-                    <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
+                    <tr>${headers.slice(0, 6).map((h) => `<th>${h}</th>`).join("")}</tr>
                   </thead>
                   <tbody>
-                    ${rows.map((r) => `
-                      <tr>${headers.map((h) => `<td>${r[h] ?? "-"}</td>`).join("")}</tr>
+                    ${rows.slice(0, 10).map((r) => `
+                      <tr>${headers.slice(0, 6).map((h) => `<td>${r[h] ?? "-"}</td>`).join("")}</tr>
                     `).join("")}
                   </tbody>
                 </table>
@@ -213,7 +225,7 @@ export function ExportReport() {
             printWin.print();
           }, 300);
         }
-        showToast(`Preparing PDF document print/download window...`);
+        showToast("Preparing PDF document print/download window...");
       }
     } catch (err) {
       console.error("Export error:", err);
@@ -232,32 +244,35 @@ export function ExportReport() {
     <div className="flex flex-col gap-6 pb-8 h-full max-w-5xl mx-auto w-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-textPrimary">Export Report</h1>
-          <p className="text-sm text-textSecondary">Download your dashboards and insights in real time.</p>
+          <h1 className="text-2xl font-bold text-textPrimary tracking-tight">Export Report</h1>
+          <p className="text-sm text-textSecondary mt-0.5">Download your dashboards and insights in real time.</p>
         </div>
-        <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold shadow-2xs">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-soft text-primary border border-primary/20 text-xs font-bold shadow-xs">
           <Sparkles className="w-3.5 h-3.5" />
           Active: {dataset.name || "Default Dataset"}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Export Settings Card */}
-        <Card className="h-fit shadow-xs border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-bold text-textPrimary">
-              <Settings className="w-5 h-5 text-primary" />
-              Export Options
+        <Card className="h-fit shadow-xs border-border/80">
+          <CardHeader className="border-b border-border/60 pb-3 bg-surface/50">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold text-textPrimary">
+              <Settings className="w-4 h-4 text-primary" />
+              Export Configuration
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-6">
+          <CardContent className="pt-4 flex flex-col gap-5">
+            {/* Format Selector */}
             <div>
-              <label className="text-xs font-bold text-textPrimary block mb-3 uppercase tracking-wider">Select Format</label>
-              <div className="flex flex-col gap-3">
+              <label className="text-xs font-bold text-textPrimary block mb-2.5 uppercase tracking-wider">
+                Select Format
+              </label>
+              <div className="flex flex-col gap-2.5">
                 {formats.map((format) => (
                   <label
                     key={format.id}
-                    className={`flex items-start gap-4 p-4 border rounded-2xl cursor-pointer transition-all ${
+                    className={`flex items-start gap-3.5 p-3.5 border rounded-2xl cursor-pointer transition-all ${
                       exportFormat === format.id
                         ? "border-primary bg-primary-soft/40 shadow-xs ring-1 ring-primary/30"
                         : "border-border bg-surface hover:border-primary/40 hover:bg-primary-soft/10"
@@ -272,25 +287,71 @@ export function ExportReport() {
                       className="mt-1 text-primary focus:ring-primary h-4 w-4 cursor-pointer"
                     />
                     <div>
-                      <div className="flex items-center gap-2 text-textPrimary font-bold text-sm">
+                      <div className="flex items-center gap-2 text-textPrimary font-bold text-xs">
                         <format.icon className="w-4 h-4 text-primary" />
                         {format.name}
                       </div>
-                      <p className="text-xs text-textSecondary mt-1 leading-relaxed">{format.desc}</p>
+                      <p className="text-[11px] text-textSecondary mt-0.5 leading-snug">{format.desc}</p>
                     </div>
                   </label>
                 ))}
               </div>
             </div>
 
+            {/* Metadata Customization */}
+            <div className="pt-2 border-t border-border/60 flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-bold text-textPrimary block mb-1.5 flex items-center gap-1.5">
+                  <Edit3 className="w-3.5 h-3.5 text-primary" />
+                  Report Title
+                </label>
+                <input
+                  type="text"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  className="w-full bg-surface text-textPrimary text-xs font-semibold rounded-xl border border-border/80 px-3 py-2 focus:outline-none focus:border-primary shadow-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-textPrimary block mb-1.5 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-primary" />
+                  Prepared By (Author)
+                </label>
+                <input
+                  type="text"
+                  value={reportAuthor}
+                  onChange={(e) => setReportAuthor(e.target.value)}
+                  className="w-full bg-surface text-textPrimary text-xs font-semibold rounded-xl border border-border/80 px-3 py-2 focus:outline-none focus:border-primary shadow-xs"
+                />
+              </div>
+
+              {exportFormat === "pdf" && (
+                <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+                  <input
+                    type="checkbox"
+                    checked={includeNotes}
+                    onChange={(e) => setIncludeNotes(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                  />
+                  <span className="text-xs font-medium text-textSecondary">
+                    Include executive methodology &amp; dataset audit notes
+                  </span>
+                </label>
+              )}
+            </div>
+
+            {/* Page Size & Orientation (Only for PDF) */}
             {exportFormat === "pdf" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/60 animate-in fade-in duration-200">
                 <div>
-                  <label className="text-xs font-bold text-textPrimary block mb-2 uppercase tracking-wider">Page Size</label>
+                  <label className="text-[11px] font-bold text-textPrimary block mb-1.5 uppercase tracking-wider">
+                    Page Size
+                  </label>
                   <select
                     value={pageSize}
                     onChange={(e) => setPageSize(e.target.value)}
-                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer shadow-2xs"
+                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer shadow-xs"
                   >
                     <option value="A4">A4</option>
                     <option value="Letter">Letter</option>
@@ -298,11 +359,13 @@ export function ExportReport() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-textPrimary block mb-2 uppercase tracking-wider">Orientation</label>
+                  <label className="text-[11px] font-bold text-textPrimary block mb-1.5 uppercase tracking-wider">
+                    Orientation
+                  </label>
                   <select
                     value={orientation}
                     onChange={(e) => setOrientation(e.target.value)}
-                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer shadow-2xs"
+                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer shadow-xs"
                   >
                     <option value="Landscape">Landscape</option>
                     <option value="Portrait">Portrait</option>
@@ -311,6 +374,7 @@ export function ExportReport() {
               </div>
             )}
 
+            {/* Download CTA Button */}
             <button
               type="button"
               onClick={handleDownload}
@@ -336,49 +400,71 @@ export function ExportReport() {
         </Card>
 
         {/* Live Document & Data Preview Card */}
-        <Card className="h-full bg-surface border-border shadow-xs flex flex-col">
-          <CardHeader className="pb-4 border-b border-border flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-bold text-textPrimary flex items-center gap-2">
+        <Card className="h-full bg-surface border-border/80 shadow-xs flex flex-col">
+          <CardHeader className="pb-3 border-b border-border/60 flex flex-row items-center justify-between bg-surface/50">
+            <CardTitle className="text-sm font-bold text-textPrimary flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               Live Report Preview
             </CardTitle>
-            <span className="text-[11px] font-bold text-primary bg-primary-soft/50 px-2.5 py-0.5 rounded-full border border-primary/20">
-              {exportFormat.toUpperCase()} • {pageSize} {orientation}
+            {/* Format Pill (Dynamically tailored to the selected format) */}
+            <span className="text-[10px] font-bold text-primary bg-primary-soft/50 px-2.5 py-1 rounded-full border border-primary/20">
+              {exportFormat === "pdf"
+                ? `PDF • ${pageSize} ${orientation}`
+                : exportFormat === "png"
+                ? "PNG • 1200x800 Image"
+                : `CSV • Raw Data (${dataset.tableRows.length} rows)`}
             </span>
           </CardHeader>
 
-          <CardContent className="pt-6 flex-1 flex flex-col justify-center items-center">
+          <CardContent className="p-6 flex-1 flex flex-col justify-center items-center">
+            {/* PDF Preview */}
             {exportFormat === "pdf" && (
-              <div className="w-full bg-surface border border-border rounded-2xl p-6 shadow-md flex flex-col gap-4 max-h-[480px] overflow-y-auto">
+              <div className="w-full bg-surface border border-border rounded-2xl p-5 shadow-sm flex flex-col gap-4 max-h-[500px] overflow-y-auto">
                 <div className="flex items-center justify-between border-b border-border/80 pb-3">
                   <div>
-                    <h3 className="text-sm font-extrabold text-textPrimary">{dataset.name || "Executive Analytics Report"}</h3>
-                    <p className="text-[11px] text-textSecondary font-medium">Generated via DataVista • {new Date().toLocaleDateString()}</p>
+                    <h3 className="text-sm font-extrabold text-textPrimary">{reportTitle}</h3>
+                    <p className="text-[11px] text-textSecondary font-medium">Prepared by {reportAuthor} • {new Date().toLocaleDateString()}</p>
                   </div>
                   <span className="text-xs font-black text-primary tracking-wider uppercase">DataVista</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {(dataset.kpis.length > 0 ? dataset.kpis.slice(0, 2) : [{ label: "Rows", value: dataset.totalRows }, { label: "Columns", value: dataset.totalColumns }]).map((k, i) => (
-                    <div key={i} className="bg-primary-soft/20 border border-border p-3 rounded-xl">
-                      <p className="text-[10px] font-bold text-textSecondary uppercase">{k.label}</p>
-                      <p className="text-lg font-black text-primary mt-0.5">{k.value}</p>
+                {/* All 4 Active KPIs Preview */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {(dataset.kpis.length > 0 ? dataset.kpis.slice(0, 4) : [{ label: "Rows", value: dataset.totalRows }, { label: "Columns", value: dataset.totalColumns }]).map((k, i) => (
+                    <div key={i} className="bg-primary-soft/20 border border-primary/15 p-2.5 rounded-xl text-center">
+                      <p className="text-[10px] font-bold text-textSecondary uppercase truncate">{k.label}</p>
+                      <p className="text-base font-black text-primary mt-0.5">{k.value}</p>
                     </div>
                   ))}
                 </div>
 
+                {/* Dataset Summary Table */}
                 <div className="border border-border rounded-xl overflow-hidden text-xs">
                   <div className="bg-primary text-white font-bold px-3 py-2 text-[11px] flex justify-between">
-                    <span>Summary Table</span>
-                    <span>{dataset.tableRows.length} Rows</span>
+                    <span>Dataset Snapshot ({dataset.tableRows.length} Rows)</span>
+                    <span>{dataset.tableHeaders.length} Columns</span>
                   </div>
-                  <div className="divide-y divide-border bg-surface max-h-40 overflow-y-auto">
-                    {dataset.tableRows.slice(0, 4).map((row, idx) => (
-                      <div key={idx} className="px-3 py-2 flex items-center justify-between text-[11px] font-medium text-textPrimary">
-                        <span className="truncate max-w-[160px]">{String(Object.values(row)[0] ?? "-")}</span>
-                        <span className="font-bold text-primary">{String(Object.values(row)[1] ?? "-")}</span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto max-h-44">
+                    <table className="w-full text-left text-[11px] whitespace-nowrap">
+                      <thead className="bg-primary-soft/30 text-textSecondary font-bold border-b border-border">
+                        <tr>
+                          {dataset.tableHeaders.slice(0, 5).map((h) => (
+                            <th key={h} className="px-3 py-1.5">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {dataset.tableRows.slice(0, 5).map((row, idx) => (
+                          <tr key={idx} className="hover:bg-primary-soft/10">
+                            {dataset.tableHeaders.slice(0, 5).map((h) => (
+                              <td key={h} className="px-3 py-1.5 font-medium text-textPrimary">
+                                {String(row[h] ?? "-")}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -388,48 +474,58 @@ export function ExportReport() {
               </div>
             )}
 
+            {/* PNG Preview */}
             {exportFormat === "png" && (
-              <div className="w-full bg-surface border border-border rounded-2xl p-6 shadow-md flex flex-col items-center justify-center text-center gap-3">
+              <div className="w-full bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center gap-3">
                 <div className="w-14 h-14 rounded-2xl bg-primary-soft text-primary flex items-center justify-center font-bold">
                   <BarChart2 className="w-7 h-7" />
                 </div>
-                <h3 className="text-sm font-extrabold text-textPrimary">Dashboard Image Snapshot (1200 x 800)</h3>
+                <h3 className="text-sm font-extrabold text-textPrimary">{reportTitle}</h3>
                 <p className="text-xs text-textSecondary max-w-sm leading-relaxed">
-                  High-resolution visual banner snapshot including top KPIs and chart distributions for {dataset.name}.
+                  High-resolution 1200x800 visual snapshot including all 4 top KPI metrics, active chart distributions, and dataset metadata for {dataset.name}.
                 </p>
+                <div className="flex gap-2 text-[10px] font-bold text-textMuted mt-1">
+                  <span className="bg-primary-soft/40 px-2.5 py-1 rounded-md">Format: PNG</span>
+                  <span className="bg-primary-soft/40 px-2.5 py-1 rounded-md">1200 x 800 px</span>
+                  <span className="bg-primary-soft/40 px-2.5 py-1 rounded-md">Author: {reportAuthor}</span>
+                </div>
               </div>
             )}
 
+            {/* CSV Preview */}
             {exportFormat === "csv" && (
-              <div className="w-full bg-surface border border-border rounded-2xl p-4 shadow-md flex flex-col gap-3">
-                <div className="flex items-center justify-between border-b border-border pb-2">
+              <div className="w-full bg-surface border border-border rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-border/80 pb-2">
                   <span className="text-xs font-bold text-textPrimary flex items-center gap-1.5">
-                    <Table className="w-4 h-4 text-emerald-500" /> Raw CSV Export Preview
+                    <Table className="w-4 h-4 text-emerald-500" /> Full CSV Export Preview
                   </span>
                   <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/15 px-2 py-0.5 rounded-full">
-                    {dataset.tableRows.length} Records
+                    {dataset.tableRows.length} Rows • {dataset.tableHeaders.length} Cols
                   </span>
                 </div>
                 <div className="overflow-x-auto max-h-56">
                   <table className="w-full text-left text-[11px] whitespace-nowrap">
-                    <thead className="bg-primary-soft/30 text-textSecondary font-bold">
+                    <thead className="bg-primary-soft/30 text-textSecondary font-bold border-b border-border">
                       <tr>
-                        {dataset.tableHeaders.slice(0, 4).map((h, i) => (
+                        {dataset.tableHeaders.slice(0, 6).map((h, i) => (
                           <th key={i} className="px-3 py-1.5">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
-                      {dataset.tableRows.slice(0, 5).map((row, idx) => (
+                    <tbody className="divide-y divide-border/60">
+                      {dataset.tableRows.slice(0, 6).map((row, idx) => (
                         <tr key={idx} className="hover:bg-primary-soft/10">
-                          {dataset.tableHeaders.slice(0, 4).map((h, i) => (
-                            <td key={i} className="px-3 py-1.5 font-medium">{String(row[h] ?? "-")}</td>
+                          {dataset.tableHeaders.slice(0, 6).map((h, i) => (
+                            <td key={i} className="px-3 py-1.5 font-medium text-textPrimary">{String(row[h] ?? "-")}</td>
                           ))}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                <p className="text-[10px] text-textMuted text-center pt-1 border-t border-border/60 font-semibold">
+                  Exports standard RFC 4180 UTF-8 CSV compatible with Excel, Tableau, and Pandas.
+                </p>
               </div>
             )}
           </CardContent>
@@ -438,7 +534,7 @@ export function ExportReport() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-surface/95 backdrop-blur-xl text-textPrimary border border-border shadow-xl px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-6 right-6 z-50 bg-surface/95 backdrop-blur-xl text-textPrimary border border-primary/30 shadow-xl px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           {toastMessage}
         </div>
