@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  UploadCloud,
   Database,
   Sparkles,
   BarChart,
@@ -64,12 +63,6 @@ export function Sidebar({ className, isCollapsed = false, onToggleCollapse }: Si
             href="/dashboard"
             icon={LayoutDashboard}
             label="Dashboard"
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            href="/upload-dataset"
-            icon={UploadCloud}
-            label="Upload Dataset"
             isCollapsed={isCollapsed}
           />
           <SidebarItem
