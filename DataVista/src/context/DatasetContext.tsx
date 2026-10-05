@@ -41,6 +41,7 @@ interface DatasetContextType {
   dataset: DatasetInfo;
   uploadDataset: (file: File) => Promise<void>;
   switchDatasetPreset: (preset: 'ipl' | 'sales' | 'ecommerce') => void;
+  loadPreviousDataset: (target: DatasetInfo) => void;
   removeDataset: () => void;
   updateChartVisual: (title: string, data: DynamicChartItem[]) => void;
   updateTableData: (headers: string[], rows: Array<Record<string, any>>) => void;
@@ -236,6 +237,18 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       console.warn("Could not save preset to localStorage:", e);
     }
     setNotification(`Switched active dataset to "${targetDataset.name}"`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const loadPreviousDataset = (targetDataset: DatasetInfo) => {
+    if (!targetDataset) return;
+    setDataset(targetDataset);
+    try {
+      localStorage.setItem("datavista_dataset", JSON.stringify(targetDataset));
+    } catch (e) {
+      console.warn("Could not save dataset to localStorage:", e);
+    }
+    setNotification(`Resumed dataset "${targetDataset.name}"`);
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -552,6 +565,25 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
                 rawRows: newDataset.rawRows.slice(0, 500),
               };
               localStorage.setItem("datavista_dataset", JSON.stringify(storageDataset));
+
+              // Record into previous datasets history
+              const prevItem = {
+                id: "ds_" + Date.now(),
+                name: newDataset.name,
+                totalRows: newDataset.totalRows,
+                totalColumns: newDataset.totalColumns,
+                lastUpdated: newDataset.lastUpdated,
+                fileSize: newDataset.fileSize,
+                status: "active",
+                fullData: storageDataset,
+              };
+
+              const existingHist = localStorage.getItem("datavista_previous_datasets");
+              let hist = existingHist ? JSON.parse(existingHist) : [];
+              if (!Array.isArray(hist)) hist = [];
+              hist = hist.filter((item: any) => item.name !== newDataset.name);
+              hist.unshift(prevItem);
+              localStorage.setItem("datavista_previous_datasets", JSON.stringify(hist.slice(0, 3)));
             } catch (storageErr) {
               console.warn("localStorage quota reached, active dataset stored safely in memory:", storageErr);
             }
@@ -658,6 +690,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         dataset,
         uploadDataset,
         switchDatasetPreset,
+        loadPreviousDataset,
         removeDataset,
         updateChartVisual,
         updateTableData,

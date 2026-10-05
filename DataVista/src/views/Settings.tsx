@@ -80,12 +80,12 @@ export function Settings() {
   const [defaultLandingPage, setDefaultLandingPage] = useState(() => {
     if (typeof window !== "undefined") {
       try {
-        return localStorage.getItem("datavista_default_page") || "/dashboard";
+        return localStorage.getItem("datavista_default_page") || "/upload-dataset";
       } catch {
-        return "/dashboard";
+        return "/upload-dataset";
       }
     }
-    return "/dashboard";
+    return "/upload-dataset";
   });
   const [autoCleanNulls, setAutoCleanNulls] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);

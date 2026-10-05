@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   CloudUpload,
   FileUp,
@@ -14,12 +14,24 @@ import {
   Activity,
   X,
   Database,
-  Info
+  Info,
+  Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDataset } from '../context/DatasetContext';
 import { DataVistaLogo } from '../components/ui/DataVistaLogo';
 import Link from 'next/link';
+
+interface PreviousDatasetItem {
+  id: string;
+  name: string;
+  totalRows: string;
+  totalColumns: string;
+  lastUpdated: string;
+  fileSize?: string;
+  status?: string;
+  fullData?: any;
+}
 
 export function UploadDataset() {
   const [isDragging, setIsDragging] = useState(false);
@@ -27,7 +39,84 @@ export function UploadDataset() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { dataset, uploadDataset, removeDataset } = useDataset();
+  const { dataset, uploadDataset, removeDataset, loadPreviousDataset } = useDataset();
+  const [previousDatasets, setPreviousDatasets] = useState<PreviousDatasetItem[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedHist = localStorage.getItem("datavista_previous_datasets");
+      if (savedHist) {
+        const parsed = JSON.parse(savedHist);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setPreviousDatasets(parsed);
+          return;
+        }
+      }
+
+      // Fallback: check datavista_dataset in localStorage
+      const savedCurrent = localStorage.getItem("datavista_dataset");
+      if (savedCurrent) {
+        const parsed = JSON.parse(savedCurrent);
+        if (parsed && parsed.name && parsed.status === "active" && parsed.name !== "No dataset loaded") {
+          setPreviousDatasets([
+            {
+              id: "prev_current",
+              name: parsed.name,
+              totalRows: parsed.totalRows || "0",
+              totalColumns: parsed.totalColumns || "0",
+              lastUpdated: parsed.lastUpdated || "Recent session",
+              fileSize: parsed.fileSize || "1.2 MB",
+              status: "active",
+              fullData: parsed,
+            },
+          ]);
+          return;
+        }
+      }
+
+      // Fallback to active dataset in context if valid
+      if (dataset && dataset.status === "active" && dataset.name && dataset.name !== "No dataset loaded") {
+        setPreviousDatasets([
+          {
+            id: "prev_active",
+            name: dataset.name,
+            totalRows: dataset.totalRows,
+            totalColumns: dataset.totalColumns,
+            lastUpdated: dataset.lastUpdated || "Recent session",
+            fileSize: dataset.fileSize || "1.2 MB",
+            status: "active",
+            fullData: dataset,
+          },
+        ]);
+      } else {
+        setPreviousDatasets([]);
+      }
+    } catch (e) {
+      console.error("Error reading previous datasets:", e);
+    }
+  }, [dataset]);
+
+  const handleResumeDataset = (item: PreviousDatasetItem) => {
+    if (item.fullData && item.name !== dataset.name) {
+      loadPreviousDataset(item.fullData);
+    }
+    router.push("/dashboard");
+  };
+
+  const handleRemovePreviousDataset = (item: PreviousDatasetItem, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      const updated = previousDatasets.filter((d) => d.id !== item.id && d.name !== item.name);
+      setPreviousDatasets(updated);
+      localStorage.setItem("datavista_previous_datasets", JSON.stringify(updated));
+      if (dataset.name === item.name) {
+        removeDataset();
+      }
+    } catch (err) {
+      console.error("Error removing previous dataset:", err);
+    }
+  };
 
   const isDatasetActive = dataset.status === "active" && dataset.name !== "";
 
@@ -242,89 +331,98 @@ export function UploadDataset() {
             )}
           </div>
 
-          {/* Quick-Load Sample Dataset Section */}
+          {/* Previous / Recently Worked On Dataset Section */}
           <div className="pt-2 border-t border-border/60">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2.5">
               <span className="text-xs font-bold text-textPrimary flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5 text-primary" />
-                Or start instantly with sample verified data:
+                <Clock className="w-3.5 h-3.5 text-primary" />
+                Or continue with your previous dataset:
               </span>
+              {previousDatasets.length > 0 && (
+                <span className="text-[11px] font-semibold text-textMuted">
+                  {previousDatasets.length === 1 ? "1 saved dataset" : `${previousDatasets.length} saved datasets`}
+                </span>
+              )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard")}
-                className="p-3 bg-surface hover:bg-primary-soft/30 border border-border/80 hover:border-primary/40 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-xs font-bold text-textPrimary group-hover:text-primary transition-colors">
-                    IPL 2024 Season Stats
-                  </p>
-                  <p className="text-[11px] text-textSecondary mt-0.5">
-                    15 columns • 10 team records • Clean schema
-                  </p>
+
+            {previousDatasets.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2.5">
+                {previousDatasets.map((prevDs) => {
+                  const isCurrentActive = dataset.name === prevDs.name && dataset.status === "active";
+                  return (
+                    <div
+                      key={prevDs.id || prevDs.name}
+                      className="p-3.5 bg-surface hover:bg-primary-soft/20 border border-border/80 hover:border-primary/40 rounded-2xl transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs group"
+                    >
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleResumeDataset(prevDs)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleResumeDataset(prevDs);
+                          }
+                        }}
+                        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                          <FileSpreadsheet className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-textPrimary truncate group-hover:text-primary transition-colors">
+                              {prevDs.name}
+                            </p>
+                            <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 shrink-0">
+                              {isCurrentActive ? "Active" : "Previous"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-textSecondary mt-0.5 font-medium truncate">
+                            {prevDs.totalRows} rows • {prevDs.totalColumns} columns indexed • {prevDs.fileSize ? `${prevDs.fileSize} • ` : ""}Last edited {prevDs.lastUpdated}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => router.push("/data-schema")}
+                          className="px-3 py-1.5 text-xs font-bold text-textSecondary hover:text-textPrimary bg-primary-soft/30 hover:bg-primary-soft rounded-lg transition-colors cursor-pointer"
+                        >
+                          View Schema
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResumeDataset(prevDs)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                        >
+                          <span>Open Dashboard</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemovePreviousDataset(prevDs, e)}
+                          title="Unload this dataset"
+                          aria-label={`Unload ${prevDs.name}`}
+                          className="p-1.5 text-textMuted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-surface/50 border border-dashed border-border/80 flex items-center justify-between text-xs text-textMuted">
+                <div className="flex items-center gap-2.5">
+                  <FolderOpen className="w-4 h-4 text-textMuted" />
+                  <span>No previous dataset worked on yet. Upload a file above to begin analysis.</span>
                 </div>
-                <ArrowRight className="w-4 h-4 text-textMuted group-hover:text-primary transition-colors" />
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/visual-builder")}
-                className="p-3 bg-surface hover:bg-primary-soft/30 border border-border/80 hover:border-primary/40 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-xs font-bold text-textPrimary group-hover:text-primary transition-colors">
-                    Visual Chart Sandbox
-                  </p>
-                  <p className="text-[11px] text-textSecondary mt-0.5">
-                    23 chart templates with live data bindings
-                  </p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-textMuted group-hover:text-primary transition-colors" />
-              </button>
-            </div>
+              </div>
+            )}
           </div>
-
-          {/* Active Dataset Status Bar */}
-          {isDatasetActive && (
-            <div className="p-3.5 rounded-2xl bg-primary-soft/30 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-primary text-white shrink-0">
-                  <FileSpreadsheet className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-textPrimary truncate max-w-[200px] sm:max-w-[300px]">
-                      {dataset.name}
-                    </span>
-                    <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
-                      Active
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-textSecondary mt-0.5">
-                    {dataset.totalRows} rows • {dataset.totalColumns} columns indexed
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-end sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => router.push("/data-schema")}
-                  className="px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-soft rounded-lg transition-colors cursor-pointer"
-                >
-                  View Schema
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeDataset()}
-                  title="Unload current dataset"
-                  className="p-1.5 text-textMuted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Features / Security Callouts */}

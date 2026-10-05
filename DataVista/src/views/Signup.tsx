@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../components/auth/AuthProvider";
 import {
   Mail,
   Lock,
@@ -23,6 +24,7 @@ import { LegalModal } from "../components/ui/LegalModal";
 
 export function Signup() {
   const router = useRouter();
+  const { session, loading: authLoading } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +35,12 @@ export function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      router.replace("/upload-dataset");
+    }
+  }, [authLoading, session, router]);
 
   // Legal Modal State
   const [legalModalType, setLegalModalType] = useState<"terms" | "privacy" | null>(null);
@@ -81,7 +89,7 @@ export function Signup() {
       setError(signUpError.message || "Failed to create account. Please try again.");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push("/upload-dataset");
     }
   };
 
@@ -89,6 +97,9 @@ export function Signup() {
     setError(null);
     const { error: oAuthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/upload-dataset` : undefined,
+      },
     });
     if (oAuthError) setError(oAuthError.message);
   };
@@ -97,6 +108,9 @@ export function Signup() {
     setError(null);
     const { error: oAuthError } = await supabase.auth.signInWithOAuth({
       provider: "github",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/upload-dataset` : undefined,
+      },
     });
     if (oAuthError) setError(oAuthError.message);
   };

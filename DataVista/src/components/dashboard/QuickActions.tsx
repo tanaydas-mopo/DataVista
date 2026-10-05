@@ -49,7 +49,7 @@ export function QuickActions() {
   const handleActionClick = (action: QuickAction["action"]) => {
     switch (action) {
       case "upload":
-        router.push("/data-schema");
+        router.push("/upload-dataset");
         break;
       case "clean":
         router.push("/clean-transform");

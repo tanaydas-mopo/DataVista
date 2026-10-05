@@ -23,6 +23,7 @@ import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { useAuth } from "../auth/AuthProvider";
 import { useDataset } from "../../context/DatasetContext";
+import { supabase } from "../../lib/supabase";
 
 export const ROUTE_METADATA: Record<string, { title: string; subtitle: string; category: string }> = {
   "/dashboard": {
@@ -632,6 +633,11 @@ export function TopNavigation() {
                     type="button"
                     onClick={async () => {
                       setIsProfileOpen(false);
+                      try {
+                        await supabase.auth.signOut();
+                      } catch (err) {
+                        console.error("Sign out error:", err);
+                      }
                       router.push("/login");
                     }}
                     className="w-full text-left px-3 py-2 rounded-xl hover:bg-danger-soft hover:text-danger text-textSecondary font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer"

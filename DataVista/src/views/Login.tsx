@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../components/auth/AuthProvider";
 import {
   Mail,
   Lock,
@@ -20,12 +21,19 @@ import { DataVistaLogo } from "../components/ui/DataVistaLogo";
 
 export function Login() {
   const router = useRouter();
+  const { session, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      router.replace("/upload-dataset");
+    }
+  }, [authLoading, session, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +49,7 @@ export function Login() {
       setError(signInError.message || "Invalid email or password. Please try again.");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push("/upload-dataset");
     }
   };
 
@@ -49,6 +57,9 @@ export function Login() {
     setError(null);
     const { error: oAuthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/upload-dataset` : undefined,
+      },
     });
     if (oAuthError) setError(oAuthError.message);
   };
@@ -57,6 +68,9 @@ export function Login() {
     setError(null);
     const { error: oAuthError } = await supabase.auth.signInWithOAuth({
       provider: "github",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/upload-dataset` : undefined,
+      },
     });
     if (oAuthError) setError(oAuthError.message);
   };
