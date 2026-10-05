@@ -187,10 +187,7 @@ export function CleanTransform() {
   const [workingHeaders, setWorkingHeaders] = useState<string[]>(() => dataset.tableHeaders);
   const [workingRows, setWorkingRows] = useState<Record<string, any>[]>(() => dataset.tableRows);
 
-  const [appliedSteps, setAppliedSteps] = useState<AppliedStep[]>(() => [
-    { id: uid(), icon: Trash2, name: "Trimmed Whitespace", detail: `Cleaned text fields in ${dataset.name}`, timestamp: "10:30 AM", undo: () => {} },
-    { id: uid(), icon: Type, name: "Verified Column Data Types", detail: `${dataset.totalColumns} columns indexed`, timestamp: "10:31 AM", undo: () => {} },
-  ]);
+  const [appliedSteps, setAppliedSteps] = useState<AppliedStep[]>([]);
   
   const isUploaded = dataset.status === "active";
   const [highlightedCells, setHighlightedCells] = useState<Record<string, boolean>>({});
@@ -203,6 +200,7 @@ export function CleanTransform() {
       currentDatasetName.current = dataset.name;
       setWorkingHeaders(dataset.tableHeaders);
       setWorkingRows(dataset.tableRows);
+      setAppliedSteps([]);
       setHighlightedCells({});
       setOutlierRows([]);
     }

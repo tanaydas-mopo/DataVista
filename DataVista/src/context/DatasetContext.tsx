@@ -270,72 +270,139 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
             let rawHeaders: string[] = [];
             let rawRows: string[][] = [];
 
-            try {
-              const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-              const firstSheetName = workbook.SheetNames[0];
-              const worksheet = workbook.Sheets[firstSheetName];
-              
-              const sheetData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
-
-              if (sheetData && sheetData.length > 0) {
-                rawHeaders = (sheetData[0] || []).map((h) =>
-                  String(h !== null && h !== undefined ? h : "")
-                    .replace(/\uFFFD/g, "")
-                    .trim()
-                ).filter((h) => h.length > 0);
-
-                rawRows = sheetData
-                  .slice(1)
-                  .filter((r) => r && r.length > 0)
-                  .map((row) =>
-                    row.map((cell) =>
-                      cell !== null && cell !== undefined
-                        ? String(cell).replace(/\uFFFD/g, "").trim()
-                        : ""
-                    )
-                  );
+            // 1. JSON Support: parse directly if JSON format
+            if (fileNameLower.endsWith(".json")) {
+              try {
+                const textDecoder = new TextDecoder("utf-8");
+                const text = textDecoder.decode(buffer);
+                const parsed = JSON.parse(text);
+                const jsonArray = Array.isArray(parsed) ? parsed : [parsed];
+                if (jsonArray.length > 0) {
+                  const keysSet = new Set<string>();
+                  jsonArray.forEach((item) => {
+                    if (item && typeof item === "object") {
+                      Object.keys(item).forEach((k) => keysSet.add(k));
+                    }
+                  });
+                  rawHeaders = Array.from(keysSet);
+                  rawRows = jsonArray.map((item) => {
+                    return rawHeaders.map((k) => {
+                      const val = item?.[k];
+                      return val !== undefined && val !== null ? String(val) : "";
+                    });
+                  });
+                }
+              } catch (jsonErr) {
+                console.error("JSON parsing error:", jsonErr);
               }
-            } catch (err) {
-              console.error("XLSX parsing error, falling back to text parser", err);
             }
 
+            // 2. XLSX / CSV Support: parse all sheet cells without discarding or trimming values
+            if (rawHeaders.length === 0) {
+              try {
+                const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                const sheetData = XLSX.utils.sheet_to_json<any[]>(worksheet, {
+                  header: 1,
+                  defval: "",
+                  raw: false,
+                });
+
+                if (sheetData && sheetData.length > 0) {
+                  const firstRow = sheetData[0] || [];
+                  rawHeaders = firstRow.map((h, idx) => {
+                    const headerStr = h !== null && h !== undefined ? String(h).replace(/\uFFFD/g, "").trim() : "";
+                    return headerStr.length > 0 ? headerStr : `Column_${idx + 1}`;
+                  });
+
+                  // Retain all rows and values exactly as uploaded
+                  rawRows = sheetData.slice(1).map((row) => {
+                    return rawHeaders.map((_, colIdx) => {
+                      const cell = row ? row[colIdx] : undefined;
+                      return cell !== null && cell !== undefined ? String(cell).replace(/\uFFFD/g, "") : "";
+                    });
+                  });
+                }
+              } catch (err) {
+                console.error("XLSX parsing error, falling back to text parser", err);
+              }
+            }
+
+            // 3. Robust Text Fallback (supports commas inside quoted strings)
             if (rawHeaders.length === 0) {
               try {
                 const textDecoder = new TextDecoder("utf-8");
                 const text = textDecoder.decode(buffer);
-                const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+                const lines = text.split(/\r\n|\n/).filter((l) => l.length > 0);
                 if (lines.length > 0) {
-                  rawHeaders = lines[0]
-                    .split(/,|;|\t/)
-                    .map((h) => h.replace(/^["']|["']$/g, "").replace(/\uFFFD/g, "").trim());
-                  rawRows = lines
-                    .slice(1)
-                    .map((line) =>
-                      line
-                        .split(/,|;|\t/)
-                        .map((v) => v.replace(/^["']|["']$/g, "").replace(/\uFFFD/g, "").trim())
-                    );
+                  const parseCsvLine = (line: string): string[] => {
+                    const result: string[] = [];
+                    let cur = "";
+                    let inQuotes = false;
+                    for (let i = 0; i < line.length; i++) {
+                      const ch = line[i];
+                      if (ch === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                          cur += '"';
+                          i++;
+                        } else {
+                          inQuotes = !inQuotes;
+                        }
+                      } else if ((ch === ',' || ch === '\t' || ch === ';') && !inQuotes) {
+                        result.push(cur);
+                        cur = "";
+                      } else {
+                        cur += ch;
+                      }
+                    }
+                    result.push(cur);
+                    return result;
+                  };
+
+                  rawHeaders = parseCsvLine(lines[0]).map((h, idx) => {
+                    const trimmed = h.replace(/^["']|["']$/g, "").replace(/\uFFFD/g, "").trim();
+                    return trimmed.length > 0 ? trimmed : `Column_${idx + 1}`;
+                  });
+
+                  rawRows = lines.slice(1).map((line) => {
+                    const parsed = parseCsvLine(line);
+                    return rawHeaders.map((_, colIdx) => {
+                      const val = parsed[colIdx];
+                      return val !== undefined && val !== null ? val.replace(/^["']|["']$/g, "").replace(/\uFFFD/g, "") : "";
+                    });
+                  });
                 }
               } catch (textErr) {
                 console.error("Text fallback failed", textErr);
               }
             }
 
-            const totalRowsCount = rawRows.length > 0 ? rawRows.length : 12500;
-            const totalColsCount = rawHeaders.length > 0 ? rawHeaders.length : 5;
-            const headersLower = rawHeaders.map((h) => h.toLowerCase());
+            const totalRowsCount = rawRows.length;
+            const totalColsCount = rawHeaders.length;
 
-            const isSales =
-              fileNameLower.includes("sale") ||
-              fileNameLower.includes("order") ||
-              fileNameLower.includes("revenue") ||
-              fileNameLower.includes("store") ||
-              headersLower.some((h) => ["sales", "price", "amount", "revenue", "product", "quantity", "category", "order"].includes(h));
+            // Retain ALL values and columns without dropping or modifying user data
+            const tableHeaders = [...rawHeaders];
+            const tableRows: Array<Record<string, any>> = rawRows.map((row) => {
+              const obj: Record<string, any> = {};
+              rawHeaders.forEach((header, idx) => {
+                obj[header] = row[idx] ?? "";
+              });
+              return obj;
+            });
 
-            const isIpl =
-              fileNameLower.includes("ipl") ||
-              fileNameLower.includes("match") ||
-              headersLower.some((h) => ["team", "runs", "wickets", "batsman", "bowler"].includes(h));
+            // Count true missing / empty values across the dataset
+            let missingValuesCount = 0;
+            for (let r = 0; r < rawRows.length; r++) {
+              const row = rawRows[r];
+              for (let c = 0; c < rawHeaders.length; c++) {
+                const val = row[c];
+                if (val === undefined || val === null || String(val).trim() === "" || String(val).toLowerCase() === "null" || String(val).toLowerCase() === "nan") {
+                  missingValuesCount++;
+                }
+              }
+            }
 
             const now = new Date();
             const formattedDate =
@@ -350,207 +417,146 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
                 minute: "2-digit",
               });
 
-            let type: 'sales' | 'ipl' | 'generic' = isSales ? 'sales' : isIpl ? 'ipl' : 'generic';
-            let kpis: DynamicKpi[] = [];
-            let chartTitle = "";
-            let chartData: DynamicChartItem[] = [];
-            let tableTitle = "";
-            let tableHeaders: string[] = [];
-            let tableRows: Array<Record<string, any>> = [];
+            // Identify numeric vs categorical columns for dynamic charts & KPIs
+            const numericColIndices: number[] = [];
+            const categoricalColIndices: number[] = [];
 
-            if (type === 'sales') {
-              chartTitle = "Sales Revenue by Category";
-              tableTitle = "Sales Transactions & Orders";
-
-              let salesColIdx = rawHeaders.findIndex((h) =>
-                ["sales", "revenue", "amount", "price", "total"].includes(h.toLowerCase())
-              );
-              let categoryColIdx = rawHeaders.findIndex((h) =>
-                ["category", "product", "region", "segment", "store", "item"].includes(h.toLowerCase())
-              );
-              if (categoryColIdx === -1) categoryColIdx = 0;
-
-              let totalSalesSum = 0;
-              const categoryMap: Record<string, number> = {};
-
-              rawRows.forEach((row) => {
-                const val = salesColIdx !== -1 ? parseFloat(row[salesColIdx]) : NaN;
-                const numVal = !isNaN(val) ? val : Math.floor(Math.random() * 200 + 20);
-                totalSalesSum += numVal;
-
-                const rawCat = row[categoryColIdx] || "General";
-                const catName = rawCat.replace(/[^\x20-\x7E]/g, "").trim() || "General";
-                categoryMap[catName] = (categoryMap[catName] || 0) + numVal;
-              });
-
-              if (totalSalesSum === 0) totalSalesSum = totalRowsCount * 48.5;
-
-              const avgOrderVal = (totalSalesSum / Math.max(1, totalRowsCount)).toFixed(2);
-              const activeCatCount = Object.keys(categoryMap).length || 8;
-
-              kpis = [
-                {
-                  id: "k1",
-                  label: "Total Sales",
-                  value: "$" + Math.round(totalSalesSum).toLocaleString(),
-                  trend: "14% vs last month",
-                  trendDirection: "up",
-                  color: "primary",
-                },
-                {
-                  id: "k2",
-                  label: "Total Orders",
-                  value: totalRowsCount.toLocaleString(),
-                  trend: "8% vs last month",
-                  trendDirection: "up",
-                  color: "success",
-                },
-                {
-                  id: "k3",
-                  label: "Avg. Order Value",
-                  value: "$" + avgOrderVal,
-                  trend: "4.2% vs last month",
-                  trendDirection: "up",
-                  color: "warning",
-                },
-                {
-                  id: "k4",
-                  label: "Product Categories",
-                  value: activeCatCount.toString(),
-                  trend: "Active product lines",
-                  trendDirection: "up",
-                  color: "purple",
-                },
-              ];
-
-              const sortedCats = Object.entries(categoryMap)
-                .filter(([cat]) => cat && !cat.includes("PK\u0003"))
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10);
-
-              if (sortedCats.length > 0) {
-                chartData = sortedCats.map(([label, val], idx) => ({
-                  label: label.length > 15 ? label.substring(0, 12) + ".." : label,
-                  value: Math.round(val),
-                  color: CHART_COLORS[idx % CHART_COLORS.length],
-                }));
-              } else {
-                chartData = [
-                  { label: "Electronics", value: 48500, color: "#2563EB" },
-                  { label: "Clothing", value: 34200, color: "#14B8A6" },
-                  { label: "Home & Kitchen", value: 28900, color: "#8B5CF6" },
-                  { label: "Beauty & Health", value: 21400, color: "#F59E0B" },
-                  { label: "Sports", value: 16800, color: "#EF4444" },
-                ];
+            rawHeaders.forEach((_, colIdx) => {
+              let numCount = 0;
+              let sampleCount = 0;
+              const sampleLimit = Math.min(rawRows.length, 100);
+              for (let r = 0; r < sampleLimit; r++) {
+                const cell = rawRows[r]?.[colIdx];
+                if (cell !== undefined && cell !== null && String(cell).trim() !== "") {
+                  sampleCount++;
+                  const cleaned = String(cell).replace(/[$,%]/g, "").trim();
+                  if (!isNaN(Number(cleaned)) && isFinite(Number(cleaned))) {
+                    numCount++;
+                  }
+                }
               }
-
-              tableHeaders = rawHeaders.length > 0 ? rawHeaders.slice(0, 7) : ["Order ID", "Product", "Category", "Sales ($)", "Quantity", "Date", "Status"];
-              if (rawRows.length > 0) {
-                tableRows = rawRows.slice(0, 10).map((r) => {
-                  const obj: Record<string, any> = {};
-                  tableHeaders.forEach((h, i) => {
-                    obj[h] = r[i] || "-";
-                  });
-                  return obj;
-                });
+              if (sampleCount > 0 && numCount / sampleCount >= 0.7) {
+                numericColIndices.push(colIdx);
               } else {
-                tableRows = [
-                  { "Order ID": "ORD-9481", Product: "Wireless Headphones", Category: "Electronics", "Sales ($)": 149.99, Quantity: 2, Date: "2026-07-24", Status: "Completed" },
-                  { "Order ID": "ORD-9482", Product: "Running Shoes", Category: "Clothing", "Sales ($)": 89.50, Quantity: 1, Date: "2026-07-24", Status: "Completed" },
-                ];
+                categoricalColIndices.push(colIdx);
               }
-            } else if (type === 'ipl') {
-              kpis = defaultIplDataset.kpis;
-              chartTitle = defaultIplDataset.chartTitle;
-              chartData = defaultIplDataset.chartData;
-              tableTitle = defaultIplDataset.tableTitle;
-              tableHeaders = defaultIplDataset.tableHeaders;
-              tableRows = defaultIplDataset.tableRows;
-            } else {
-              chartTitle = `Distribution by ${rawHeaders[0] || "Category"}`;
-              tableTitle = `Dataset Records (${file.name})`;
+            });
 
-              kpis = [
-                {
-                  id: "k1",
-                  label: "Total Rows",
-                  value: totalRowsCount.toLocaleString(),
-                  trend: "Loaded successfully",
-                  trendDirection: "up",
-                  color: "primary",
-                },
-                {
-                  id: "k2",
-                  label: "Total Columns",
-                  value: totalColsCount.toString(),
-                  trend: "Attributes detected",
-                  trendDirection: "up",
-                  color: "success",
-                },
-                {
-                  id: "k3",
-                  label: "File Size",
-                  value: (file.size / 1024 / 1024).toFixed(2) + " MB",
-                  trend: "Optimized buffer",
-                  trendDirection: "up",
-                  color: "warning",
-                },
-                {
-                  id: "k4",
-                  label: "Data Quality",
-                  value: "100%",
-                  trend: "Clean binary parse",
-                  trendDirection: "up",
-                  color: "purple",
-                },
-              ];
+            // Pick the best categorical column to group and visualize
+            let chartColIdx = categoricalColIndices.length > 0 ? categoricalColIndices[0] : 0;
+            const preferredKeywords = ["team", "winner", "category", "product", "city", "status", "country", "type", "region", "state", "brand"];
+            for (const kw of preferredKeywords) {
+              const found = rawHeaders.findIndex((h) => h.toLowerCase().includes(kw));
+              if (found !== -1) {
+                chartColIdx = found;
+                break;
+              }
+            }
 
-              const firstColCounts: Record<string, number> = {};
-              rawRows.forEach((r) => {
-                const rawVal = r[0] || "Item";
-                const cleanVal = rawVal.replace(/[^\x20-\x7E]/g, "").trim() || "Item";
-                firstColCounts[cleanVal] = (firstColCounts[cleanVal] || 0) + 1;
-              });
+            const chartColName = rawHeaders[chartColIdx] || "Category";
+            const valCounts: Record<string, number> = {};
+            rawRows.forEach((row) => {
+              const rawVal = row[chartColIdx];
+              const val = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "" ? String(rawVal).trim() : "(Empty)";
+              valCounts[val] = (valCounts[val] || 0) + 1;
+            });
 
-              const sortedItems = Object.entries(firstColCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-              if (sortedItems.length > 0) {
-                chartData = sortedItems.map(([label, count], idx) => ({
-                  label: label.length > 15 ? label.substring(0, 12) + ".." : label,
+            const sortedChart = Object.entries(valCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const chartData: DynamicChartItem[] = sortedChart.length > 0
+              ? sortedChart.map(([label, count], idx) => ({
+                  label: label.length > 18 ? label.substring(0, 15) + "..." : label,
                   value: count,
                   color: CHART_COLORS[idx % CHART_COLORS.length],
-                }));
-              } else {
-                chartData = [
-                  { label: "Group A", value: 45, color: "#2563EB" },
-                  { label: "Group B", value: 32, color: "#14B8A6" },
-                  { label: "Group C", value: 28, color: "#8B5CF6" },
-                  { label: "Group D", value: 19, color: "#F59E0B" },
-                ];
-              }
+                }))
+              : [{ label: "Records", value: totalRowsCount, color: CHART_COLORS[0] }];
 
-              tableHeaders = rawHeaders.length > 0 ? rawHeaders.slice(0, 7) : ["Column 1", "Column 2", "Column 3", "Column 4"];
-              tableRows = rawRows.slice(0, 10).map((r) => {
-                const obj: Record<string, any> = {};
-                tableHeaders.forEach((h, i) => {
-                  obj[h] = r[i] || "-";
-                });
-                return obj;
+            const chartTitle = `${chartColName} Distribution`;
+
+            // Detect primary numeric column for KPI calculation (e.g. sales, revenue, runs, points, score, price)
+            let primaryNumIdx = -1;
+            const numKeywords = ["sales", "revenue", "runs", "amount", "score", "points", "total", "price", "profit", "value"];
+            for (const kw of numKeywords) {
+              const found = numericColIndices.find((idx) => rawHeaders[idx]?.toLowerCase().includes(kw));
+              if (found !== undefined) {
+                primaryNumIdx = found;
+                break;
+              }
+            }
+            if (primaryNumIdx === -1 && numericColIndices.length > 0) {
+              primaryNumIdx = numericColIndices[0];
+            }
+
+            let numSum = 0;
+            let numValid = 0;
+            if (primaryNumIdx !== -1) {
+              rawRows.forEach((row) => {
+                const cell = row[primaryNumIdx];
+                if (cell !== undefined && cell !== null && String(cell).trim() !== "") {
+                  const n = Number(String(cell).replace(/[$,%]/g, "").trim());
+                  if (!isNaN(n) && isFinite(n)) {
+                    numSum += n;
+                    numValid++;
+                  }
+                }
               });
             }
+
+            const primaryNumName = primaryNumIdx !== -1 ? rawHeaders[primaryNumIdx] : null;
+            const totalCells = Math.max(1, totalRowsCount * totalColsCount);
+            const completenessPct = Math.max(0, Math.min(100, Math.round(((totalCells - missingValuesCount) / totalCells) * 100)));
+
+            const kpis: DynamicKpi[] = [
+              {
+                id: "k1",
+                label: "Total Rows",
+                value: totalRowsCount.toLocaleString(),
+                trend: "All uploaded rows preserved",
+                trendDirection: "up",
+                color: "primary",
+              },
+              {
+                id: "k2",
+                label: "Total Columns",
+                value: `${totalColsCount} Attributes`,
+                trend: "All uploaded columns active",
+                trendDirection: "up",
+                color: "success",
+              },
+              {
+                id: "k3",
+                label: primaryNumName ? `Total ${primaryNumName}` : "Missing Values",
+                value: primaryNumName
+                  ? (numSum > 1000000 ? (numSum / 1000000).toFixed(2) + "M" : Math.round(numSum).toLocaleString())
+                  : missingValuesCount.toLocaleString(),
+                trend: primaryNumName
+                  ? `Avg ${(numSum / Math.max(1, numValid)).toFixed(1)} per row`
+                  : (missingValuesCount === 0 ? "100% complete data" : `${missingValuesCount} nulls pending clean`),
+                trendDirection: missingValuesCount === 0 ? "up" : "down",
+                color: "warning",
+              },
+              {
+                id: "k4",
+                label: "Data Quality",
+                value: `${completenessPct}%`,
+                trend: missingValuesCount === 0 ? "Clean dataset" : `${missingValuesCount} nulls detected (raw)`,
+                trendDirection: completenessPct >= 90 ? "up" : "down",
+                color: "purple",
+              },
+            ];
 
             const newDataset: DatasetInfo = {
               name: file.name,
               totalRows: totalRowsCount.toLocaleString(),
               totalColumns: totalColsCount.toString(),
-              missingValues: "0",
+              missingValues: missingValuesCount.toLocaleString(),
               lastUpdated: formattedDate,
               fileSize: (file.size / 1024 / 1024).toFixed(2) + " MB",
               status: "active",
-              type,
+              type: fileNameLower.includes("sale") ? "sales" : fileNameLower.includes("ipl") || fileNameLower.includes("match") ? "ipl" : "generic",
               kpis,
               chartTitle,
               chartData,
-              tableTitle,
+              tableTitle: `${file.name} - Dataset Records`,
               tableHeaders,
               tableRows,
               rawHeaders,
@@ -562,7 +568,8 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
             try {
               const storageDataset = {
                 ...newDataset,
-                rawRows: newDataset.rawRows.slice(0, 500),
+                tableRows: newDataset.tableRows.slice(0, 1000),
+                rawRows: newDataset.rawRows.slice(0, 1000),
               };
               localStorage.setItem("datavista_dataset", JSON.stringify(storageDataset));
 
@@ -663,10 +670,20 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   const updateTableData = (headers: string[], rows: Array<Record<string, any>>) => {
     setDataset(prev => {
       const rawRows = rows.map(r => headers.map(h => String(r[h] ?? "")));
+      let missingCount = 0;
+      rows.forEach(r => {
+        headers.forEach(h => {
+          const val = r[h];
+          if (val === undefined || val === null || String(val).trim() === "" || String(val).toLowerCase() === "null" || String(val).toLowerCase() === "nan") {
+            missingCount++;
+          }
+        });
+      });
       const updated: DatasetInfo = {
         ...prev,
         totalRows: rows.length.toLocaleString(),
         totalColumns: headers.length.toString(),
+        missingValues: missingCount.toLocaleString(),
         tableHeaders: headers,
         tableRows: rows,
         rawHeaders: headers,
@@ -675,7 +692,8 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       try {
         localStorage.setItem("datavista_dataset", JSON.stringify({
           ...updated,
-          rawRows: rawRows.slice(0, 500),
+          tableRows: rows.slice(0, 1000),
+          rawRows: rawRows.slice(0, 1000),
         }));
       } catch (e) {
         console.warn("Could not save updated table data to localStorage:", e);

@@ -141,7 +141,7 @@ export function UploadDataset() {
           </div>
           <div>
             <p className="text-xs font-bold text-textPrimary">AI Data Cleaner</p>
-            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Auto-detects missing nulls</p>
+            <p className="text-[10px] font-medium text-textSecondary mt-0.5">Clean &amp; transform on demand</p>
           </div>
         </div>
       </div>

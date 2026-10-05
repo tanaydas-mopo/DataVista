@@ -125,8 +125,20 @@ export function DatasetOverview() {
 
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <span className="text-textSecondary font-medium">Missing Values</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                {dataset.missingValues} (Clean)
+              <span
+                className={`font-bold ${
+                  dataset.missingValues === "0"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : dataset.missingValues === "-"
+                    ? "text-textMuted"
+                    : "text-amber-500"
+                }`}
+              >
+                {dataset.missingValues === "0"
+                  ? "0 (Clean)"
+                  : dataset.missingValues === "-"
+                  ? "-"
+                  : `${dataset.missingValues} detected (Raw)`}
               </span>
             </div>
 
