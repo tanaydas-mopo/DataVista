@@ -4,7 +4,8 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Filter, Trash2, Edit3, ArrowRightLeft, Type, Sparkles, CheckCircle2, Database,
   X, ChevronDown, Merge, Scissors, SortAsc, Eye,
-  MinusSquare, Search, Zap, Undo2, Check, Plus, Minus, Layers, RefreshCw, AlertTriangle
+  MinusSquare, Search, Zap, Undo2, Check, Plus, Minus, Layers, RefreshCw, AlertTriangle,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -17,6 +18,18 @@ function nowStr() { return new Date().toLocaleTimeString([], { hour: "2-digit", 
 function mean(nums: number[]) { return nums.reduce((a, b) => a + b, 0) / nums.length; }
 function median(nums: number[]) { const s = [...nums].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 function modeVal(nums: number[]) { const freq: Record<number, number> = {}; let max = 0; let mode = nums[0]; for (const n of nums) { freq[n] = (freq[n] || 0) + 1; if (freq[n] > max) { max = freq[n]; mode = n; } } return mode; }
+
+function isCellNull(val: any): boolean {
+  if (val === null || val === undefined) return true;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed === "") return true;
+    const lower = trimmed.toLowerCase();
+    if (lower === "null" || lower === "nan" || lower === "none" || lower === "n/a" || lower === "undefined") return true;
+  }
+  if (typeof val === "number" && isNaN(val)) return true;
+  return false;
+}
 
 /* ─────────────────────────────────────────────
    PREMIUM MODAL CONTAINER & COMPONENTS
@@ -672,20 +685,29 @@ export function CleanTransform() {
     const [method, setMethod] = useState<"iqr" | "zscore">("iqr");
     const [action, setAction] = useState<"remove" | "keep" | "replace-mean" | "replace-median">("remove");
     const numRows = useMemo(() => workingRows.map((row, i) => ({ val: parseFloat(String(row[col] ?? "")), i })).filter(r => !isNaN(r.val)), [col, workingRows]);
-    const vals = numRows.map(r => r.val);
+    const vals = useMemo(() => numRows.map(r => r.val), [numRows]);
     const outIdx = useMemo(() => {
       if (vals.length < 4) return [];
       if (method === "iqr") { const s = [...vals].sort((a, b) => a - b); const q1 = s[Math.floor(s.length * 0.25)]; const q3 = s[Math.floor(s.length * 0.75)]; const iqr = q3 - q1; return numRows.filter(r => r.val < q1 - 1.5 * iqr || r.val > q3 + 1.5 * iqr).map(r => r.i); }
       const m = mean(vals); const std = Math.sqrt(vals.map(v => (v - m) ** 2).reduce((a, b) => a + b, 0) / vals.length);
       return numRows.filter(r => Math.abs(r.val - m) > 3 * std).map(r => r.i);
-    }, [col, method, numRows, vals]);
-    useEffect(() => { setOutlierRows(outIdx); return () => setOutlierRows([]); }, [outIdx]);
+    }, [method, numRows, vals]);
+
     const apply = () => {
       const snap = workingRows.map(r => ({ ...r })); const hl: Record<string, boolean> = {}; let rows = [...workingRows];
       const m = vals.length > 0 ? mean(vals) : 0; const med = vals.length > 0 ? median(vals) : 0;
-      if (action === "remove") { rows = rows.filter((_, i) => !outIdx.includes(i)); }
-      else if (action === "replace-mean" || action === "replace-median") { const rv = action === "replace-mean" ? m.toFixed(2) : med.toFixed(2); rows = rows.map((row, i) => { if (outIdx.includes(i)) { hl[`${i}-${col}`] = true; return { ...row, [col]: rv }; } return row; }); }
-      commitTransform(workingHeaders, rows); setHighlightedCells(hl); setOutlierRows([]);
+      if (action === "remove") { 
+        rows = rows.filter((_, i) => !outIdx.includes(i)); 
+        setOutlierRows([]);
+      } else if (action === "replace-mean" || action === "replace-median") { 
+        const rv = action === "replace-mean" ? m.toFixed(2) : med.toFixed(2); 
+        rows = rows.map((row, i) => { if (outIdx.includes(i)) { hl[`${i}-${col}`] = true; return { ...row, [col]: rv }; } return row; }); 
+        setOutlierRows([]);
+      } else if (action === "keep") {
+        setOutlierRows(outIdx);
+      }
+      commitTransform(workingHeaders, rows); 
+      setHighlightedCells(hl);
       addStep(Eye, "Detect Outliers", `${action} ${outIdx.length} outlier(s) in "${col}" (${method.toUpperCase()})`, () => { commitTransform(workingHeaders, snap); setHighlightedCells({}); setOutlierRows([]); });
     };
     return (
@@ -1030,6 +1052,83 @@ export function CleanTransform() {
     });
   }, [operations, opCategory, opSearch]);
 
+  // Table search & filter states
+  const [tableSearch, setTableSearch] = useState("");
+  const [tableFilterMode, setTableFilterMode] = useState<"all" | "nulls" | "duplicates">("all");
+  const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState<number>(25);
+
+  // Duplicates detection across workingRows
+  const duplicateInfo = useMemo(() => {
+    const seen = new Map<string, number>();
+    const dupes = new Set<number>();
+    workingRows.forEach((row, idx) => {
+      const key = workingHeaders.map(h => String(row[h] ?? "")).join("||");
+      if (seen.has(key)) {
+        dupes.add(idx);
+        dupes.add(seen.get(key)!);
+      } else {
+        seen.set(key, idx);
+      }
+    });
+    return { duplicateIndices: dupes };
+  }, [workingHeaders, workingRows]);
+
+  // Null detection across workingRows
+  const nullStats = useMemo(() => {
+    const rowsWithNull = new Set<number>();
+    let totalNullCells = 0;
+    workingRows.forEach((row, idx) => {
+      let rowHasNull = false;
+      for (const h of workingHeaders) {
+        if (isCellNull(row[h])) {
+          rowHasNull = true;
+          totalNullCells++;
+        }
+      }
+      if (rowHasNull) rowsWithNull.add(idx);
+    });
+    return { rowsWithNull, totalNullCells };
+  }, [workingHeaders, workingRows]);
+
+  // Reset page when dataset, filter mode, or search changes
+  useEffect(() => {
+    setTablePage(1);
+  }, [tableFilterMode, tableSearch, workingRows.length]);
+
+  // Filtered rows by search and null/duplicate mode
+  const filteredRowIndices = useMemo(() => {
+    const q = tableSearch.trim().toLowerCase();
+    const indices: number[] = [];
+    for (let idx = 0; idx < workingRows.length; idx++) {
+      if (tableFilterMode === "nulls" && !nullStats.rowsWithNull.has(idx)) {
+        continue;
+      }
+      if (tableFilterMode === "duplicates" && !duplicateInfo.duplicateIndices.has(idx)) {
+        continue;
+      }
+      if (q) {
+        const row = workingRows[idx];
+        const match = workingHeaders.some(h => String(row[h] ?? "").toLowerCase().includes(q));
+        if (!match) continue;
+      }
+      indices.push(idx);
+    }
+    return indices;
+  }, [workingRows, workingHeaders, tableFilterMode, tableSearch, nullStats, duplicateInfo]);
+
+  // Pagination calculation
+  const totalFilteredCount = filteredRowIndices.length;
+  const effectivePageSize = tablePageSize === -1 ? totalFilteredCount : tablePageSize;
+  const totalPages = effectivePageSize > 0 ? Math.max(1, Math.ceil(totalFilteredCount / effectivePageSize)) : 1;
+  const safePage = Math.min(tablePage, totalPages);
+
+  const paginatedRowIndices = useMemo(() => {
+    if (tablePageSize === -1) return filteredRowIndices;
+    const start = (safePage - 1) * tablePageSize;
+    return filteredRowIndices.slice(start, start + tablePageSize);
+  }, [filteredRowIndices, safePage, tablePageSize]);
+
   const discardChanges = () => {
     commitTransform(dataset.tableHeaders, dataset.tableRows);
     setHighlightedCells({}); setOutlierRows([]);
@@ -1172,33 +1271,313 @@ export function CleanTransform() {
           </Card>
 
           <Card className="flex-1 flex flex-col min-w-0 border border-border/80 shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border/60 flex flex-row items-center justify-between bg-surface/50">
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-primary" />
-                <CardTitle className="text-sm font-bold text-textPrimary">Data Preview — {dataset.name}</CardTitle>
+            {/* Header with Title and Quality Indicators */}
+            <CardHeader className="pb-3 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary-soft text-primary ring-1 ring-primary/20">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-bold text-textPrimary flex items-center gap-2">
+                    Data Preview — {dataset.name}
+                  </CardTitle>
+                  <p className="text-[11px] text-textSecondary mt-0.5">
+                    Live dataset preview with null values &amp; duplicate indicators
+                  </p>
+                </div>
               </div>
-              <span className="text-[11px] text-primary bg-primary-soft/50 px-3 py-1 rounded-full border border-primary/20 font-bold shadow-xs">
-                {workingRows.length} rows loaded
-              </span>
+
+              {/* Status Badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-primary bg-primary-soft/60 px-3 py-1 rounded-full border border-primary/25 font-bold shadow-xs">
+                  {workingRows.length.toLocaleString()} rows · {workingHeaders.length} cols
+                </span>
+                {nullStats.totalNullCells > 0 ? (
+                  <span className="text-[11px] text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/25 font-bold flex items-center gap-1 shadow-xs">
+                    <AlertTriangle className="w-3 h-3" />
+                    {nullStats.totalNullCells} null{nullStats.totalNullCells !== 1 ? "s" : ""} ({nullStats.rowsWithNull.size} rows)
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/25 font-bold flex items-center gap-1 shadow-xs">
+                    <Check className="w-3 h-3" />
+                    0 nulls
+                  </span>
+                )}
+                {duplicateInfo.duplicateIndices.size > 0 ? (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/25 font-bold flex items-center gap-1 shadow-xs">
+                    <Copy className="w-3 h-3" />
+                    {duplicateInfo.duplicateIndices.size} duplicates
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/25 font-bold flex items-center gap-1 shadow-xs">
+                    <Check className="w-3 h-3" />
+                    0 duplicates
+                  </span>
+                )}
+              </div>
             </CardHeader>
-            <CardContent className="p-0 flex-1 overflow-auto">
+
+            {/* Filter Toolbar Bar */}
+            <div className="px-4 py-2.5 border-b border-border/60 bg-surface/80 flex flex-wrap items-center justify-between gap-3">
+              {/* Quick Filter Segmented Buttons */}
+              <div className="flex items-center gap-1.5 bg-primary-soft/30 p-1 rounded-xl border border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setTableFilterMode("all")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    tableFilterMode === "all"
+                      ? "bg-primary text-white shadow-xs"
+                      : "text-textSecondary hover:text-textPrimary hover:bg-surface/60"
+                  }`}
+                >
+                  All Rows ({workingRows.length.toLocaleString()})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTableFilterMode("nulls")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    tableFilterMode === "nulls"
+                      ? "bg-rose-600 text-white shadow-xs"
+                      : "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  With Nulls ({nullStats.rowsWithNull.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTableFilterMode("duplicates")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    tableFilterMode === "duplicates"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                  }`}
+                >
+                  <Copy className="w-3 h-3" />
+                  Duplicates ({duplicateInfo.duplicateIndices.size})
+                </button>
+              </div>
+
+              {/* Quick Search & Per Page */}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-textMuted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={tableSearch}
+                    onChange={(e) => setTableSearch(e.target.value)}
+                    placeholder="Search table values..."
+                    className="pl-8 pr-7 py-1 text-xs bg-surface border border-border/80 rounded-lg text-textPrimary placeholder:text-textMuted focus:outline-none focus:ring-1 focus:ring-primary w-44 md:w-56"
+                  />
+                  {tableSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setTableSearch("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-textMuted hover:text-textPrimary cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs text-textSecondary font-semibold">
+                  <span className="hidden sm:inline">Rows:</span>
+                  <select
+                    value={tablePageSize}
+                    onChange={(e) => setTablePageSize(Number(e.target.value))}
+                    className="bg-surface border border-border/80 text-textPrimary text-xs font-bold rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value={15}>15</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={-1}>All</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Table Container */}
+            <CardContent className="p-0 flex-1 overflow-auto max-h-[600px]">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-primary-soft/20 text-textSecondary sticky top-0 shadow-xs border-b border-border/80 backdrop-blur-md">
-                  <tr>{workingHeaders.map((header, idx) => <th key={idx} className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">{header}</th>)}</tr>
+                <thead className="bg-primary-soft/25 text-textSecondary sticky top-0 shadow-xs border-b border-border/80 backdrop-blur-md z-10">
+                  <tr>
+                    <th className="px-3.5 py-3 font-bold uppercase tracking-wider text-[10px] w-14 text-center border-r border-border/40">
+                      #
+                    </th>
+                    {workingHeaders.map((header, idx) => (
+                      <th key={idx} className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60 bg-surface">
-                  {workingRows.map((row, rowIdx) => (
-                    <tr key={rowIdx} className={`hover:bg-primary-soft/15 transition-colors ${outlierRows.includes(rowIdx) ? "bg-amber-500/10" : ""}`}>
-                      {workingHeaders.map((header, colIdx) => (
-                        <td key={colIdx} className={`px-4 py-3 font-medium transition-colors ${highlightedCells[`${rowIdx}-${header}`] ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold" : "text-textPrimary"}`}>
-                          {row[header] !== undefined ? String(row[header]) : "—"}
-                        </td>
-                      ))}
+                  {paginatedRowIndices.length === 0 ? (
+                    <tr>
+                      <td colSpan={workingHeaders.length + 1} className="py-12 text-center text-textSecondary">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Database className="w-8 h-8 text-textMuted stroke-1" />
+                          <p className="text-xs font-bold text-textPrimary">No matching records found</p>
+                          <p className="text-[11px] text-textSecondary">
+                            {tableFilterMode === "nulls"
+                              ? "Great! No missing or null values found in dataset."
+                              : tableFilterMode === "duplicates"
+                              ? "No duplicate rows found in dataset."
+                              : "No rows match your current search query."}
+                          </p>
+                          {(tableFilterMode !== "all" || tableSearch) && (
+                            <button
+                              type="button"
+                              onClick={() => { setTableFilterMode("all"); setTableSearch(""); }}
+                              className="mt-2 text-xs font-bold text-primary hover:underline cursor-pointer"
+                            >
+                              Reset filters to show all rows
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    paginatedRowIndices.map((rowIdx) => {
+                      const row = workingRows[rowIdx] || {};
+                      const isDupe = duplicateInfo.duplicateIndices.has(rowIdx);
+                      const isOutlier = outlierRows.includes(rowIdx);
+                      const hasNull = nullStats.rowsWithNull.has(rowIdx);
+
+                      return (
+                        <tr
+                          key={rowIdx}
+                          className={`transition-colors ${
+                            isOutlier
+                              ? "bg-rose-500/10 hover:bg-rose-500/15"
+                              : isDupe
+                              ? "bg-amber-500/5 hover:bg-amber-500/10 border-l-4 border-l-amber-500"
+                              : "hover:bg-primary-soft/15"
+                          }`}
+                        >
+                          {/* Row Number & Tags Column */}
+                          <td className="px-3 py-2.5 text-center text-textMuted font-mono text-[11px] border-r border-border/40 font-semibold select-none">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span>{rowIdx + 1}</span>
+                              {isDupe && (
+                                <span
+                                  title="Duplicate record detected"
+                                  className="px-1 py-0.2 rounded text-[8px] font-extrabold uppercase bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                >
+                                  DUP
+                                </span>
+                              )}
+                              {hasNull && !isDupe && (
+                                <span
+                                  title="Row contains missing or null cell"
+                                  className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"
+                                />
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Data Columns */}
+                          {workingHeaders.map((header, colIdx) => {
+                            const val = row[header];
+                            const isNull = isCellNull(val);
+                            const isHighlighted = highlightedCells[`${rowIdx}-${header}`];
+
+                            return (
+                              <td
+                                key={colIdx}
+                                className={`px-4 py-2.5 font-medium transition-colors ${
+                                  isNull
+                                    ? "bg-rose-500/5 text-rose-500"
+                                    : isHighlighted
+                                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold"
+                                    : "text-textPrimary"
+                                }`}
+                              >
+                                {isNull ? (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 select-none">
+                                    <AlertTriangle className="w-2.5 h-2.5" />
+                                    NULL
+                                  </span>
+                                ) : (
+                                  <span>{String(val)}</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </CardContent>
+
+            {/* Pagination Controls Bar */}
+            <div className="px-4 py-2.5 border-t border-border/60 bg-surface/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <span className="text-textSecondary font-medium text-[11px]">
+                Showing rows{" "}
+                <span className="font-bold text-textPrimary">
+                  {totalFilteredCount === 0 ? 0 : (safePage - 1) * (tablePageSize === -1 ? totalFilteredCount : tablePageSize) + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-bold text-textPrimary">
+                  {tablePageSize === -1 ? totalFilteredCount : Math.min(safePage * tablePageSize, totalFilteredCount)}
+                </span>{" "}
+                of <span className="font-bold text-textPrimary">{totalFilteredCount.toLocaleString()}</span> entries
+                {tableFilterMode !== "all" && (
+                  <span className="ml-1 text-primary">
+                    (filtered from {workingRows.length.toLocaleString()} total)
+                  </span>
+                )}
+              </span>
+
+              {totalPages > 1 && tablePageSize !== -1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={safePage <= 1}
+                    onClick={() => setTablePage(1)}
+                    className="p-1.5 rounded-lg border border-border/80 text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={safePage <= 1}
+                    onClick={() => setTablePage(p => Math.max(1, p - 1))}
+                    className="p-1.5 rounded-lg border border-border/80 text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+
+                  <span className="px-3 py-1 font-bold text-textPrimary text-xs">
+                    Page {safePage} of {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setTablePage(p => Math.min(totalPages, p + 1))}
+                    className="p-1.5 rounded-lg border border-border/80 text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setTablePage(totalPages)}
+                    className="p-1.5 rounded-lg border border-border/80 text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </Card>
         </div>
       ) : (
