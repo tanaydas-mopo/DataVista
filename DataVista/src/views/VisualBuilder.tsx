@@ -1610,294 +1610,388 @@ export function VisualBuilder() {
     );
   };
 
+  /* ── Executive Metrics for Power BI Summary Dock ── */
+  const executiveMetrics = useMemo(() => {
+    if (chartData.length === 0) return { total: 0, avg: 0, peak: null, lowest: null };
+    const sorted = [...chartData].sort((a, b) => Number(b[primaryY] ?? b.value ?? 0) - Number(a[primaryY] ?? a.value ?? 0));
+    const total = chartData.reduce((acc, d) => acc + Number(d[primaryY] ?? d.value ?? 0), 0);
+    const avg = total / chartData.length;
+    return {
+      total,
+      avg,
+      peak: sorted[0],
+      lowest: sorted[sorted.length - 1],
+    };
+  }, [chartData, primaryY]);
+
   return (
-    <div className="flex flex-col gap-6 pb-8 h-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-textPrimary tracking-tight">Visual Builder</h1>
-          <p className="text-sm text-textSecondary mt-0.5">
-            Build, customize, and analyze interactive charts from your active transformed dataset.
-          </p>
-        </div>
-        {isUploaded && (
-          <div className="flex gap-2.5 items-center flex-wrap">
-            {toastMsg && (
-              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-3 py-1.5 rounded-xl border border-emerald-500/30 animate-in fade-in duration-200 flex items-center gap-1.5 shadow-xs">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {toastMsg}
-              </span>
-            )}
-            <button
-              onClick={handleClearCanvas}
-              className="px-3.5 py-2 bg-surface text-textPrimary text-xs font-bold rounded-xl hover:bg-primary-soft/40 transition-all border border-border shadow-xs cursor-pointer flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-textMuted" />
-              Clear Canvas
-            </button>
-            <button
-              onClick={handleSaveToDashboard}
-              disabled={isSaving}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              {isSaving ? "Saving…" : "Save to Dashboard"}
-            </button>
+    <div className="flex flex-col gap-4 pb-8 h-full">
+      {/* ── POWER BI STUDIO TOP COMMAND RIBBON ── */}
+      <div className="bg-surface border border-border/80 rounded-2xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        {/* Left: Studio Brand & Dataset Identity */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-black tracking-tight uppercase">Power BI Studio</span>
           </div>
-        )}
+
+          <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border/70 text-xs">
+            <Database className="w-3.5 h-3.5 text-textMuted" />
+            <span className="font-bold text-textPrimary">{dataset.name || "Active Dataset"}</span>
+            <span className="text-[10px] font-semibold text-textMuted bg-primary-soft/50 px-2 py-0.5 rounded-md">
+              {filteredRows.length.toLocaleString()} rows · {columns.length} cols
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Canvas / Data Table Mode Switcher */}
+        <div className="flex items-center rounded-xl bg-primary-soft/40 p-0.5 border border-border/70">
+          <button
+            type="button"
+            onClick={() => setViewMode("chart")}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === "chart"
+                ? "bg-surface text-primary shadow-xs"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+          >
+            <BarChartIcon className="w-3.5 h-3.5" />
+            <span>Visual Canvas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === "table"
+                ? "bg-surface text-primary shadow-xs"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+          >
+            <Table className="w-3.5 h-3.5" />
+            <span>Data View</span>
+          </button>
+        </div>
+
+        {/* Right: Actions (Filters, Formatting, Exports, Clear, Save) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {toastMsg && (
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-3 py-1.5 rounded-xl border border-emerald-500/30 animate-in fade-in duration-200 flex items-center gap-1.5 shadow-xs">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {toastMsg}
+            </span>
+          )}
+
+          <button
+            onClick={() => setShowFilterModal(true)}
+            className="px-3 py-1.5 bg-surface hover:bg-primary-soft/40 border border-border/80 text-textSecondary hover:text-textPrimary rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Filter className="w-3.5 h-3.5 text-primary" />
+            <span>Filters ({activeFilters.length + (startDate || endDate ? 1 : 0)})</span>
+          </button>
+
+          <button
+            onClick={() => setShowCustomizeModal(true)}
+            title="Formatting & Theme Customization"
+            className="p-2 text-textMuted hover:text-primary hover:bg-primary-soft/50 rounded-xl border border-border/70 transition-colors cursor-pointer"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={handleClearCanvas}
+            title="Reset Canvas to Defaults"
+            className="p-2 text-textMuted hover:text-rose-500 hover:bg-rose-500/10 rounded-xl border border-border/70 transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Export Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              title="Export Options"
+              className="p-2 text-textMuted hover:text-primary hover:bg-primary-soft/50 rounded-xl border border-border/70 transition-colors cursor-pointer flex items-center"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 mt-1 w-52 bg-surface border border-border/80 rounded-xl shadow-2xl z-30 py-1.5 text-xs animate-in fade-in duration-150">
+                <button
+                  onClick={() => {
+                    exportChartPNG();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-primary" />
+                  Download High-Res PNG
+                </button>
+                <button
+                  onClick={() => {
+                    exportTableCSV("aggregated");
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Export Aggregated CSV
+                </button>
+                <button
+                  onClick={() => {
+                    exportTableCSV("records");
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                >
+                  <Table className="w-3.5 h-3.5 text-indigo-600" />
+                  Export Source Records CSV
+                </button>
+                <button
+                  onClick={() => {
+                    exportConfigJSON();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer border-t border-border/60"
+                >
+                  <Save className="w-3.5 h-3.5 text-amber-500" />
+                  Export Chart Spec (JSON)
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleSaveToDashboard}
+            disabled={isSaving}
+            className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {isSaving ? "Saving…" : "Save to Dashboard"}
+          </button>
+        </div>
       </div>
 
       {isUploaded ? (
-        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-          {/* Settings Sidebar */}
-          <Card className="lg:w-80 h-fit flex-shrink-0 border border-border/80 shadow-sm">
-            <CardHeader className="pb-3 border-b border-border/60 bg-surface/50 flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                <Settings2 className="w-4 h-4 text-primary" />
-                Chart Configuration
-              </CardTitle>
-              <button
-                onClick={() => setShowCustomizeModal(true)}
-                title="Advanced Formatting & Styling"
-                className="p-1.5 text-textMuted hover:text-primary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </button>
-            </CardHeader>
+        <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0">
+          {/* ── POWER BI "VISUALIZATIONS & FIELDS" PANE ── */}
+          <div className="lg:w-84 flex-shrink-0 flex flex-col gap-4">
+            {/* SECTION 1: Visualizations Palette Card */}
+            <div className="bg-surface border border-border/80 rounded-2xl p-4 shadow-xs flex flex-col gap-3">
+              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <span className="text-xs font-black uppercase tracking-wider text-textSecondary flex items-center gap-1.5">
+                  <Grid className="w-3.5 h-3.5 text-primary" /> Visualizations
+                </span>
+                <span className="text-[10px] font-bold text-primary bg-primary-soft px-2 py-0.5 rounded-md">
+                  {ALL_CHART_TYPES.find(c => c.id === activeChartType)?.name || "Bar"}
+                </span>
+              </div>
 
-            <CardContent className="pt-4 flex flex-col gap-4">
-              {/* Chart Types */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-textPrimary">
-                    Chart Type ({ALL_CHART_TYPES.length})
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                {["All", "Comparison", "Trend", "Composition", "Distribution", "KPI", "Data"].map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setChartFamily(cat)}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md shrink-0 cursor-pointer transition-colors ${
+                      chartFamily === cat
+                        ? "bg-primary text-white"
+                        : "text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Power BI 4-Column Icon Grid */}
+              <div className="grid grid-cols-4 gap-1.5 max-h-[175px] overflow-y-auto pr-1">
+                {filteredChartTypes.map((type) => {
+                  const IconComp = type.icon;
+                  const isSelected = activeChartType === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => setActiveChartType(type.id)}
+                      title={`${type.name} — ${type.desc}`}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer group ${
+                        isSelected
+                          ? "border-primary bg-primary text-white font-bold shadow-md shadow-primary/20 scale-[1.03]"
+                          : "border-border/70 hover:border-primary/50 hover:bg-primary-soft/30 text-textSecondary hover:text-textPrimary bg-surface"
+                      }`}
+                    >
+                      <IconComp className="w-4 h-4 shrink-0" />
+                      <span className="text-[9px] font-medium truncate w-full text-center leading-tight">
+                        {type.name.split(" ")[0]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECTION 2: Build Visual / Field Wells Card */}
+            <div className="bg-surface border border-border/80 rounded-2xl p-4 shadow-xs flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <span className="text-xs font-black uppercase tracking-wider text-textSecondary flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-primary" /> Build Visual (Wells)
+                </span>
+                <span className="text-[10px] font-semibold text-textMuted">Fields</span>
+              </div>
+
+              {/* WELL 1: X-Axis / Axis Dimension */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-textPrimary flex items-center gap-1.5">
+                    <span>X-Axis (Dimension)</span>
                   </label>
-                  <span className="text-[10px] font-bold text-primary bg-primary-soft/60 px-2 py-0.5 rounded-md">
-                    {ALL_CHART_TYPES.find(c => c.id === activeChartType)?.name || "Bar"}
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary-soft text-primary uppercase">
+                    {columnTypeMap[currentX] === "date" ? "📅 Date" : columnTypeMap[currentX] === "numeric" ? "# Number" : "🔤 Text"}
                   </span>
                 </div>
 
-                {/* Family Categories Filter */}
-                <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none">
-                  {["All", "Comparison", "Trend", "Composition", "Distribution", "Process", "KPI", "Data"].map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setChartFamily(cat)}
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md shrink-0 cursor-pointer transition-colors ${
-                        chartFamily === cat
-                          ? "bg-primary text-white"
-                          : "text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40"
-                      }`}
+                <select
+                  value={currentX}
+                  onChange={(e) => setSelectedX(e.target.value)}
+                  className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
+                >
+                  {columns.map((col, i) => (
+                    <option key={i} value={col}>
+                      {col} [{columnTypeMap[col] || "text"}]
+                    </option>
+                  ))}
+                </select>
+
+                {/* Temporal Grouping (if date) */}
+                {columnTypeMap[currentX] === "date" && (
+                  <div className="p-2 bg-primary-soft/30 rounded-xl border border-primary/20 flex flex-col gap-1.5 mt-1">
+                    <span className="text-[10px] font-bold text-primary flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Date Grouping
+                    </span>
+                    <div className="grid grid-cols-4 gap-1">
+                      {(["raw", "month", "year", "dayOfWeek"] as const).map(grp => (
+                        <button
+                          key={grp}
+                          type="button"
+                          onClick={() => setDateGrouping(grp)}
+                          className={`py-1 text-[10px] font-bold rounded-lg border text-center transition-colors cursor-pointer ${
+                            dateGrouping === grp
+                              ? "bg-primary text-white border-primary"
+                              : "bg-surface text-textSecondary border-border/80 hover:bg-primary-soft/40"
+                          }`}
+                        >
+                          {grp === "raw" ? "Exact" : grp === "month" ? "Month" : grp === "year" ? "Year" : "Day"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* WELL 2: Values (Y-Axis Measures) */}
+              <div className="flex flex-col gap-1.5 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-textPrimary">Values (Y-Axis Measures)</label>
+                  <span className="text-[10px] font-semibold text-textMuted">{yCols.length} active</span>
+                </div>
+
+                {/* Measure Pills */}
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {yCols.map((col, idx) => (
+                    <span
+                      key={col}
+                      className="px-2.5 py-1 rounded-xl bg-primary-soft text-primary text-xs font-bold border border-primary/20 flex items-center gap-1.5 shadow-2xs"
                     >
-                      {cat}
-                    </button>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: palette[idx % palette.length] }} />
+                      <span className="truncate max-w-[120px]">{col}</span>
+                      <span className="text-[9px] uppercase font-mono opacity-80">({measureType})</span>
+                      {yCols.length > 1 && (
+                        <button onClick={() => setSelectedYCols(prev => prev.filter(c => c !== col))} className="hover:text-rose-500 cursor-pointer ml-0.5">
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
                   ))}
                 </div>
 
-                {/* Search Input */}
-                <div className="relative mb-2">
-                  <Search className="w-3.5 h-3.5 text-textMuted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search 23 charts…"
-                    value={chartSearch}
-                    onChange={e => setChartSearch(e.target.value)}
-                    className="w-full bg-surface text-textPrimary text-[11px] font-medium pl-8 pr-7 py-1.5 rounded-lg border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-textMuted"
-                  />
-                  {chartSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setChartSearch("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-textMuted hover:text-textPrimary cursor-pointer"
-                      aria-label="Clear chart search"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Grid */}
-                <div className="grid grid-cols-2 gap-1.5 max-h-[190px] overflow-y-auto pr-1">
-                  {filteredChartTypes.length === 0 ? (
-                    <p className="col-span-2 text-xs text-textSecondary text-center py-4">No matching charts.</p>
-                  ) : (
-                    filteredChartTypes.map((type) => {
-                      const IconComp = type.icon;
-                      const isSelected = activeChartType === type.id;
-                      return (
-                        <button
-                          key={type.id}
-                          type="button"
-                          onClick={() => setActiveChartType(type.id)}
-                          title={type.desc}
-                          className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer group ${
-                            isSelected
-                              ? "border-primary bg-primary text-white font-bold shadow-xs scale-[1.02]"
-                              : "border-border/80 hover:bg-primary-soft/30 text-textSecondary hover:text-textPrimary bg-surface"
-                          }`}
-                        >
-                          <IconComp className="w-3.5 h-3.5 shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <span className="text-xs truncate block">{type.name}</span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
+                <select
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val && !yCols.includes(val)) setSelectedYCols([...yCols, val]);
+                  }}
+                  value=""
+                  className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs cursor-pointer"
+                >
+                  <option value="">+ Add Measure…</option>
+                  {columns.filter(c => !yCols.includes(c)).map((col, i) => (
+                    <option key={i} value={col}>
+                      {col} [{columnTypeMap[col] || "text"}]
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Data Field Selectors */}
-              <div className="flex flex-col gap-3.5 pt-3 border-t border-border/60">
-                {/* X-Axis Dimension */}
+              {/* WELL 3: Aggregation & Limits */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-textPrimary">X-Axis (Dimension)</label>
-                    <span className="text-[10px] font-semibold text-textMuted">
-                      {columnTypeMap[currentX] === "date" ? "Date" : columnTypeMap[currentX] === "numeric" ? "Numeric" : "Text"}
-                    </span>
-                  </div>
-                  <select
-                    value={currentX}
-                    onChange={(e) => setSelectedX(e.target.value)}
-                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
-                  >
-                    {columns.map((col, i) => (
-                      <option key={i} value={col}>
-                        {col} [{columnTypeMap[col] || "text"}]
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Temporal Grouping (if X is date) */}
-                  {columnTypeMap[currentX] === "date" && (
-                    <div className="mt-2 p-2 bg-primary-soft/30 rounded-xl border border-primary/20 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-primary flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Date Grouping
-                      </span>
-                      <select
-                        value={dateGrouping}
-                        onChange={(e) => setDateGrouping(e.target.value as any)}
-                        className="w-full border border-border/70 bg-surface text-textPrimary rounded-lg p-1.5 text-xs font-medium focus:outline-none cursor-pointer"
-                      >
-                        <option value="raw">Exact Timestamp / Raw</option>
-                        <option value="month">Month (e.g. Jan 2024)</option>
-                        <option value="year">Year (e.g. 2024)</option>
-                        <option value="dayOfWeek">Day of Week (e.g. Mon, Tue)</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                {/* Y-Axis Multi Measures */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-textPrimary">Y-Axis (Measures)</label>
-                    <span className="text-[10px] text-textMuted font-semibold">{yCols.length} Selected</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {yCols.map(col => (
-                      <span key={col} className="px-2 py-0.5 rounded-lg bg-primary-soft text-primary text-xs font-bold border border-primary/20 flex items-center gap-1">
-                        {col}
-                        {yCols.length > 1 && (
-                          <button onClick={() => setSelectedYCols(prev => prev.filter(c => c !== col))} className="hover:text-rose-500 cursor-pointer">
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                  <select
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val && !yCols.includes(val)) setSelectedYCols([...yCols, val]);
-                    }}
-                    value=""
-                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
-                  >
-                    <option value="">+ Add Measure…</option>
-                    {columns.filter(c => !yCols.includes(c)).map((col, i) => (
-                      <option key={i} value={col}>
-                        {col} [{columnTypeMap[col] || "text"}]
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Aggregation Mode */}
-                <div>
-                  <label className="text-xs font-bold text-textPrimary block mb-1">Aggregation Mode</label>
+                  <label className="text-[10px] font-bold text-textPrimary block mb-1">Aggregation</label>
                   <select
                     value={measureType}
                     onChange={(e) => setMeasureType(e.target.value)}
-                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
+                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs cursor-pointer"
                   >
-                    <option value="sum">Sum / Total</option>
-                    <option value="avg">Average (Mean)</option>
-                    <option value="median">Median Value</option>
-                    <option value="min">Minimum Value</option>
-                    <option value="max">Maximum Value</option>
-                    <option value="count">Count of Records</option>
-                    <option value="count-distinct">Count Distinct (Unique)</option>
-                    <option value="stddev">Standard Deviation</option>
+                    <option value="sum">Sum</option>
+                    <option value="avg">Average</option>
+                    <option value="median">Median</option>
+                    <option value="min">Min</option>
+                    <option value="max">Max</option>
+                    <option value="count">Count</option>
+                    <option value="count-distinct">Distinct</option>
+                    <option value="stddev">StdDev</option>
                     <option value="variance">Variance</option>
-                    <option value="pct-total">% of Total</option>
+                    <option value="pct-total">% Total</option>
                   </select>
                 </div>
 
-                {/* Category Limit (Top N) */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-textPrimary">Category Limit</label>
-                    {totalCategoryCount > 0 && (
-                      <span className="text-[10px] text-textMuted font-semibold">
-                        {categoryLimit > 0 ? `Top ${Math.min(categoryLimit, totalCategoryCount)} of ${totalCategoryCount}` : `${totalCategoryCount} total`}
-                      </span>
-                    )}
-                  </div>
+                  <label className="text-[10px] font-bold text-textPrimary block mb-1">Category Limit</label>
                   <select
                     value={categoryLimit}
                     onChange={(e) => setCategoryLimit(Number(e.target.value))}
                     className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs cursor-pointer"
                   >
-                    <option value={5}>Top 5 Categories</option>
-                    <option value={10}>Top 10 Categories</option>
-                    <option value={15}>Top 15 Categories (Default)</option>
-                    <option value={25}>Top 25 Categories</option>
-                    <option value={50}>Top 50 Categories</option>
-                    <option value={0}>All Categories (No Limit)</option>
+                    <option value={5}>Top 5</option>
+                    <option value={10}>Top 10</option>
+                    <option value={15}>Top 15</option>
+                    <option value={25}>Top 25</option>
+                    <option value={50}>Top 50</option>
+                    <option value={0}>All</option>
                   </select>
                 </div>
-
-                {/* Filter & Sort Controls */}
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => setShowFilterModal(true)}
-                    className="flex-1 py-2 px-3 bg-surface hover:bg-primary-soft/30 border border-border/80 text-textSecondary hover:text-textPrimary rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Filter className="w-3.5 h-3.5 text-primary" />
-                    Filter ({activeFilters.length + (startDate || endDate ? 1 : 0)})
-                  </button>
-                  <button
-                    onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : prev === "asc" ? "none" : "desc")}
-                    className="py-2 px-3 bg-surface hover:bg-primary-soft/30 border border-border/80 text-textSecondary hover:text-textPrimary rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
-                    {sortOrder.toUpperCase()}
-                  </button>
-                </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Chart Canvas & Workspace */}
-          <Card className="flex-1 flex flex-col min-h-[500px] border border-border/80 shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border/60 flex flex-row items-center justify-between bg-surface/50">
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : prev === "asc" ? "none" : "desc")}
+                  className="w-full py-2 bg-surface hover:bg-primary-soft/30 border border-border/80 text-textSecondary hover:text-textPrimary rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 text-primary" />
+                  Sort: {sortOrder.toUpperCase()}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── POWER BI CENTRAL REPORT CANVAS ── */}
+          <div className="flex-1 flex flex-col min-h-[520px] bg-surface border border-border/80 rounded-2xl shadow-sm overflow-hidden">
+            {/* Canvas Header Bar */}
+            <div className="px-5 py-3 border-b border-border/60 flex flex-wrap items-center justify-between gap-3 bg-surface/70">
               <div className="min-w-0 pr-2">
-                <CardTitle className="text-base font-bold text-textPrimary truncate">
+                <h3 className="text-base font-extrabold text-textPrimary truncate">
                   {customTitle || `${currentX} vs ${yCols.join(" & ")}`}
-                </CardTitle>
+                </h3>
                 {customSubtitle ? (
                   <p className="text-xs text-textSecondary mt-0.5 font-medium truncate">{customSubtitle}</p>
                 ) : (
@@ -1907,133 +2001,48 @@ export function VisualBuilder() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {/* View Switcher: Chart vs Data Table */}
-                <div className="flex items-center rounded-xl bg-primary-soft/40 p-0.5 border border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("chart")}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                      viewMode === "chart"
-                        ? "bg-surface text-primary shadow-xs"
-                        : "text-textSecondary hover:text-textPrimary"
-                    }`}
-                  >
-                    <BarChartIcon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Chart</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("table")}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                      viewMode === "table"
-                        ? "bg-surface text-primary shadow-xs"
-                        : "text-textSecondary hover:text-textPrimary"
-                    }`}
-                  >
-                    <Table className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Data Table</span>
-                  </button>
-                </div>
+              <div className="flex items-center gap-2">
+                {/* AI Quick Recommendation Pills */}
+                {recommendations.length > 0 && (
+                  <div className="hidden sm:flex items-center gap-1.5">
+                    {recommendations.map(rec => (
+                      <button
+                        key={rec.id}
+                        onClick={() => setActiveChartType(rec.id)}
+                        title={rec.rationale}
+                        className="px-2.5 py-1 rounded-lg bg-primary-soft/60 hover:bg-primary text-primary hover:text-white border border-primary/20 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                      >
+                        <Bot className="w-3 h-3" />
+                        <span>{rec.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {!showWhyChart && (
                   <button
                     type="button"
                     onClick={() => setShowWhyChart(true)}
                     className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary-soft/60 px-2.5 py-1 rounded-lg border border-primary/20 hover:bg-primary-soft transition-colors cursor-pointer"
-                    title="Show Why this chart explanation"
+                    title="Show Analytical Insight"
                   >
                     <Sparkles className="w-3 h-3" />
-                    <span className="hidden md:inline">Insight</span>
+                    <span>Insight</span>
                   </button>
                 )}
 
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  title="Toggle Fullscreen"
+                  title="Fullscreen Studio"
                   className="p-1.5 text-textMuted hover:text-textPrimary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer"
                 >
                   <Maximize2 className="w-4 h-4" />
                 </button>
-
-                {/* Export Action Menu */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowExportMenu(!showExportMenu)}
-                    title="Export options"
-                    className="p-1.5 text-textMuted hover:text-textPrimary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer flex items-center"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-
-                  {showExportMenu && (
-                    <div className="absolute right-0 mt-1 w-48 bg-surface border border-border/80 rounded-xl shadow-xl z-30 py-1.5 text-xs animate-in fade-in duration-150">
-                      <button
-                        onClick={() => {
-                          exportChartPNG();
-                          setShowExportMenu(false);
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5 text-primary" />
-                        Download Chart PNG
-                      </button>
-                      <button
-                        onClick={() => {
-                          exportTableCSV("aggregated");
-                          setShowExportMenu(false);
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                        Export Aggregated CSV
-                      </button>
-                      <button
-                        onClick={() => {
-                          exportTableCSV("records");
-                          setShowExportMenu(false);
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
-                      >
-                        <Table className="w-3.5 h-3.5 text-indigo-600" />
-                        Export Source Records CSV
-                      </button>
-                      <button
-                        onClick={() => {
-                          exportConfigJSON();
-                          setShowExportMenu(false);
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer border-t border-border/60"
-                      >
-                        <Save className="w-3.5 h-3.5 text-amber-500" />
-                        Export Config (JSON)
-                      </button>
-                    </div>
-                  )}
-                </div>
               </div>
-            </CardHeader>
+            </div>
 
-            <CardContent className="p-6 flex-1 flex flex-col justify-start relative">
-              {/* Contextual Recommendation Banner */}
-              {recommendations.length > 0 && (
-                <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-                  <span className="text-[11px] font-bold text-textMuted uppercase shrink-0 flex items-center gap-1">
-                    <Bot className="w-3.5 h-3.5 text-primary" /> Recommended:
-                  </span>
-                  {recommendations.map(rec => (
-                    <button
-                      key={rec.id}
-                      onClick={() => setActiveChartType(rec.id)}
-                      title={rec.rationale}
-                      className="px-2.5 py-1 rounded-lg bg-primary-soft/60 hover:bg-primary text-primary hover:text-white border border-primary/20 text-[11px] font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
-                    >
-                      <span>{rec.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
+            {/* Canvas Body */}
+            <div className="p-6 flex-1 flex flex-col justify-start relative">
               {/* Chart Validation Warning (if any) */}
               {chartValidationWarning && (
                 <div className={`mb-3 p-2.5 rounded-xl border flex items-center gap-2 text-xs ${
@@ -2046,7 +2055,7 @@ export function VisualBuilder() {
                 </div>
               )}
 
-              {/* "Why this chart?" Contextual Explanation Banner */}
+              {/* Data-Grounded "Why this chart?" Analytical Banner */}
               {showWhyChart && (
                 <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-primary-soft/40 to-indigo-500/10 border border-primary/20 flex items-start justify-between gap-3 text-xs shadow-xs">
                   <div className="flex items-start gap-3 min-w-0">
@@ -2081,7 +2090,7 @@ export function VisualBuilder() {
               )}
 
               {viewMode === "table" ? (
-                /* Accessible Dual-Mode Data Table View */
+                /* Dual-Mode Data Table View */
                 <div className="flex-1 flex flex-col min-h-[380px] border border-border/70 rounded-xl overflow-hidden bg-surface shadow-xs">
                   {/* Table Sub-Mode Switcher */}
                   <div className="p-3 bg-surface/90 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
@@ -2208,13 +2217,37 @@ export function VisualBuilder() {
                   )}
                 </div>
               ) : (
-                /* Chart Canvas View Container */
+                /* Main Interactive Chart View Container */
                 <div ref={chartContainerRef} className="w-full flex-1" style={{ height: "360px", minHeight: "340px" }}>
                   {renderActiveChart(false)}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* ── POWER BI EXECUTIVE METRIC DOCK (BOTTOM STATUS STRIP) ── */}
+            <div className="px-5 py-2.5 bg-primary-soft/30 border-t border-border/70 flex flex-wrap items-center justify-between text-xs gap-3">
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="font-semibold text-textMuted flex items-center gap-1">
+                  📊 <span className="text-textPrimary font-bold">{chartData.length}</span> categories
+                </span>
+                <span className="font-semibold text-textMuted flex items-center gap-1">
+                  📈 Total: <span className="text-textPrimary font-bold font-mono">{formatVal(executiveMetrics.total, valueFormat, decimalPlaces, currencySymbol)}</span>
+                </span>
+                <span className="font-semibold text-textMuted flex items-center gap-1">
+                  🎯 Avg: <span className="text-textPrimary font-bold font-mono">{formatVal(executiveMetrics.avg, valueFormat, decimalPlaces, currencySymbol)}</span>
+                </span>
+                {executiveMetrics.peak && (
+                  <span className="font-semibold text-textMuted flex items-center gap-1">
+                    🏆 Peak: <span className="text-primary font-extrabold">{executiveMetrics.peak.fullLabel || executiveMetrics.peak.label}</span> (<span className="font-mono font-bold">{formatVal(Number(executiveMetrics.peak[primaryY] ?? executiveMetrics.peak.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}</span>)
+                  </span>
+                )}
+              </div>
+
+              <div className="text-[11px] text-textMuted italic hidden md:block">
+                💡 Click any visual segment to drill-through underlying records
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <Card className="p-12 flex flex-col items-center justify-center text-center gap-3 border-2 border-dashed border-border bg-surface">
