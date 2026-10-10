@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, Layers, Sparkles, Compass, Settings2, Save, Database, CheckCircle2,
   Filter, Download, Maximize2, SlidersHorizontal, Bot, ArrowUpDown, X,
-  Table, Grid, RefreshCw, Eye, Plus, Trash2, Search
+  Table, Grid, RefreshCw, Eye, Plus, Trash2, Search, Calendar, AlertCircle,
+  Check, FileSpreadsheet, Info
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -15,7 +16,7 @@ import {
   PieChart as RechartsPieChart, Pie, AreaChart as RechartsAreaChart, Area,
   RadarChart as RechartsRadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ScatterChart as RechartsScatterChart, Scatter, ComposedChart as RechartsComposedChart,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend,
+  ZAxis, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend,
   ReferenceLine
 } from "recharts";
 
@@ -67,20 +68,23 @@ const ALL_CHART_TYPES = [
 
 /* ─────────────────────────────────────────────
    ROBUST DYNAMIC AGGREGATION ENGINE
-   - Numeric columns: calculate real Sum, Avg, Max, Min, Median, etc.
+   - Numeric columns: calculate real Sum, Avg, Max, Min, Median, StdDev, Variance, % of Total
    - Text columns: count record occurrences or count distinct unique items.
 ───────────────────────────────────────────── */
-function computeSmartAgg(rawVals: any[], mode: string): number {
+function computeSmartAgg(rawVals: any[], mode: string, totalSumForPct = 0): number {
   if (!rawVals || rawVals.length === 0) return 0;
 
-  const cleaned = rawVals.map(v => String(v ?? "").trim()).filter(v => v.length > 0);
+  const cleaned = rawVals
+    .map((v) => (v !== undefined && v !== null ? String(v).trim() : ""))
+    .filter((v) => v.length > 0 && v.toLowerCase() !== "null" && v.toLowerCase() !== "nan");
+
   if (cleaned.length === 0) return 0;
 
-  // Extract numbers (ignoring currency & commas)
+  // Extract numbers (ignoring currency symbols, commas, and percentage signs)
   const numVals: number[] = [];
   for (const str of cleaned) {
-    const parsed = Number(str.replace(/[$,]/g, ""));
-    if (!isNaN(parsed)) numVals.push(parsed);
+    const parsed = Number(str.replace(/[$,%]/g, "").trim());
+    if (!isNaN(parsed) && isFinite(parsed)) numVals.push(parsed);
   }
 
   const isNumericCol = numVals.length >= cleaned.length * 0.5;
@@ -97,7 +101,7 @@ function computeSmartAgg(rawVals: any[], mode: string): number {
   // Numeric column -> exact mathematical computation
   let val = 0;
   if (mode === "avg") {
-    val = numVals.reduce((a, b) => a + b, 0) / numVals.length;
+    val = numVals.reduce((a, b) => a + b, 0) / Math.max(1, numVals.length);
   } else if (mode === "max") {
     val = Math.max(...numVals);
   } else if (mode === "min") {
@@ -107,11 +111,14 @@ function computeSmartAgg(rawVals: any[], mode: string): number {
     const m = Math.floor(s.length / 2);
     val = s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
   } else if (mode === "stddev") {
-    const mean = numVals.reduce((a, b) => a + b, 0) / numVals.length;
-    val = Math.sqrt(numVals.reduce((a, b) => a + (b - mean) ** 2, 0) / numVals.length);
+    const mean = numVals.reduce((a, b) => a + b, 0) / Math.max(1, numVals.length);
+    val = Math.sqrt(numVals.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, numVals.length));
   } else if (mode === "variance") {
-    const mean = numVals.reduce((a, b) => a + b, 0) / numVals.length;
-    val = numVals.reduce((a, b) => a + (b - mean) ** 2, 0) / numVals.length;
+    const mean = numVals.reduce((a, b) => a + b, 0) / Math.max(1, numVals.length);
+    val = numVals.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, numVals.length);
+  } else if (mode === "pct-total") {
+    const sum = numVals.reduce((a, b) => a + b, 0);
+    val = totalSumForPct > 0 ? (sum / totalSumForPct) * 100 : 0;
   } else {
     // Default sum
     val = numVals.reduce((a, b) => a + b, 0);
@@ -121,7 +128,7 @@ function computeSmartAgg(rawVals: any[], mode: string): number {
 }
 
 function formatVal(n: number, fmt: string, decimals: number, curr: string): string {
-  if (isNaN(n)) return "-";
+  if (isNaN(n) || !isFinite(n)) return "-";
   const formatted = parseFloat(n.toFixed(decimals)).toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -129,6 +136,47 @@ function formatVal(n: number, fmt: string, decimals: number, curr: string): stri
   if (fmt === "currency") return `${curr}${formatted}`;
   if (fmt === "percent") return `${formatted}%`;
   return formatted;
+}
+
+/* ── Date Helpers ── */
+function isDateColumn(colName: string, sampleValues: any[]): boolean {
+  const l = colName.toLowerCase();
+  if (l.includes("date") || l.includes("year") || l.includes("month") || l.includes("time") || l.includes("dob")) {
+    return true;
+  }
+  let dateMatches = 0;
+  const nonEmpties = sampleValues.filter(
+    (v) => v !== undefined && v !== null && String(v).trim().length > 0
+  );
+  if (nonEmpties.length === 0) return false;
+  for (const v of nonEmpties) {
+    const s = String(v).trim();
+    if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(s) || /^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}/.test(s)) {
+      dateMatches++;
+    } else {
+      const parsed = Date.parse(s);
+      if (!isNaN(parsed) && s.length >= 6 && isNaN(Number(s))) {
+        dateMatches++;
+      }
+    }
+  }
+  return dateMatches / nonEmpties.length >= 0.5;
+}
+
+function formatDateValue(dateStr: string, grouping: "raw" | "month" | "year" | "dayOfWeek"): string {
+  if (!dateStr || grouping === "raw") return dateStr;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  if (grouping === "month") {
+    return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+  if (grouping === "year") {
+    return String(d.getFullYear());
+  }
+  if (grouping === "dayOfWeek") {
+    return d.toLocaleDateString("en-US", { weekday: "short" });
+  }
+  return dateStr;
 }
 
 /* ─────────────────────────────────────────────
@@ -223,6 +271,209 @@ function FunnelChart({ data, palette }: { data: { label: string; value: number; 
   );
 }
 
+/* ─────────────────────────────────────────────
+   SVG TREEMAP COMPONENT
+───────────────────────────────────────────── */
+function SvgTreemap({
+  data,
+  palette,
+  valueFormat,
+  decimalPlaces,
+  currencySymbol,
+  onItemClick,
+}: {
+  data: { label: string; fullLabel: string; value: number; color?: string }[];
+  palette: string[];
+  valueFormat: string;
+  decimalPlaces: number;
+  currencySymbol: string;
+  onItemClick?: (item: any) => void;
+}) {
+  if (!data || data.length === 0) return null;
+  const total = data.reduce((a, b) => a + Math.max(0, b.value), 0) || 1;
+
+  return (
+    <div className="w-full h-full p-2 flex flex-wrap gap-2 content-start overflow-auto">
+      {data.map((item, idx) => {
+        const pct = Math.max(0, item.value) / total;
+        const color = item.color || palette[idx % palette.length];
+        const minW = Math.max(100, Math.min(300, Math.round(pct * 500)));
+        const flexGrow = Math.max(1, Math.round(pct * 100));
+
+        return (
+          <div
+            key={idx}
+            onClick={() => onItemClick && onItemClick(item)}
+            className="p-3.5 rounded-xl border border-white/20 transition-all hover:scale-[1.02] hover:shadow-md cursor-pointer flex flex-col justify-between"
+            style={{
+              flexGrow,
+              minWidth: `${minW}px`,
+              minHeight: "80px",
+              backgroundColor: color + "E6",
+            }}
+          >
+            <div className="flex items-center justify-between gap-1 text-white">
+              <span className="text-xs font-extrabold truncate drop-shadow-xs">{item.fullLabel || item.label}</span>
+              <span className="text-[10px] font-bold bg-black/30 px-1.5 py-0.5 rounded-full shrink-0">
+                {(pct * 100).toFixed(1)}%
+              </span>
+            </div>
+            <span className="text-sm font-black text-white mt-1 drop-shadow-xs">
+              {formatVal(item.value, valueFormat, decimalPlaces, currencySymbol)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   2D HEATMAP MATRIX COMPONENT
+───────────────────────────────────────────── */
+function HeatmapMatrix({
+  data,
+  yCols,
+  palette,
+  valueFormat,
+  decimalPlaces,
+  currencySymbol,
+  onCellClick,
+}: {
+  data: any[];
+  yCols: string[];
+  palette: string[];
+  valueFormat: string;
+  decimalPlaces: number;
+  currencySymbol: string;
+  onCellClick?: (cell: any) => void;
+}) {
+  if (!data || data.length === 0) return null;
+
+  const maxMap: Record<string, number> = {};
+  yCols.forEach((col) => {
+    const vals = data.map((d) => Number(d[col] ?? 0));
+    maxMap[col] = Math.max(...vals, 1);
+  });
+
+  return (
+    <div className="w-full h-full overflow-auto border border-border/70 rounded-xl bg-surface">
+      <table className="w-full text-xs text-left border-collapse">
+        <thead className="bg-primary-soft/40 sticky top-0 border-b border-border/80 backdrop-blur-xs">
+          <tr>
+            <th className="px-3.5 py-2.5 font-bold uppercase text-[11px] text-textSecondary tracking-wider">Dimension</th>
+            {yCols.map((col) => (
+              <th key={col} className="px-3.5 py-2.5 font-bold uppercase text-[11px] text-textSecondary text-right tracking-wider">
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {data.map((row, rIdx) => (
+            <tr key={rIdx} className="hover:bg-primary-soft/20 transition-colors">
+              <td className="px-3.5 py-2 font-bold text-textPrimary whitespace-nowrap">
+                {row.fullLabel || row.label}
+              </td>
+              {yCols.map((col, cIdx) => {
+                const val = Number(row[col] ?? 0);
+                const max = maxMap[col] || 1;
+                const ratio = Math.min(1, Math.max(0.08, val / max));
+                const baseColor = palette[cIdx % palette.length];
+
+                return (
+                  <td
+                    key={col}
+                    onClick={() => onCellClick && onCellClick(row)}
+                    className="px-3.5 py-2 text-right font-mono font-bold cursor-pointer transition-transform hover:scale-105"
+                    style={{
+                      backgroundColor: baseColor + Math.round(ratio * 210).toString(16).padStart(2, "0"),
+                      color: ratio > 0.55 ? "#FFFFFF" : "var(--color-textPrimary, #0F172A)",
+                    }}
+                  >
+                    {formatVal(val, valueFormat, decimalPlaces, currencySymbol)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   PIVOT MATRIX TABLE WITH TOTALS
+───────────────────────────────────────────── */
+function PivotMatrixTable({
+  data,
+  currentX,
+  yCols,
+  measureType,
+  valueFormat,
+  decimalPlaces,
+  currencySymbol,
+  onRowClick,
+}: {
+  data: any[];
+  currentX: string;
+  yCols: string[];
+  measureType: string;
+  valueFormat: string;
+  decimalPlaces: number;
+  currencySymbol: string;
+  onRowClick?: (row: any) => void;
+}) {
+  if (!data || data.length === 0) return null;
+
+  const colTotals: Record<string, number> = {};
+  yCols.forEach((col) => {
+    colTotals[col] = data.reduce((a, b) => a + Number(b[col] ?? 0), 0);
+  });
+
+  return (
+    <div className="w-full h-full overflow-auto border border-border/80 rounded-xl bg-surface">
+      <table className="w-full text-xs text-left border-collapse">
+        <thead className="bg-primary-soft/50 sticky top-0 border-b border-border/80 backdrop-blur-xs">
+          <tr>
+            <th className="px-4 py-2.5 font-bold uppercase text-[11px] text-textSecondary tracking-wider">{currentX}</th>
+            {yCols.map((c) => (
+              <th key={c} className="px-4 py-2.5 font-bold uppercase text-[11px] text-textSecondary text-right tracking-wider">
+                {c} ({measureType.toUpperCase()})
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {data.map((d, i) => (
+            <tr key={i} onClick={() => onRowClick && onRowClick(d)} className="hover:bg-primary-soft/20 cursor-pointer transition-colors">
+              <td className="px-4 py-2.5 font-bold text-textPrimary whitespace-nowrap">{d.fullLabel || d.label}</td>
+              {yCols.map((c) => (
+                <td key={c} className="px-4 py-2.5 font-mono text-right text-textPrimary">
+                  {formatVal(Number(d[c] ?? 0), valueFormat, decimalPlaces, currencySymbol)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot className="bg-primary-soft/40 border-t-2 border-primary/30 font-bold sticky bottom-0 backdrop-blur-xs">
+          <tr>
+            <td className="px-4 py-2.5 text-primary uppercase text-[11px] font-black tracking-wider">
+              Total ({data.length} categories)
+            </td>
+            {yCols.map((c) => (
+              <td key={c} className="px-4 py-2.5 font-mono text-right text-primary font-black">
+                {formatVal(colTotals[c], valueFormat, decimalPlaces, currencySymbol)}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 export function VisualBuilder() {
   const { dataset, updateChartVisual } = useDataset();
 
@@ -231,12 +482,18 @@ export function VisualBuilder() {
   const [chartFamily, setChartFamily] = useState<string>("All");
   const [chartSearch, setChartSearch] = useState<string>("");
   const [viewMode, setViewMode] = useState<"chart" | "table">("chart");
+  const [tableViewType, setTableViewType] = useState<"aggregated" | "records">("aggregated");
+  const [recordsSearch, setRecordsSearch] = useState<string>("");
   const [showWhyChart, setShowWhyChart] = useState<boolean>(true);
   const [selectedX, setSelectedX] = useState<string>("");
   const [selectedYCols, setSelectedYCols] = useState<string[]>([]);
   const [measureType, setMeasureType] = useState<string>("sum");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc" | "none">("desc");
+  const [categoryLimit, setCategoryLimit] = useState<number>(15);
+  const [dateGrouping, setDateGrouping] = useState<"raw" | "month" | "year" | "dayOfWeek">("raw");
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   /* ── Modals / Panels State ── */
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
@@ -250,19 +507,128 @@ export function VisualBuilder() {
   const [showLegend, setShowLegend] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [valueFormat, setValueFormat] = useState<"number" | "currency" | "percent">("number");
-  const [currencySymbol] = useState("$");
-  const [decimalPlaces] = useState(0);
+  const [currencySymbol, setCurrencySymbol] = useState("$");
+  const [decimalPlaces, setDecimalPlaces] = useState(0);
   const [paletteKey, setPaletteKey] = useState<keyof typeof PALETTES>("default");
-  const [barWidth] = useState(24);
+  const [barWidth, setBarWidth] = useState(24);
 
-  /* ── Filter State ── */
+  /* ── Filter & Date Range State ── */
   const [filterCol, setFilterCol] = useState("");
   const [filterOp, setFilterOp] = useState("contains");
   const [filterVal, setFilterVal] = useState("");
+  const [filterVal2, setFilterVal2] = useState("");
   const [activeFilters, setActiveFilters] = useState<{ col: string; op: string; val: string }[]>([]);
+  const [activeDateCol, setActiveDateCol] = useState("");
+  const [dateRangePreset, setDateRangePreset] = useState<"all" | "7d" | "30d" | "mtd" | "ytd" | "custom">("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const isUploaded = dataset.status === "active";
   const palette = PALETTES[paletteKey] || PALETTES.default;
+
+  /* ── Extract Available Columns (Prioritize active transformed tableHeaders) ── */
+  const columns = useMemo(() => {
+    if (dataset.tableHeaders && dataset.tableHeaders.length > 0) return dataset.tableHeaders;
+    if (dataset.rawHeaders && dataset.rawHeaders.length > 0) return dataset.rawHeaders;
+    return ["Category", "Metric_1", "Metric_2", "Metric_3"];
+  }, [dataset]);
+
+  /* ── Extract All Rows (Prioritize active transformed tableRows) ── */
+  const allRows = useMemo((): Record<string, any>[] => {
+    if (!isUploaded) return [];
+    if (dataset.tableRows && dataset.tableRows.length > 0) return dataset.tableRows;
+    if (dataset.rawRows && dataset.rawRows.length > 0 && dataset.rawHeaders) {
+      return dataset.rawRows.map(rowArr => {
+        const obj: Record<string, any> = {};
+        dataset.rawHeaders.forEach((h, idx) => { obj[h] = rowArr[idx] ?? ""; });
+        return obj;
+      });
+    }
+    return [];
+  }, [dataset, isUploaded]);
+
+  /* ── Inferred Column Types (Categorical, Numeric, Date) ── */
+  const columnTypeMap = useMemo(() => {
+    const map: Record<string, "numeric" | "date" | "text"> = {};
+    columns.forEach(col => {
+      const sample = allRows.slice(0, 100).map(r => r[col]);
+      if (isDateColumn(col, sample)) {
+        map[col] = "date";
+      } else {
+        const nonNulls = sample.map(v => String(v ?? "").trim()).filter(v => v.length > 0);
+        const nums = nonNulls.map(v => Number(v.replace(/[$,%]/g, ""))).filter(n => !isNaN(n) && isFinite(n));
+        map[col] = nums.length >= nonNulls.length * 0.5 && nonNulls.length > 0 ? "numeric" : "text";
+      }
+    });
+    return map;
+  }, [columns, allRows]);
+
+  const colTypes = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    columns.forEach(col => {
+      map[col] = columnTypeMap[col] === "numeric";
+    });
+    return map;
+  }, [columns, columnTypeMap]);
+
+  const dateColumns = useMemo(() => {
+    return columns.filter(col => columnTypeMap[col] === "date");
+  }, [columns, columnTypeMap]);
+
+  /* ── Reset state safely when dataset changes ── */
+  useEffect(() => {
+    setSelectedX("");
+    setSelectedYCols([]);
+    setActiveFilters([]);
+    setCustomTitle("");
+    setCustomSubtitle("");
+    setStartDate("");
+    setEndDate("");
+    setDateRangePreset("all");
+    setDateGrouping("raw");
+    if (dateColumns.length > 0) {
+      setActiveDateCol(dateColumns[0]);
+    } else {
+      setActiveDateCol("");
+    }
+  }, [dataset.name]);
+
+  useEffect(() => {
+    if (!activeDateCol && dateColumns.length > 0) {
+      setActiveDateCol(dateColumns[0]);
+    }
+  }, [dateColumns, activeDateCol]);
+
+  /* ── Intelligent Dynamic Default Selections ── */
+  const isYearOrIdCol = (c: string) => {
+    const l = c.toLowerCase();
+    return l.includes("season") || l.includes("year") || l === "id" || l.endsWith("_id");
+  };
+
+  const currentX = useMemo(() => {
+    if (selectedX && columns.includes(selectedX)) return selectedX;
+    return columns.find(c => columnTypeMap[c] !== "numeric") || columns[0] || "Category";
+  }, [selectedX, columns, columnTypeMap]);
+
+  const defaultY = useMemo(() => {
+    return (
+      columns.find(c => columnTypeMap[c] === "numeric" && c !== currentX && !isYearOrIdCol(c)) ||
+      columns.find(c => columnTypeMap[c] === "numeric" && c !== currentX) ||
+      columns.find(c => c !== currentX) ||
+      columns[1] ||
+      columns[0] ||
+      "Metric_1"
+    );
+  }, [columns, columnTypeMap, currentX]);
+
+  const primaryY = selectedYCols[0] || defaultY;
+  const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
 
   /* ── Filtered Chart Types by Family & Search ── */
   const filteredChartTypes = useMemo(() => {
@@ -274,80 +640,341 @@ export function VisualBuilder() {
     });
   }, [chartFamily, chartSearch]);
 
-  /* ── Extract Available Columns ── */
-  const columns = useMemo(() => {
-    if (dataset.rawHeaders && dataset.rawHeaders.length > 0) return dataset.rawHeaders;
-    if (dataset.tableHeaders && dataset.tableHeaders.length > 0) return dataset.tableHeaders;
-    return ["Team", "Total_Runs", "Matches_Won", "Wickets"];
-  }, [dataset]);
+  /* ── Date Preset Handler ── */
+  const handleDatePresetChange = (preset: "all" | "7d" | "30d" | "mtd" | "ytd" | "custom") => {
+    setDateRangePreset(preset);
+    if (preset === "all") {
+      setStartDate("");
+      setEndDate("");
+      return;
+    }
+    let maxDate = new Date();
+    if (activeDateCol && allRows.length > 0) {
+      const parsedTimes = allRows.map(r => new Date(r[activeDateCol]).getTime()).filter(t => !isNaN(t));
+      if (parsedTimes.length > 0) {
+        maxDate = new Date(Math.max(...parsedTimes));
+      }
+    }
+    const endStr = maxDate.toISOString().split("T")[0];
+    const sDate = new Date(maxDate);
 
-  /* ── Extract All Rows ── */
-  const allRows = useMemo((): Record<string, any>[] => {
-    if (!isUploaded) return [];
-    if (dataset.rawRows && dataset.rawRows.length > 0 && dataset.rawHeaders) {
-      return dataset.rawRows.map(rowArr => {
-        const obj: Record<string, any> = {};
-        dataset.rawHeaders.forEach((h, idx) => { obj[h] = rowArr[idx] ?? ""; });
-        return obj;
+    if (preset === "7d") {
+      sDate.setDate(sDate.getDate() - 7);
+    } else if (preset === "30d") {
+      sDate.setDate(sDate.getDate() - 30);
+    } else if (preset === "mtd") {
+      sDate.setDate(1);
+    } else if (preset === "ytd") {
+      sDate.setMonth(0, 1);
+    }
+    setStartDate(sDate.toISOString().split("T")[0]);
+    setEndDate(endStr);
+  };
+
+  /* ── Filter Rows Pipeline (Column Filters + Date Range) ── */
+  const filteredRows = useMemo(() => {
+    if (!isUploaded || allRows.length === 0) return [];
+
+    return allRows.filter(row => {
+      // Date Range Filter
+      if (activeDateCol && (startDate || endDate)) {
+        const rawDate = row[activeDateCol];
+        if (rawDate) {
+          const rowTime = new Date(rawDate).getTime();
+          if (!isNaN(rowTime)) {
+            if (startDate && rowTime < new Date(startDate).getTime()) return false;
+            if (endDate) {
+              const endObj = new Date(endDate);
+              endObj.setHours(23, 59, 59, 999);
+              if (rowTime > endObj.getTime()) return false;
+            }
+          }
+        }
+      }
+
+      // In-Builder Column Filters
+      return activeFilters.every(f => {
+        const rawCell = row[f.col];
+        const cell = String(rawCell ?? "").trim();
+        const fv = f.val.trim();
+        const op = f.op;
+
+        if (op === "is-null") return rawCell === null || rawCell === undefined || cell === "";
+        if (op === "is-not-null") return rawCell !== null && rawCell !== undefined && cell !== "";
+
+        const numCell = Number(cell.replace(/[$,%]/g, ""));
+        const numVal = Number(fv.replace(/[$,%]/g, ""));
+        const isNumComp = !isNaN(numCell) && !isNaN(numVal) && fv !== "";
+
+        if (op === "equals") {
+          return isNumComp ? numCell === numVal : cell.toLowerCase() === fv.toLowerCase();
+        }
+        if (op === "not-equals") {
+          return isNumComp ? numCell !== numVal : cell.toLowerCase() !== fv.toLowerCase();
+        }
+        if (op === "contains") {
+          return cell.toLowerCase().includes(fv.toLowerCase());
+        }
+        if (op === "not-contains") {
+          return !cell.toLowerCase().includes(fv.toLowerCase());
+        }
+        if (op === "starts-with") {
+          return cell.toLowerCase().startsWith(fv.toLowerCase());
+        }
+        if (op === "ends-with") {
+          return cell.toLowerCase().endsWith(fv.toLowerCase());
+        }
+        if (op === "greater") {
+          return isNumComp ? numCell > numVal : cell > fv;
+        }
+        if (op === "less") {
+          return isNumComp ? numCell < numVal : cell < fv;
+        }
+        if (op === "greater-equal") {
+          return isNumComp ? numCell >= numVal : cell >= fv;
+        }
+        if (op === "less-equal") {
+          return isNumComp ? numCell <= numVal : cell <= fv;
+        }
+        if (op === "between") {
+          const parts = fv.split(",");
+          const n1 = Number((parts[0] || "").trim());
+          const n2 = Number((parts[1] || "").trim());
+          if (!isNaN(n1) && !isNaN(n2) && !isNaN(numCell)) {
+            return numCell >= Math.min(n1, n2) && numCell <= Math.max(n1, n2);
+          }
+          return true;
+        }
+        return true;
+      });
+    });
+  }, [allRows, isUploaded, activeDateCol, startDate, endDate, activeFilters]);
+
+  /* ── Dynamic Dataset Aggregation Engine ── */
+  const { chartData, rawGroupedRows, scatterRawData, totalCategoryCount } = useMemo(() => {
+    if (filteredRows.length === 0) {
+      return { chartData: [], rawGroupedRows: {}, scatterRawData: [], totalCategoryCount: 0 };
+    }
+
+    const isBubble = activeChartType === "bubble";
+    const zCol = yCols[1] || primaryY;
+    const scatterData = filteredRows.slice(0, 300).map(row => {
+      const xVal = Number(String(row[currentX] ?? "").replace(/[$,%]/g, ""));
+      const yVal = Number(String(row[primaryY] ?? "").replace(/[$,%]/g, ""));
+      const zVal = isBubble ? Number(String(row[zCol] ?? "").replace(/[$,%]/g, "")) : 10;
+      return {
+        x: isNaN(xVal) ? 0 : xVal,
+        y: isNaN(yVal) ? 0 : yVal,
+        z: isNaN(zVal) || zVal <= 0 ? 10 : zVal,
+        name: String(row[currentX] ?? ""),
+      };
+    });
+
+    const isXDate = columnTypeMap[currentX] === "date";
+    const grouped: Record<string, Record<string, any[]>> = {};
+    const groupedRawRecords: Record<string, Record<string, any>[]> = {};
+
+    filteredRows.forEach(row => {
+      let xKey = row[currentX] !== undefined && row[currentX] !== null ? String(row[currentX]).trim() : "Unspecified";
+      if (!xKey) xKey = "Unspecified";
+
+      if (isXDate && dateGrouping !== "raw") {
+        xKey = formatDateValue(xKey, dateGrouping);
+      }
+
+      if (!grouped[xKey]) {
+        grouped[xKey] = {};
+        groupedRawRecords[xKey] = [];
+      }
+      groupedRawRecords[xKey].push(row);
+
+      yCols.forEach(yCol => {
+        if (!grouped[xKey][yCol]) grouped[xKey][yCol] = [];
+        grouped[xKey][yCol].push(row[yCol]);
+      });
+    });
+
+    const keys = Object.keys(grouped);
+
+    const grandTotals: Record<string, number> = {};
+    if (measureType === "pct-total") {
+      yCols.forEach(yCol => {
+        const colVals = filteredRows.map(r => Number(String(r[yCol] ?? "").replace(/[$,%]/g, ""))).filter(n => !isNaN(n) && isFinite(n));
+        grandTotals[yCol] = colVals.reduce((a, b) => a + b, 0) || 1;
       });
     }
-    if (dataset.tableRows) return dataset.tableRows;
-    return [];
-  }, [dataset, isUploaded]);
 
-  /* ── Detect numeric vs text columns for UI labels ── */
-  const colTypes = useMemo(() => {
-    const map: Record<string, boolean> = {};
-    columns.forEach(col => {
-      const vals = allRows.slice(0, 100).map(r => String(r[col] ?? "").trim()).filter(v => v.length > 0);
-      const nums = vals.map(v => Number(v.replace(/[$,]/g, ""))).filter(n => !isNaN(n));
-      map[col] = nums.length >= vals.length * 0.5;
+    const dataPoints = keys.map((key, idx) => {
+      const item: Record<string, any> = {
+        label: key.length > 18 ? key.substring(0, 16) + "…" : key,
+        fullLabel: key,
+        color: palette[idx % palette.length],
+      };
+
+      yCols.forEach(yCol => {
+        const rawVals = grouped[key][yCol] || [];
+        const val = computeSmartAgg(rawVals, measureType, grandTotals[yCol] || 0);
+        item[yCol] = val;
+        if (yCols.length === 1) item.value = val;
+      });
+      return item;
     });
-    return map;
-  }, [columns, allRows]);
 
-  /* ── Intelligent Default Selections ── */
-  const currentX = selectedX || columns.find(c => !colTypes[c]) || columns[0] || "Team";
-
-  // Exclude year/season/id/date columns from default numeric measure selection to avoid summing 2024
-  const isYearOrIdCol = (c: string) => {
-    const l = c.toLowerCase();
-    return l.includes("season") || l.includes("year") || l === "id" || l.endsWith("_id");
-  };
-
-  const defaultY = useMemo(() => {
-    return (
-      columns.find(c => colTypes[c] && c !== currentX && !isYearOrIdCol(c)) ||
-      columns.find(c => colTypes[c] && c !== currentX) ||
-      columns.find(c => c.toLowerCase().includes("run") || c.toLowerCase().includes("won") || c.toLowerCase().includes("point")) ||
-      "Total_Runs"
-    );
-  }, [columns, colTypes, currentX]);
-
-  const primaryY = selectedYCols[0] || defaultY;
-  const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3500);
-  };
-
-  /* ── AI Recommendation ── */
-  const aiRecommendation = useMemo(() => {
-    if (yCols.length > 1) return { type: "combi", title: "Combo Chart" };
-    const xLower = currentX.toLowerCase();
-    if (xLower.includes("date") || xLower.includes("year") || xLower.includes("month")) {
-      return { type: "line", title: "Line Chart" };
+    if (sortOrder === "desc") {
+      dataPoints.sort((a, b) => Number(b[primaryY] ?? b.value ?? 0) - Number(a[primaryY] ?? a.value ?? 0));
+    } else if (sortOrder === "asc") {
+      dataPoints.sort((a, b) => Number(a[primaryY] ?? a.value ?? 0) - Number(b[primaryY] ?? b.value ?? 0));
     }
-    return { type: "bar", title: "Bar Chart" };
-  }, [currentX, yCols]);
 
-  /* ── "Why this chart?" Contextual Explanation ── */
-  const whyChartExplanation = useMemo(() => {
+    const totalCategories = dataPoints.length;
+    const finalData = categoryLimit > 0 ? dataPoints.slice(0, categoryLimit) : dataPoints;
+
+    return {
+      chartData: finalData,
+      rawGroupedRows: groupedRawRecords,
+      scatterRawData: scatterData,
+      totalCategoryCount: totalCategories,
+    };
+  }, [
+    filteredRows, currentX, yCols, primaryY, measureType, sortOrder, palette,
+    columnTypeMap, dateGrouping, activeChartType, categoryLimit
+  ]);
+
+  /* ── Waterfall Data ── */
+  const waterfallData = useMemo(() => {
+    if (chartData.length === 0) return [];
+    let running = 0;
+    return chartData.map(d => {
+      const val = Number(d[primaryY] ?? d.value ?? 0);
+      const start = running;
+      running += val;
+      return { label: d.label, fullLabel: d.fullLabel, value: val, start, end: running, color: d.color };
+    });
+  }, [chartData, primaryY]);
+
+  /* ── Box Plot Data ── */
+  const boxPlotData = useMemo(() => {
+    if (activeChartType !== "boxplot" || filteredRows.length === 0) return [];
+    return chartData.map(d => {
+      const rawVals = (rawGroupedRows[d.fullLabel || d.label] || [])
+        .map(r => Number(String(r[primaryY] ?? "").replace(/[$,%]/g, "")))
+        .filter(n => !isNaN(n) && isFinite(n))
+        .sort((a, b) => a - b);
+      if (rawVals.length === 0) return null;
+      const q1 = rawVals[Math.floor(rawVals.length * 0.25)];
+      const median = rawVals[Math.floor(rawVals.length * 0.5)];
+      const q3 = rawVals[Math.floor(rawVals.length * 0.75)];
+      const iqr = q3 - q1;
+      const min = Math.max(rawVals[0], q1 - 1.5 * iqr);
+      const max = Math.min(rawVals[rawVals.length - 1], q3 + 1.5 * iqr);
+      return { label: d.label, fullLabel: d.fullLabel, min, q1, median, q3, max, color: d.color };
+    }).filter(Boolean);
+  }, [activeChartType, chartData, rawGroupedRows, primaryY]);
+
+  /* ── Histogram Bins ── */
+  const histogramBins = useMemo(() => {
+    if (activeChartType !== "histogram" || filteredRows.length === 0) return [];
+    const vals = filteredRows.map(r => Number(String(r[primaryY] ?? "").replace(/[$,%]/g, ""))).filter(n => !isNaN(n) && isFinite(n));
+    if (vals.length === 0) return [];
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const step = (max - min) / 6 || 1;
+    return Array.from({ length: 6 }, (_, i) => {
+      const start = min + i * step;
+      const end = min + (i + 1) * step;
+      const count = vals.filter(v => v >= start && v < (i === 5 ? end + 0.0001 : end)).length;
+      return {
+        label: `${Math.round(start)}-${Math.round(end)}`,
+        value: count,
+        color: palette[i % palette.length],
+      };
+    }).filter(b => b.value > 0);
+  }, [activeChartType, filteredRows, primaryY, palette]);
+
+  const maxGaugeValue = useMemo(() => {
+    if (chartData.length === 0) return 100;
+    return Math.max(...chartData.map(d => Number(d[primaryY] ?? d.value ?? 0)), 1);
+  }, [chartData, primaryY]);
+
+  /* ── Intelligent Recommendation Engine ── */
+  const recommendations = useMemo(() => {
+    const list: { id: string; name: string; rationale: string }[] = [];
+    const isXDate = columnTypeMap[currentX] === "date";
+    const isXNumeric = columnTypeMap[currentX] === "numeric";
+    const isYNumeric = columnTypeMap[primaryY] === "numeric";
+
+    if (isXDate) {
+      list.push({ id: "line", name: "Line Chart", rationale: "Temporal dimension detected: tracks continuous trend progression over time." });
+      list.push({ id: "area", name: "Area Chart", rationale: "Visualizes cumulative volume buildup across timeline periods." });
+    }
+
+    if (yCols.length > 1) {
+      list.push({ id: "combi", name: "Combo Chart", rationale: "Multiple measures selected: evaluates primary bars with secondary trend line." });
+      list.push({ id: "stacked-bar", name: "Stacked Bar", rationale: "Compares aggregate totals broken down by measure components." });
+    }
+
+    if (isXNumeric && isYNumeric) {
+      list.push({ id: "scatter", name: "Scatter Plot", rationale: "Both X and Y are numeric: reveals statistical correlations and clusters." });
+    }
+
+    if (!isXDate && chartData.length <= 7 && yCols.length === 1) {
+      list.push({ id: "donut", name: "Donut Chart", rationale: "Compact category count: displays percentage contributions clearly." });
+    }
+
+    list.push({ id: "bar", name: "Bar Chart", rationale: "Standard categorical ranking across distinct values." });
+    list.push({ id: "horizontal-bar", name: "Horizontal Bar", rationale: "Optimal readability for long labels and rank order." });
+
+    const seen = new Set<string>();
+    return list.filter(r => {
+      if (seen.has(r.id) || r.id === activeChartType) return false;
+      seen.add(r.id);
+      return true;
+    }).slice(0, 3);
+  }, [columnTypeMap, currentX, primaryY, yCols, activeChartType, chartData.length]);
+
+  /* ── Chart Validation Warnings ── */
+  const chartValidationWarning = useMemo(() => {
+    const isXNumeric = columnTypeMap[currentX] === "numeric";
+
+    if ((activeChartType === "scatter" || activeChartType === "bubble") && !isXNumeric) {
+      return {
+        type: "warning",
+        message: `Scatter and Bubble charts require a numeric Dimension (${currentX} is currently text/date) to plot X coordinates correctly.`,
+      };
+    }
+    if (activeChartType === "combi" && yCols.length < 2) {
+      return {
+        type: "info",
+        message: "Combo Chart shines when visualizing at least two measures (one as Bar, one as Line). Add another measure in the sidebar.",
+      };
+    }
+    if ((activeChartType === "pie" || activeChartType === "donut") && chartData.length > 10) {
+      return {
+        type: "info",
+        message: `Showing ${chartData.length} slices. Slices beyond 7 can become difficult to distinguish; consider using 'Top 5' or 'Top 10' in Category Limit.`,
+      };
+    }
+    return null;
+  }, [activeChartType, columnTypeMap, currentX, yCols.length, chartData.length]);
+
+  /* ── Data-Grounded "Why this chart?" Contextual Explanation ── */
+  const dynamicExplanation = useMemo(() => {
     const chartMeta = ALL_CHART_TYPES.find(c => c.id === activeChartType);
     const chartName = chartMeta?.name || "Chart";
     const xName = currentX;
     const yNames = yCols.join(", ");
+
+    let statsSummary = "";
+    if (chartData.length > 0) {
+      const sortedByPrimary = [...chartData].sort((a, b) => Number(b[primaryY] ?? b.value ?? 0) - Number(a[primaryY] ?? a.value ?? 0));
+      const top = sortedByPrimary[0];
+      const bottom = sortedByPrimary[sortedByPrimary.length - 1];
+      const total = chartData.reduce((acc, d) => acc + Number(d[primaryY] ?? d.value ?? 0), 0);
+      const avg = chartData.length > 0 ? total / chartData.length : 0;
+
+      statsSummary = `Top category is "${top?.fullLabel || top?.label}" with ${formatVal(Number(top?.[primaryY] ?? top?.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}. Lowest is "${bottom?.fullLabel || bottom?.label}" (${formatVal(Number(bottom?.[primaryY] ?? bottom?.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}). Total across ${chartData.length} categories: ${formatVal(total, valueFormat, decimalPlaces, currencySymbol)} (avg ${formatVal(avg, valueFormat, decimalPlaces, currencySymbol)}).`;
+    }
+
     const isComparison = ["bar", "stacked-bar", "horizontal-bar", "radar", "combi"].includes(activeChartType);
     const isTrend = ["line", "multi-line", "area", "stacked-area"].includes(activeChartType);
     const isComposition = ["pie", "donut", "treemap"].includes(activeChartType);
@@ -365,7 +992,7 @@ export function VisualBuilder() {
       tip = "Tip: Best when the X dimension has an inherent sequential order (e.g. chronological dates).";
     } else if (isComposition) {
       rationale = `Displaying relative segment proportions of ${primaryY} across ${xName}.`;
-      tip = "Tip: Most effective with 2 to 6 slices. Hover over sections for precise percentage breakdown.";
+      tip = "Tip: Most effective with 2 to 7 slices. Hover over sections for precise percentage breakdown.";
     } else if (isDistribution) {
       rationale = `Examining dispersion, clusters, and statistical relationships for ${yNames} across ${xName}.`;
       tip = "Tip: Inspect outlier points lying noticeably outside the dominant group cluster.";
@@ -377,152 +1004,180 @@ export function VisualBuilder() {
       tip = "Tip: Click table headers or toggle to chart view for visual pattern discovery.";
     }
 
-    return { chartName, rationale, tip };
-  }, [activeChartType, currentX, yCols, primaryY, measureType]);
+    return { chartName, rationale, statsSummary, tip };
+  }, [activeChartType, currentX, yCols, primaryY, measureType, chartData, valueFormat, decimalPlaces, currencySymbol]);
 
-  /* ── Dynamic Dataset Aggregation ── */
-  const { chartData, rawGroupedRows, scatterRawData } = useMemo(() => {
-    if (!isUploaded || allRows.length === 0) {
-      return { chartData: [], rawGroupedRows: {}, scatterRawData: [] };
+  /* ── Export Handlers ── */
+  const exportChartPNG = () => {
+    if (!chartContainerRef.current) {
+      showToast("Chart container not ready for export.");
+      return;
+    }
+    const svgEl = chartContainerRef.current.querySelector("svg");
+    if (!svgEl) {
+      showToast("Tabular/HTML views cannot be exported as SVG vector. Use Export CSV instead.");
+      return;
     }
 
-    // Apply Active In-Builder Filters
-    const filteredRows = allRows.filter(row =>
-      activeFilters.every(f => {
-        const cell = String(row[f.col] ?? "");
-        const fv = f.val;
-        if (f.op === "equals") return cell === fv;
-        if (f.op === "not-equals") return cell !== fv;
-        if (f.op === "contains") return cell.toLowerCase().includes(fv.toLowerCase());
-        if (f.op === "greater") return parseFloat(cell) > parseFloat(fv);
-        if (f.op === "less") return parseFloat(cell) < parseFloat(fv);
-        return true;
-      })
-    );
+    try {
+      const svgString = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const URL = window.URL || window.webkitURL || window;
+      const blobURL = URL.createObjectURL(svgBlob);
+      const image = new Image();
 
-    // Build scatter raw data
-    const scatterData = filteredRows.slice(0, 200).map(row => {
-      const xVal = Number(String(row[currentX] ?? "").replace(/[$,]/g, ""));
-      const yVal = Number(String(row[primaryY] ?? "").replace(/[$,]/g, ""));
-      return {
-        x: isNaN(xVal) ? 0 : xVal,
-        y: isNaN(yVal) ? 0 : yVal,
-        name: String(row[currentX] ?? ""),
-      };
-    });
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = 2;
+        canvas.width = (svgEl.clientWidth || 800) * scale;
+        canvas.height = (svgEl.clientHeight || 450) * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.scale(scale, scale);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, svgEl.clientWidth || 800, svgEl.clientHeight || 450);
 
-    // Group rows by X-Axis dimension
-    const grouped: Record<string, Record<string, any[]>> = {};
-    const groupedRawRecords: Record<string, Record<string, any>[]> = {};
-
-    filteredRows.forEach(row => {
-      const xKey = row[currentX] !== undefined && row[currentX] !== null
-        ? String(row[currentX]).trim()
-        : "General";
-      if (!xKey) return;
-
-      if (!grouped[xKey]) {
-        grouped[xKey] = {};
-        groupedRawRecords[xKey] = [];
-      }
-      groupedRawRecords[xKey].push(row);
-
-      yCols.forEach(yCol => {
-        if (!grouped[xKey][yCol]) grouped[xKey][yCol] = [];
-        grouped[xKey][yCol].push(row[yCol]);
-      });
-    });
-
-    const keys = Object.keys(grouped);
-
-    // Build data points for each category key
-    const dataPoints = keys.map((key, idx) => {
-      const item: Record<string, any> = {
-        label: key.length > 15 ? key.substring(0, 13) + ".." : key,
-        fullLabel: key,
-        color: palette[idx % palette.length],
+        const pngURL = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `${(customTitle || `${currentX}_vs_${primaryY}`).toLowerCase().replace(/\s+/g, "_")}.png`;
+        downloadLink.href = pngURL;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobURL);
+        showToast("High-resolution PNG downloaded!");
       };
 
-      yCols.forEach(yCol => {
-        const rawVals = grouped[key][yCol] || [];
-        const value = computeSmartAgg(rawVals, measureType);
-        item[yCol] = value;
-        if (yCols.length === 1) item.value = value;
-      });
-      return item;
-    });
+      image.onerror = () => {
+        showToast("PNG export failed. Rasterization error.");
+      };
 
-    // Sorting
-    if (sortOrder === "desc") {
-      dataPoints.sort((a, b) => (b[primaryY] ?? b.value ?? 0) - (a[primaryY] ?? a.value ?? 0));
-    } else if (sortOrder === "asc") {
-      dataPoints.sort((a, b) => (a[primaryY] ?? a.value ?? 0) - (b[primaryY] ?? b.value ?? 0));
+      image.src = blobURL;
+    } catch (err) {
+      showToast("PNG export error.");
     }
+  };
 
-    return {
-      chartData: dataPoints.slice(0, 15),
-      rawGroupedRows: groupedRawRecords,
-      scatterRawData: scatterData,
+  const exportConfigJSON = () => {
+    const config = {
+      title: customTitle || `${currentX} vs ${yCols.join(" & ")}`,
+      subtitle: customSubtitle,
+      chartType: activeChartType,
+      dimension: currentX,
+      measures: yCols,
+      measureType,
+      sortOrder,
+      paletteKey,
+      valueFormat,
+      categoryLimit,
+      dateGrouping,
+      activeFilters,
+      dateRange: { activeDateCol, startDate, endDate, dateRangePreset },
+      exportedAt: new Date().toISOString(),
     };
-  }, [allRows, isUploaded, currentX, yCols, primaryY, measureType, activeFilters, sortOrder, palette]);
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(customTitle || "chart_configuration").toLowerCase().replace(/\s+/g, "_")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Chart specification JSON downloaded!");
+  };
 
-  /* ── Waterfall Data ── */
-  const waterfallData = useMemo(() => {
-    if (chartData.length === 0) return [];
-    let running = 0;
-    return chartData.map(d => {
-      const val = Number(d[primaryY] ?? d.value ?? 0);
-      const start = running;
-      running += val;
-      return { label: d.label, fullLabel: d.fullLabel, value: val, start, end: running, color: d.color };
+  const exportTableCSV = (mode: "aggregated" | "records" = tableViewType) => {
+    if (mode === "records") {
+      if (filteredRows.length === 0) return;
+      const headers = columns.join(",");
+      const rows = filteredRows.map(r =>
+        columns.map(c => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(",")
+      );
+      const csv = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+      const uri = encodeURI(csv);
+      const link = document.createElement("a");
+      link.href = uri;
+      link.download = `${(customTitle || "source_records").toLowerCase().replace(/\s+/g, "_")}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast(`Exported ${filteredRows.length} source records as CSV.`);
+      return;
+    }
+
+    if (chartData.length === 0) return;
+    const headerRow = [currentX, ...yCols.map(c => `${c} (${measureType.toUpperCase()})`)].join(",");
+    const dataRows = chartData.map(d => {
+      const xVal = `"${String(d.fullLabel || d.label).replace(/"/g, '""')}"`;
+      const yVals = yCols.map(c => Number(d[c] ?? 0));
+      return [xVal, ...yVals].join(",");
     });
-  }, [chartData, primaryY]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headerRow, ...dataRows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.href = encodedUri;
+    link.download = `${(customTitle || "aggregated_data").toLowerCase().replace(/\s+/g, "_")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Aggregated table exported (${chartData.length} categories).`);
+  };
 
-  /* ── Box Plot Data ── */
-  const boxPlotData = useMemo(() => {
-    if (activeChartType !== "boxplot" || allRows.length === 0) return [];
-    return chartData.map(d => {
-      const rawVals = (allRows.filter(r => String(r[currentX] ?? "").trim() === d.fullLabel)
-        .map(r => Number(String(r[primaryY] ?? "").replace(/[$,]/g, "")))
-        .filter(n => !isNaN(n))
-        .sort((a, b) => a - b));
-      if (rawVals.length === 0) return null;
-      const q1 = rawVals[Math.floor(rawVals.length * 0.25)];
-      const median = rawVals[Math.floor(rawVals.length * 0.5)];
-      const q3 = rawVals[Math.floor(rawVals.length * 0.75)];
-      const iqr = q3 - q1;
-      const min = Math.max(rawVals[0], q1 - 1.5 * iqr);
-      const max = Math.min(rawVals[rawVals.length - 1], q3 + 1.5 * iqr);
-      return { label: d.label, fullLabel: d.fullLabel, min, q1, median, q3, max, color: d.color };
-    }).filter(Boolean);
-  }, [activeChartType, chartData, allRows, currentX, primaryY]);
-
-  /* ── Histogram Bins ── */
-  const histogramBins = useMemo(() => {
-    if (activeChartType !== "histogram" || allRows.length === 0) return [];
-    const vals = allRows.map(r => Number(String(r[primaryY] ?? "").replace(/[$,]/g, ""))).filter(n => !isNaN(n));
-    if (vals.length === 0) return [];
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const step = (max - min) / 6 || 1;
-    return Array.from({ length: 6 }, (_, i) => {
-      const start = min + i * step;
-      const end = min + (i + 1) * step;
-      const count = vals.filter(v => v >= start && v < (i === 5 ? end + 1 : end)).length;
-      return { label: `${Math.round(start)}-${Math.round(end)}`, value: count, color: palette[i % palette.length] };
-    }).filter(b => b.value > 0);
-  }, [activeChartType, allRows, primaryY, palette]);
-
-  /* ── Save to Dashboard ── */
+  /* ── Save to Dashboard with Context & LocalStorage Persistence ── */
   const handleSaveToDashboard = () => {
-    const formattedData: DynamicChartItem[] = chartData.map(d => ({
-      label: String(d.label),
-      value: Number(d[primaryY] ?? d.value ?? 0),
-      color: String(d.color || palette[0]),
-    }));
-    const title = customTitle || `${currentX} vs ${yCols.join(" & ")}`;
-    updateChartVisual(title, formattedData);
-    showToast("Chart saved to Dashboard successfully!");
+    setIsSaving(true);
+    try {
+      const formattedData: DynamicChartItem[] = chartData.map(d => ({
+        label: String(d.label),
+        value: Number(d[primaryY] ?? d.value ?? 0),
+        color: String(d.color || palette[0]),
+      }));
+      const title = customTitle || `${currentX} vs ${yCols.join(" & ")}`;
+
+      updateChartVisual(title, formattedData);
+
+      const savedChartsRaw = localStorage.getItem("datavista_saved_charts");
+      const savedCharts: any[] = savedChartsRaw ? JSON.parse(savedChartsRaw) : [];
+      const newChartEntry = {
+        id: `chart_${Date.now()}`,
+        title,
+        subtitle: customSubtitle,
+        chartType: activeChartType,
+        xCol: currentX,
+        yCols,
+        measureType,
+        savedAt: new Date().toISOString(),
+        dataPreview: formattedData.slice(0, 10),
+      };
+      savedCharts.unshift(newChartEntry);
+      localStorage.setItem("datavista_saved_charts", JSON.stringify(savedCharts.slice(0, 50)));
+
+      showToast("Chart saved to Dashboard and stored locally!");
+    } catch {
+      showToast("Chart visual updated in session.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /* ── Clear Canvas Confirmation ── */
+  const handleClearCanvas = () => {
+    if (window.confirm("Reset canvas to default configuration? This clears custom filters, titles, and selections.")) {
+      setSelectedX(columns.find(c => columnTypeMap[c] !== "numeric") || columns[0] || "");
+      setSelectedYCols([]);
+      setActiveChartType("bar");
+      setMeasureType("sum");
+      setActiveFilters([]);
+      setCustomTitle("");
+      setCustomSubtitle("");
+      setStartDate("");
+      setEndDate("");
+      setDateRangePreset("all");
+      setCategoryLimit(15);
+      showToast("Canvas reset to default configuration.");
+    }
   };
 
   const tooltipStyle = {
@@ -534,71 +1189,459 @@ export function VisualBuilder() {
     fontSize: "12px",
   };
 
-  const maxGaugeValue = useMemo(() => {
-    if (chartData.length === 0) return 100;
-    return Math.max(...chartData.map(d => Number(d[primaryY] ?? d.value ?? 0)));
-  }, [chartData, primaryY]);
-
   const CHART_MARGIN = { top: 20, right: 20, left: 10, bottom: 25 };
 
-  const exportTableCSV = () => {
-    if (chartData.length === 0) return;
-    const headerRow = [currentX, ...yCols.map(c => `${c} (${measureType.toUpperCase()})`)].join(",");
-    const dataRows = chartData.map(d => {
-      const xVal = `"${String(d.label).replace(/"/g, '""')}"`;
-      const yVals = yCols.map(c => Number(d[c] ?? 0));
-      return [xVal, ...yVals].join(",");
-    });
-    const csvContent = "data:text/csv;charset=utf-8," + [headerRow, ...dataRows].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${(customTitle || "chart-data").toLowerCase().replace(/\s+/g, "_")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Data table exported as CSV.");
+  /* ── Filtered Records for Source Records Table View ── */
+  const displayedSourceRecords = useMemo(() => {
+    if (!recordsSearch.trim()) return filteredRows.slice(0, 100);
+    const q = recordsSearch.toLowerCase();
+    return filteredRows
+      .filter(row => columns.some(col => String(row[col] ?? "").toLowerCase().includes(q)))
+      .slice(0, 100);
+  }, [filteredRows, recordsSearch, columns]);
+
+  /* ── UNIFIED CHART RENDERER (Supports all 23 Chart Types) ── */
+  const renderActiveChart = (fullscreen = false) => {
+    const height: number | `${number}%` = fullscreen ? "100%" : 360;
+
+    if (chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType)) {
+      return (
+        <div className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[300px]">
+          <div className="w-12 h-12 rounded-2xl bg-primary-soft/60 flex items-center justify-center text-primary mb-3">
+            <Database className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-bold text-textPrimary">No data to visualize</h4>
+          <p className="text-xs text-textSecondary max-w-sm mt-1">
+            Adjust your active filters, choose a different X dimension, or expand the date range.
+          </p>
+        </div>
+      );
+    }
+
+    /* BAR (Grouped / Stacked) */
+    if (activeChartType === "bar" || activeChartType === "stacked-bar") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsBarChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+            {showLegend && <Legend verticalAlign="top" />}
+            {yCols.map((yCol, i) => (
+              <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} stackId={activeChartType === "stacked-bar" ? "a" : undefined} barSize={barWidth} isAnimationActive={false} />
+            ))}
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* HORIZONTAL BAR */
+    if (activeChartType === "horizontal-bar") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsBarChart layout="vertical" data={chartData} margin={{ top: 20, right: 20, left: 35, bottom: 10 }} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis type="category" dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} width={90} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+            {showLegend && <Legend verticalAlign="top" />}
+            {yCols.map((yCol, i) => (
+              <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[0, 6, 6, 0]} barSize={barWidth} isAnimationActive={false} />
+            ))}
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* LINE / MULTI-LINE */
+    if (activeChartType === "line" || activeChartType === "multi-line") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsLineChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+            {showLegend && <Legend verticalAlign="top" />}
+            {yCols.map((yCol, i) => (
+              <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} strokeWidth={3} dot={{ r: 5 }} isAnimationActive={false} />
+            ))}
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* AREA / STACKED AREA */
+    if (activeChartType === "area" || activeChartType === "stacked-area") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsAreaChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+            {showLegend && <Legend verticalAlign="top" />}
+            {yCols.map((yCol, i) => (
+              <Area key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.25} stackId={activeChartType === "stacked-area" ? "a" : undefined} isAnimationActive={false} />
+            ))}
+          </RechartsAreaChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* PIE / DONUT */
+    if (activeChartType === "pie" || activeChartType === "donut") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsPieChart>
+            <Pie data={chartData} dataKey={primaryY} nameKey="label" cx="50%" cy="50%" outerRadius={120} innerRadius={activeChartType === "donut" ? 60 : 0} paddingAngle={3} label={({ name, percent }: any) => `${name} (${(percent * 100).toFixed(0)}%)`} isAnimationActive={false}>
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color || palette[index % palette.length]} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+            {showLegend && <Legend verticalAlign="top" />}
+          </RechartsPieChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* TREEMAP */
+    if (activeChartType === "treemap") {
+      return (
+        <SvgTreemap
+          data={chartData.map(d => ({
+            label: d.label,
+            fullLabel: d.fullLabel,
+            value: Number(d[primaryY] ?? d.value ?? 0),
+            color: d.color,
+          }))}
+          palette={palette}
+          valueFormat={valueFormat}
+          decimalPlaces={decimalPlaces}
+          currencySymbol={currencySymbol}
+          onItemClick={(item) => setShowDrillThroughModal(item)}
+        />
+      );
+    }
+
+    /* RADAR */
+    if (activeChartType === "radar") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsRadarChart cx="50%" cy="50%" outerRadius={110} data={chartData}>
+            <PolarGrid stroke="var(--color-border, #CBD5E1)" />
+            <PolarAngleAxis dataKey="label" tick={{ fill: "var(--color-textSecondary, #475569)", fontSize: 11 }} />
+            <PolarRadiusAxis angle={30} domain={[0, "auto"]} />
+            {yCols.map((yCol, i) => (
+              <Radar key={yCol} name={yCol} dataKey={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.4} isAnimationActive={false} />
+            ))}
+            <Tooltip contentStyle={tooltipStyle} />
+            {showLegend && <Legend verticalAlign="top" />}
+          </RechartsRadarChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* SCATTER / BUBBLE */
+    if (activeChartType === "scatter" || activeChartType === "bubble") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsScatterChart margin={CHART_MARGIN}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis
+              type="number"
+              dataKey="x"
+              name={currentX}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
+              label={{ value: currentX, position: "insideBottom", offset: -10, fontSize: 11, fill: "var(--color-textSecondary, #64748B)" }}
+            />
+            <YAxis
+              type="number"
+              dataKey="y"
+              name={primaryY}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
+              label={{ value: primaryY, angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--color-textSecondary, #64748B)" }}
+            />
+            {activeChartType === "bubble" && (
+              <ZAxis type="number" dataKey="z" range={[60, 420]} name={yCols[1] || primaryY} />
+            )}
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(val: any, name: any) => [formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]}
+            />
+            <Scatter
+              name={`${currentX} vs ${primaryY}`}
+              data={scatterRawData}
+              fill={palette[0]}
+              fillOpacity={0.7}
+              isAnimationActive={false}
+            >
+              {scatterRawData.map((_, i) => (
+                <Cell key={i} fill={palette[i % palette.length]} />
+              ))}
+            </Scatter>
+          </RechartsScatterChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* HISTOGRAM */
+    if (activeChartType === "histogram") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsBarChart data={histogramBins} margin={CHART_MARGIN}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 10 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Bar dataKey="value" name="Frequency" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+              {histogramBins.map((_, i) => <Cell key={i} fill={palette[i % palette.length]} />)}
+            </Bar>
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* COMBO (Bar + Line) */
+    if (activeChartType === "combi") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsComposedChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+            {showLegend && <Legend verticalAlign="top" />}
+            <Bar dataKey={primaryY} name={primaryY} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
+            {yCols.slice(1).map((yCol, i) => (
+              <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[(i + 1) % palette.length]} strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
+            ))}
+          </RechartsComposedChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* WATERFALL */
+    if (activeChartType === "waterfall") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsComposedChart data={waterfallData} margin={CHART_MARGIN}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(val: any, name: any) => String(name) === "invisible" ? [null, null] : [formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]}
+            />
+            {showLegend && <Legend verticalAlign="top" />}
+            <Bar dataKey="start" name="invisible" fill="transparent" stackId="wf" isAnimationActive={false} />
+            <Bar dataKey="value" name={primaryY} stackId="wf" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+              {waterfallData.map((d, i) => (
+                <Cell key={i} fill={Number(d?.value) >= 0 ? palette[0] : "#EF4444"} />
+              ))}
+            </Bar>
+            <ReferenceLine y={0} stroke="var(--color-border, #E2E8F0)" strokeWidth={1.5} />
+          </RechartsComposedChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* HEATMAP */
+    if (activeChartType === "heatmap") {
+      return (
+        <HeatmapMatrix
+          data={chartData}
+          yCols={yCols}
+          palette={palette}
+          valueFormat={valueFormat}
+          decimalPlaces={decimalPlaces}
+          currencySymbol={currencySymbol}
+          onCellClick={(row) => setShowDrillThroughModal(row)}
+        />
+      );
+    }
+
+    /* MATRIX TABLE */
+    if (activeChartType === "matrix") {
+      return (
+        <PivotMatrixTable
+          data={chartData}
+          currentX={currentX}
+          yCols={yCols}
+          measureType={measureType}
+          valueFormat={valueFormat}
+          decimalPlaces={decimalPlaces}
+          currencySymbol={currencySymbol}
+          onRowClick={(row) => setShowDrillThroughModal(row)}
+        />
+      );
+    }
+
+    /* FUNNEL */
+    if (activeChartType === "funnel") {
+      return (
+        <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
+          <FunnelChart
+            data={chartData.map(d => ({ label: d.label, value: Number(d[primaryY] ?? d.value ?? 0), color: d.color }))}
+            palette={palette}
+          />
+        </div>
+      );
+    }
+
+    /* GAUGE */
+    if (activeChartType === "gauge") {
+      return (
+        <div className="w-full h-full flex flex-wrap items-center justify-center gap-6 overflow-auto p-4">
+          {yCols.map((yCol, i) => {
+            const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
+            const maxV = Math.max(maxGaugeValue, total) * 1.25;
+            return (
+              <GaugeChart key={yCol} value={total} maxValue={maxV} color={palette[i % palette.length]} label={yCol} />
+            );
+          })}
+        </div>
+      );
+    }
+
+    /* KPI CARD */
+    if (activeChartType === "kpi") {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full h-full items-center justify-center p-4 overflow-auto">
+          {yCols.map((yCol, i) => {
+            const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
+            const avg = chartData.length > 0 ? total / chartData.length : 0;
+            const maxV = Math.max(...chartData.map(d => Number(d[yCol] ?? 0)), 0);
+            const minV = Math.min(...chartData.map(d => Number(d[yCol] ?? 0)), 0);
+            return (
+              <div key={yCol} className="p-5 bg-surface border border-border/80 rounded-2xl shadow-xs flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-textSecondary">{yCol}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary">
+                    {measureType.toUpperCase()}
+                  </span>
+                </div>
+                <div className="text-3xl font-black tracking-tight" style={{ color: palette[i % palette.length] }}>
+                  {formatVal(total, valueFormat, decimalPlaces, currencySymbol)}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-textMuted border-t border-border/60 pt-2.5">
+                  <div>Avg: <span className="text-textPrimary font-bold">{formatVal(avg, valueFormat, decimalPlaces, currencySymbol)}</span></div>
+                  <div>Max: <span className="text-textPrimary font-bold">{formatVal(maxV, valueFormat, decimalPlaces, currencySymbol)}</span></div>
+                  <div>Min: <span className="text-textPrimary font-bold">{formatVal(minV, valueFormat, decimalPlaces, currencySymbol)}</span></div>
+                  <div>Categories: <span className="text-textPrimary font-bold">{chartData.length}</span></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    /* TABLE */
+    if (activeChartType === "table") {
+      return (
+        <div className="w-full h-full overflow-auto border border-border/80 rounded-xl bg-surface">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-primary-soft/40 sticky top-0 border-b border-border/80 backdrop-blur-xs">
+              <tr>
+                <th className="px-4 py-2.5 font-bold uppercase text-[11px] text-textSecondary tracking-wider">{currentX}</th>
+                {yCols.map(c => (
+                  <th key={c} className="px-4 py-2.5 font-bold uppercase text-[11px] text-textSecondary text-right tracking-wider">
+                    {c} ({measureType.toUpperCase()})
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60 bg-surface">
+              {chartData.map((d, i) => (
+                <tr key={i} className="hover:bg-primary-soft/15 cursor-pointer transition-colors" onClick={() => setShowDrillThroughModal(d)}>
+                  <td className="px-4 py-2.5 font-bold text-textPrimary">{d.fullLabel || d.label}</td>
+                  {yCols.map(c => (
+                    <td key={c} className="px-4 py-2.5 text-right font-mono text-textPrimary">
+                      {formatVal(Number(d[c] ?? 0), valueFormat, decimalPlaces, currencySymbol)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    /* BOX PLOT */
+    if (activeChartType === "boxplot") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsComposedChart data={boxPlotData} margin={CHART_MARGIN}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Bar dataKey="min" name="Min" fill="transparent" isAnimationActive={false} />
+            <Bar dataKey="q1" name="Q1" fill="transparent" stackId="box" isAnimationActive={false} />
+            <Bar dataKey="median" name="Median" fill={palette[0]} stackId="box" barSize={barWidth} radius={[0, 0, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey="q3" name="Q3" fill={palette[0] + "60"} stackId="box" barSize={barWidth} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            <Legend verticalAlign="top" />
+          </RechartsComposedChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* DEFAULT FALLBACK */
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <RechartsBarChart data={chartData} margin={CHART_MARGIN}>
+          {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
+          {yCols.map((yCol, i) => (
+            <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
+          ))}
+        </RechartsBarChart>
+      </ResponsiveContainer>
+    );
   };
 
   return (
     <div className="flex flex-col gap-6 pb-8 h-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-textPrimary tracking-tight">Visual Builder</h1>
           <p className="text-sm text-textSecondary mt-0.5">
-            Build, customize, and analyze interactive charts from your active dataset.
+            Build, customize, and analyze interactive charts from your active transformed dataset.
           </p>
         </div>
         {isUploaded && (
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2.5 items-center flex-wrap">
             {toastMsg && (
-              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-3 py-1.5 rounded-xl border border-emerald-500/30 animate-in fade-in duration-200 flex items-center gap-1">
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-3 py-1.5 rounded-xl border border-emerald-500/30 animate-in fade-in duration-200 flex items-center gap-1.5 shadow-xs">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 {toastMsg}
               </span>
             )}
             <button
-              onClick={() => {
-                setSelectedX(columns[0]);
-                setSelectedYCols([defaultY]);
-                setActiveChartType("bar");
-                setMeasureType("sum");
-                setActiveFilters([]);
-                setCustomTitle("");
-                showToast("Canvas reset to default configuration.");
-              }}
-              className="px-4 py-2 bg-surface text-textPrimary text-xs font-bold rounded-xl hover:bg-primary-soft/40 transition-all border border-border shadow-xs cursor-pointer flex items-center gap-1.5"
+              onClick={handleClearCanvas}
+              className="px-3.5 py-2 bg-surface text-textPrimary text-xs font-bold rounded-xl hover:bg-primary-soft/40 transition-all border border-border shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5 text-textMuted" />
               Clear Canvas
             </button>
             <button
               onClick={handleSaveToDashboard}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer"
+              disabled={isSaving}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              Save to Dashboard
+              {isSaving ? "Saving…" : "Save to Dashboard"}
             </button>
           </div>
         )}
@@ -636,7 +1679,7 @@ export function VisualBuilder() {
 
                 {/* Family Categories Filter */}
                 <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none">
-                  {["All", "Comparison", "Trend", "Composition", "Distribution", "KPI", "Data"].map(cat => (
+                  {["All", "Comparison", "Trend", "Composition", "Distribution", "Process", "KPI", "Data"].map(cat => (
                     <button
                       key={cat}
                       type="button"
@@ -657,7 +1700,7 @@ export function VisualBuilder() {
                   <Search className="w-3.5 h-3.5 text-textMuted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search 23 charts..."
+                    placeholder="Search 23 charts…"
                     value={chartSearch}
                     onChange={e => setChartSearch(e.target.value)}
                     className="w-full bg-surface text-textPrimary text-[11px] font-medium pl-8 pr-7 py-1.5 rounded-lg border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-textMuted"
@@ -707,21 +1750,47 @@ export function VisualBuilder() {
 
               {/* Data Field Selectors */}
               <div className="flex flex-col gap-3.5 pt-3 border-t border-border/60">
-                {/* X-Axis */}
+                {/* X-Axis Dimension */}
                 <div>
-                  <label className="text-xs font-bold text-textPrimary block mb-1">X-Axis (Dimension)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-textPrimary">X-Axis (Dimension)</label>
+                    <span className="text-[10px] font-semibold text-textMuted">
+                      {columnTypeMap[currentX] === "date" ? "Date" : columnTypeMap[currentX] === "numeric" ? "Numeric" : "Text"}
+                    </span>
+                  </div>
                   <select
                     value={currentX}
                     onChange={(e) => setSelectedX(e.target.value)}
                     className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
                   >
                     {columns.map((col, i) => (
-                      <option key={i} value={col}>{col} {colTypes[col] ? "[numeric]" : "[text]"}</option>
+                      <option key={i} value={col}>
+                        {col} [{columnTypeMap[col] || "text"}]
+                      </option>
                     ))}
                   </select>
+
+                  {/* Temporal Grouping (if X is date) */}
+                  {columnTypeMap[currentX] === "date" && (
+                    <div className="mt-2 p-2 bg-primary-soft/30 rounded-xl border border-primary/20 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-primary flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Date Grouping
+                      </span>
+                      <select
+                        value={dateGrouping}
+                        onChange={(e) => setDateGrouping(e.target.value as any)}
+                        className="w-full border border-border/70 bg-surface text-textPrimary rounded-lg p-1.5 text-xs font-medium focus:outline-none cursor-pointer"
+                      >
+                        <option value="raw">Exact Timestamp / Raw</option>
+                        <option value="month">Month (e.g. Jan 2024)</option>
+                        <option value="year">Year (e.g. 2024)</option>
+                        <option value="dayOfWeek">Day of Week (e.g. Mon, Tue)</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
 
-                {/* Y-Axis Multi Select */}
+                {/* Y-Axis Multi Measures */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-textPrimary">Y-Axis (Measures)</label>
@@ -749,7 +1818,9 @@ export function VisualBuilder() {
                   >
                     <option value="">+ Add Measure…</option>
                     {columns.filter(c => !yCols.includes(c)).map((col, i) => (
-                      <option key={i} value={col}>{col} {colTypes[col] ? "[numeric]" : "[text]"}</option>
+                      <option key={i} value={col}>
+                        {col} [{columnTypeMap[col] || "text"}]
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -764,24 +1835,49 @@ export function VisualBuilder() {
                   >
                     <option value="sum">Sum / Total</option>
                     <option value="avg">Average (Mean)</option>
+                    <option value="median">Median Value</option>
+                    <option value="min">Minimum Value</option>
+                    <option value="max">Maximum Value</option>
                     <option value="count">Count of Records</option>
                     <option value="count-distinct">Count Distinct (Unique)</option>
-                    <option value="max">Maximum Value</option>
-                    <option value="min">Minimum Value</option>
-                    <option value="median">Median Value</option>
                     <option value="stddev">Standard Deviation</option>
                     <option value="variance">Variance</option>
+                    <option value="pct-total">% of Total</option>
                   </select>
                 </div>
 
-                {/* Controls */}
+                {/* Category Limit (Top N) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-textPrimary">Category Limit</label>
+                    {totalCategoryCount > 0 && (
+                      <span className="text-[10px] text-textMuted font-semibold">
+                        {categoryLimit > 0 ? `Top ${Math.min(categoryLimit, totalCategoryCount)} of ${totalCategoryCount}` : `${totalCategoryCount} total`}
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={categoryLimit}
+                    onChange={(e) => setCategoryLimit(Number(e.target.value))}
+                    className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs cursor-pointer"
+                  >
+                    <option value={5}>Top 5 Categories</option>
+                    <option value={10}>Top 10 Categories</option>
+                    <option value={15}>Top 15 Categories (Default)</option>
+                    <option value={25}>Top 25 Categories</option>
+                    <option value={50}>Top 50 Categories</option>
+                    <option value={0}>All Categories (No Limit)</option>
+                  </select>
+                </div>
+
+                {/* Filter & Sort Controls */}
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => setShowFilterModal(true)}
                     className="flex-1 py-2 px-3 bg-surface hover:bg-primary-soft/30 border border-border/80 text-textSecondary hover:text-textPrimary rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Filter className="w-3.5 h-3.5 text-primary" />
-                    Filter ({activeFilters.length})
+                    Filter ({activeFilters.length + (startDate || endDate ? 1 : 0)})
                   </button>
                   <button
                     onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : prev === "asc" ? "none" : "desc")}
@@ -795,19 +1891,23 @@ export function VisualBuilder() {
             </CardContent>
           </Card>
 
-          {/* Chart Canvas */}
-          <Card className="flex-1 flex flex-col min-h-[460px] border border-border/80 shadow-sm overflow-hidden">
+          {/* Chart Canvas & Workspace */}
+          <Card className="flex-1 flex flex-col min-h-[500px] border border-border/80 shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-border/60 flex flex-row items-center justify-between bg-surface/50">
-              <div>
-                <CardTitle className="text-base font-bold text-textPrimary">
+              <div className="min-w-0 pr-2">
+                <CardTitle className="text-base font-bold text-textPrimary truncate">
                   {customTitle || `${currentX} vs ${yCols.join(" & ")}`}
                 </CardTitle>
-                {customSubtitle && (
-                  <p className="text-xs text-textSecondary mt-0.5 font-medium">{customSubtitle}</p>
+                {customSubtitle ? (
+                  <p className="text-xs text-textSecondary mt-0.5 font-medium truncate">{customSubtitle}</p>
+                ) : (
+                  <p className="text-[11px] text-textMuted mt-0.5">
+                    {filteredRows.length.toLocaleString()} active rows filtered · {chartData.length} categories displayed
+                  </p>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {/* View Switcher: Chart vs Data Table */}
                 <div className="flex items-center rounded-xl bg-primary-soft/40 p-0.5 border border-border/60">
                   <button
@@ -849,37 +1949,104 @@ export function VisualBuilder() {
                 )}
 
                 <button
-                  onClick={() => setActiveChartType(aiRecommendation.type)}
-                  className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary-soft/60 px-3 py-1 rounded-full border border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer"
-                >
-                  <Bot className="w-3.5 h-3.5" />
-                  AI: {aiRecommendation.title}
-                </button>
-                <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   title="Toggle Fullscreen"
                   className="p-1.5 text-textMuted hover:text-textPrimary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer"
                 >
                   <Maximize2 className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => {
-                    if (viewMode === "table") {
-                      exportTableCSV();
-                    } else {
-                      showToast("Chart exported as PNG");
-                    }
-                  }}
-                  title={viewMode === "table" ? "Export Table CSV" : "Download Chart PNG"}
-                  className="p-1.5 text-textMuted hover:text-textPrimary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
+
+                {/* Export Action Menu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    title="Export options"
+                    className="p-1.5 text-textMuted hover:text-textPrimary hover:bg-primary-soft/50 rounded-lg transition-colors cursor-pointer flex items-center"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+
+                  {showExportMenu && (
+                    <div className="absolute right-0 mt-1 w-48 bg-surface border border-border/80 rounded-xl shadow-xl z-30 py-1.5 text-xs animate-in fade-in duration-150">
+                      <button
+                        onClick={() => {
+                          exportChartPNG();
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-primary" />
+                        Download Chart PNG
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportTableCSV("aggregated");
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                        Export Aggregated CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportTableCSV("records");
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                      >
+                        <Table className="w-3.5 h-3.5 text-indigo-600" />
+                        Export Source Records CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportConfigJSON();
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer border-t border-border/60"
+                      >
+                        <Save className="w-3.5 h-3.5 text-amber-500" />
+                        Export Config (JSON)
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardHeader>
 
             <CardContent className="p-6 flex-1 flex flex-col justify-start relative">
-              {/* "Why this chart?" Contextual Banner */}
+              {/* Contextual Recommendation Banner */}
+              {recommendations.length > 0 && (
+                <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                  <span className="text-[11px] font-bold text-textMuted uppercase shrink-0 flex items-center gap-1">
+                    <Bot className="w-3.5 h-3.5 text-primary" /> Recommended:
+                  </span>
+                  {recommendations.map(rec => (
+                    <button
+                      key={rec.id}
+                      onClick={() => setActiveChartType(rec.id)}
+                      title={rec.rationale}
+                      className="px-2.5 py-1 rounded-lg bg-primary-soft/60 hover:bg-primary text-primary hover:text-white border border-primary/20 text-[11px] font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                    >
+                      <span>{rec.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Chart Validation Warning (if any) */}
+              {chartValidationWarning && (
+                <div className={`mb-3 p-2.5 rounded-xl border flex items-center gap-2 text-xs ${
+                  chartValidationWarning.type === "warning"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400"
+                    : "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400"
+                }`}>
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{chartValidationWarning.message}</span>
+                </div>
+              )}
+
+              {/* "Why this chart?" Contextual Explanation Banner */}
               {showWhyChart && (
                 <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-primary-soft/40 to-indigo-500/10 border border-primary/20 flex items-start justify-between gap-3 text-xs shadow-xs">
                   <div className="flex items-start gap-3 min-w-0">
@@ -888,13 +2055,18 @@ export function VisualBuilder() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-extrabold text-textPrimary tracking-tight">Why this chart: {whyChartExplanation.chartName}</span>
+                        <span className="font-extrabold text-textPrimary tracking-tight">Why this chart: {dynamicExplanation.chartName}</span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary border border-primary/20">
                           {currentX} vs {yCols.join(", ")}
                         </span>
                       </div>
-                      <p className="text-textSecondary mt-1 leading-relaxed">{whyChartExplanation.rationale}</p>
-                      <p className="text-[11px] text-textMuted mt-1 font-medium italic">{whyChartExplanation.tip}</p>
+                      <p className="text-textSecondary mt-1 leading-relaxed">{dynamicExplanation.rationale}</p>
+                      {dynamicExplanation.statsSummary && (
+                        <p className="text-textPrimary font-semibold mt-1 bg-surface/70 px-2.5 py-1 rounded-lg border border-border/50 text-[11px]">
+                          {dynamicExplanation.statsSummary}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-textMuted mt-1 font-medium italic">{dynamicExplanation.tip}</p>
                     </div>
                   </div>
                   <button
@@ -909,359 +2081,136 @@ export function VisualBuilder() {
               )}
 
               {viewMode === "table" ? (
-                /* Accessible Aggregated Data Table View */
-                <div className="flex-1 flex flex-col min-h-[340px] border border-border/70 rounded-xl overflow-hidden bg-surface shadow-xs">
-                  <div className="p-3 bg-surface/80 border-b border-border/60 flex items-center justify-between">
-                    <span className="text-xs font-bold text-textPrimary">Aggregated Data Summary ({chartData.length} entries)</span>
-                    <button
-                      type="button"
-                      onClick={exportTableCSV}
-                      className="px-2.5 py-1 text-[11px] font-bold bg-primary text-white hover:bg-primary-hover rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Download className="w-3 h-3" />
-                      Export CSV
-                    </button>
+                /* Accessible Dual-Mode Data Table View */
+                <div className="flex-1 flex flex-col min-h-[380px] border border-border/70 rounded-xl overflow-hidden bg-surface shadow-xs">
+                  {/* Table Sub-Mode Switcher */}
+                  <div className="p-3 bg-surface/90 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setTableViewType("aggregated")}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                          tableViewType === "aggregated"
+                            ? "bg-primary text-white"
+                            : "bg-primary-soft/40 text-textSecondary hover:text-textPrimary"
+                        }`}
+                      >
+                        Aggregated Summary ({chartData.length})
+                      </button>
+                      <button
+                        onClick={() => setTableViewType("records")}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                          tableViewType === "records"
+                            ? "bg-primary text-white"
+                            : "bg-primary-soft/40 text-textSecondary hover:text-textPrimary"
+                        }`}
+                      >
+                        Filtered Source Records ({filteredRows.length})
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {tableViewType === "records" && (
+                        <div className="relative">
+                          <Search className="w-3 h-3 text-textMuted absolute left-2 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="Search records…"
+                            value={recordsSearch}
+                            onChange={e => setRecordsSearch(e.target.value)}
+                            className="bg-surface text-textPrimary text-[11px] pl-6 pr-2 py-1 rounded-lg border border-border/70 focus:outline-none focus:border-primary w-36"
+                          />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => exportTableCSV(tableViewType)}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-primary text-white hover:bg-primary-hover rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Download className="w-3 h-3" />
+                        Export CSV
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-auto max-h-[360px]">
-                    <table className="w-full text-left text-xs whitespace-nowrap">
-                      <thead className="bg-primary-soft/30 text-textSecondary sticky top-0 border-b border-border/80 backdrop-blur-xs">
-                        <tr>
-                          <th className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider">{currentX}</th>
-                          {yCols.map(col => (
-                            <th key={col} className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider text-right">{col} ({measureType.toUpperCase()})</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60 bg-surface">
-                        {chartData.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-primary-soft/15 transition-colors">
-                            <td className="px-4 py-2.5 font-semibold text-textPrimary flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.color || palette[idx % palette.length] }} />
-                              <span className="truncate">{row.label}</span>
-                            </td>
+
+                  {tableViewType === "aggregated" ? (
+                    /* Aggregated Summary Table with Totals */
+                    <div className="flex-1 overflow-auto max-h-[380px]">
+                      <table className="w-full text-left text-xs whitespace-nowrap">
+                        <thead className="bg-primary-soft/30 text-textSecondary sticky top-0 border-b border-border/80 backdrop-blur-xs">
+                          <tr>
+                            <th className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider">{currentX}</th>
                             {yCols.map(col => (
-                              <td key={col} className="px-4 py-2.5 font-mono text-right text-textPrimary">
-                                {formatVal(Number(row[col] ?? 0), valueFormat, decimalPlaces, currencySymbol)}
-                              </td>
+                              <th key={col} className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider text-right">{col} ({measureType.toUpperCase()})</th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType) ? (
-                <div className="flex flex-col items-center justify-center text-center p-6">
-                  <img
-                    src="/assets/illustrations/empty-states/illustration-empty-chart.svg"
-                    alt="No data to visualize"
-                    className="w-40 h-auto mb-2 opacity-90"
-                  />
-                  <h4 className="text-sm font-bold text-textPrimary">No data to visualize</h4>
-                  <p className="text-xs text-textSecondary max-w-sm mt-0.5">
-                    Select a different X-Axis dimension or clear active filters to display chart data.
-                  </p>
+                        </thead>
+                        <tbody className="divide-y divide-border/60 bg-surface">
+                          {chartData.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-primary-soft/15 transition-colors">
+                              <td className="px-4 py-2.5 font-semibold text-textPrimary flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.color || palette[idx % palette.length] }} />
+                                <span className="truncate">{row.fullLabel || row.label}</span>
+                              </td>
+                              {yCols.map(col => (
+                                <td key={col} className="px-4 py-2.5 font-mono text-right text-textPrimary">
+                                  {formatVal(Number(row[col] ?? 0), valueFormat, decimalPlaces, currencySymbol)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-primary-soft/40 border-t-2 border-primary/30 font-bold sticky bottom-0 backdrop-blur-xs">
+                          <tr>
+                            <td className="px-4 py-2.5 text-primary uppercase text-[11px] font-black">
+                              Total ({chartData.length} categories)
+                            </td>
+                            {yCols.map(col => {
+                              const colTotal = chartData.reduce((acc, row) => acc + Number(row[col] ?? 0), 0);
+                              return (
+                                <td key={col} className="px-4 py-2.5 font-mono text-right text-primary font-black">
+                                  {formatVal(colTotal, valueFormat, decimalPlaces, currencySymbol)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  ) : (
+                    /* Filtered Source Records Table */
+                    <div className="flex-1 overflow-auto max-h-[380px]">
+                      <table className="w-full text-left text-xs whitespace-nowrap">
+                        <thead className="bg-primary-soft/30 text-textSecondary sticky top-0 border-b border-border/80 backdrop-blur-xs">
+                          <tr>
+                            <th className="px-3.5 py-2 font-bold uppercase text-[10px] text-textMuted">#</th>
+                            {columns.map(col => (
+                              <th key={col} className="px-3.5 py-2 font-bold uppercase text-[10px] tracking-wider text-textSecondary">{col}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60 bg-surface">
+                          {displayedSourceRecords.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-primary-soft/15 transition-colors">
+                              <td className="px-3.5 py-2 text-textMuted font-mono text-[10px]">{idx + 1}</td>
+                              {columns.map(col => (
+                                <td key={col} className="px-3.5 py-2 text-textPrimary font-medium">
+                                  {String(row[col] ?? "-")}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {displayedSourceRecords.length === 0 && (
+                        <p className="text-center py-8 text-xs text-textSecondary">No matching source records found.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="w-full" style={{ height: "360px", minHeight: "340px" }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    {/* BAR (Grouped / Stacked) */}
-                    {activeChartType === "bar" || activeChartType === "stacked-bar" ? (
-                      <RechartsBarChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                        {yCols.map((yCol, i) => (
-                          <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} stackId={activeChartType === "stacked-bar" ? "a" : undefined} barSize={barWidth} isAnimationActive={false} />
-                        ))}
-                      </RechartsBarChart>
-
-                    /* HORIZONTAL BAR */
-                    ) : activeChartType === "horizontal-bar" ? (
-                      <RechartsBarChart layout="vertical" data={chartData} margin={{ top: 20, right: 20, left: 30, bottom: 10 }} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis type="category" dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} width={80} />
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                        {yCols.map((yCol, i) => (
-                          <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[0, 6, 6, 0]} barSize={barWidth} isAnimationActive={false} />
-                        ))}
-                      </RechartsBarChart>
-
-                    /* LINE / MULTI-LINE */
-                    ) : activeChartType === "line" || activeChartType === "multi-line" ? (
-                      <RechartsLineChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                        {yCols.map((yCol, i) => (
-                          <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} strokeWidth={3} dot={{ r: 5 }} isAnimationActive={false} />
-                        ))}
-                      </RechartsLineChart>
-
-                    /* AREA / STACKED AREA */
-                    ) : activeChartType === "area" || activeChartType === "stacked-area" ? (
-                      <RechartsAreaChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                        {yCols.map((yCol, i) => (
-                          <Area key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.25} stackId={activeChartType === "stacked-area" ? "a" : undefined} isAnimationActive={false} />
-                        ))}
-                      </RechartsAreaChart>
-
-                    /* PIE / DONUT */
-                    ) : activeChartType === "pie" || activeChartType === "donut" ? (
-                      <RechartsPieChart>
-                        <Pie data={chartData} dataKey={primaryY} nameKey="label" cx="50%" cy="50%" outerRadius={120} innerRadius={activeChartType === "donut" ? 60 : 0} paddingAngle={3} label={({ name, percent }: any) => `${name} (${(percent * 100).toFixed(0)}%)`} isAnimationActive={false}>
-                          {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color || palette[index % palette.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                      </RechartsPieChart>
-
-                    /* RADAR */
-                    ) : activeChartType === "radar" ? (
-                      <RechartsRadarChart cx="50%" cy="50%" outerRadius={110} data={chartData}>
-                        <PolarGrid stroke="var(--color-border, #CBD5E1)" />
-                        <PolarAngleAxis dataKey="label" tick={{ fill: "var(--color-textSecondary, #475569)", fontSize: 11 }} />
-                        <PolarRadiusAxis angle={30} domain={[0, "auto"]} />
-                        {yCols.map((yCol, i) => (
-                          <Radar key={yCol} name={yCol} dataKey={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.4} isAnimationActive={false} />
-                        ))}
-                        <Tooltip contentStyle={tooltipStyle} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                      </RechartsRadarChart>
-
-                    /* SCATTER / BUBBLE */
-                    ) : activeChartType === "scatter" || activeChartType === "bubble" ? (
-                      <RechartsScatterChart margin={CHART_MARGIN}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis
-                          type="number"
-                          dataKey="x"
-                          name={currentX}
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
-                          label={{ value: currentX, position: "insideBottom", offset: -10, fontSize: 11, fill: "var(--color-textSecondary, #64748B)" }}
-                        />
-                        <YAxis
-                          type="number"
-                          dataKey="y"
-                          name={primaryY}
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
-                          label={{ value: primaryY, angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--color-textSecondary, #64748B)" }}
-                        />
-                        <Tooltip
-                          contentStyle={tooltipStyle}
-                          formatter={(val: any, name: any) => [formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]}
-                        />
-                        <Scatter
-                          name={`${currentX} vs ${primaryY}`}
-                          data={scatterRawData}
-                          fill={palette[0]}
-                          fillOpacity={0.7}
-                          isAnimationActive={false}
-                        >
-                          {scatterRawData.map((_, i) => (
-                            <Cell key={i} fill={palette[i % palette.length]} />
-                          ))}
-                        </Scatter>
-                      </RechartsScatterChart>
-
-                    /* HISTOGRAM */
-                    ) : activeChartType === "histogram" ? (
-                      <RechartsBarChart data={histogramBins} margin={CHART_MARGIN}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 10 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Bar dataKey="value" name="Frequency" isAnimationActive={false} radius={[4, 4, 0, 0]}>
-                          {histogramBins.map((_, i) => <Cell key={i} fill={palette[i % palette.length]} />)}
-                        </Bar>
-                      </RechartsBarChart>
-
-                    /* COMBO (Bar + Line) */
-                    ) : activeChartType === "combi" ? (
-                      <RechartsComposedChart data={chartData} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {showLegend && <Legend verticalAlign="top" />}
-                        <Bar dataKey={primaryY} name={primaryY} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
-                        {yCols.slice(1).map((yCol, i) => (
-                          <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[(i + 1) % palette.length]} strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
-                        ))}
-                      </RechartsComposedChart>
-
-                    /* WATERFALL */
-                    ) : activeChartType === "waterfall" ? (
-                      <RechartsComposedChart data={waterfallData} margin={CHART_MARGIN}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip
-                          contentStyle={tooltipStyle}
-                          formatter={(val: any, name: any) => String(name) === "invisible" ? [null, null] : [formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]}
-                        />
-                        {showLegend && <Legend verticalAlign="top" />}
-                        <Bar dataKey="start" name="invisible" fill="transparent" stackId="wf" isAnimationActive={false} />
-                        <Bar dataKey="value" name={primaryY} stackId="wf" isAnimationActive={false} radius={[4, 4, 0, 0]}>
-                          {waterfallData.map((d, i) => (
-                            <Cell key={i} fill={Number(d?.value) >= 0 ? palette[0] : "#EF4444"} />
-                          ))}
-                        </Bar>
-                        <ReferenceLine y={0} stroke="var(--color-border, #E2E8F0)" strokeWidth={1.5} />
-                      </RechartsComposedChart>
-
-                    /* HEATMAP / MATRIX */
-                    ) : activeChartType === "heatmap" || activeChartType === "matrix" ? (
-                      <div className="w-full h-full overflow-auto p-1">
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 h-full content-start">
-                          {chartData.map((d, i) => {
-                            const val = Number(d[primaryY] ?? d.value ?? 0);
-                            const maxVal = Math.max(...chartData.map(x => Number(x[primaryY] ?? x.value ?? 0)));
-                            const intensity = maxVal > 0 ? val / maxVal : 0;
-                            return (
-                              <div
-                                key={i}
-                                className="p-3 rounded-xl border flex flex-col gap-1 cursor-pointer hover:scale-105 transition-transform"
-                                style={{
-                                  backgroundColor: palette[i % palette.length] + Math.round(intensity * 200).toString(16).padStart(2, "0"),
-                                  borderColor: palette[i % palette.length] + "40",
-                                }}
-                                onClick={() => setShowDrillThroughModal(d)}
-                              >
-                                <span className="text-[10px] font-bold text-textSecondary truncate">{d.label}</span>
-                                <span className="text-sm font-extrabold text-textPrimary">{formatVal(val, valueFormat, decimalPlaces, currencySymbol)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                    /* TREEMAP */
-                    ) : activeChartType === "treemap" ? (
-                      <RechartsBarChart data={chartData} margin={CHART_MARGIN}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
-                        {yCols.map((yCol, i) => (
-                          <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} isAnimationActive={false} />
-                        ))}
-                      </RechartsBarChart>
-
-                    /* FUNNEL */
-                    ) : activeChartType === "funnel" ? (
-                      <div className="w-full h-full overflow-auto flex items-center justify-center">
-                        <FunnelChart
-                          data={chartData.map(d => ({ label: d.label, value: Number(d[primaryY] ?? d.value ?? 0), color: d.color }))}
-                          palette={palette}
-                        />
-                      </div>
-
-                    /* GAUGE */
-                    ) : activeChartType === "gauge" ? (
-                      <div className="w-full h-full flex flex-wrap items-center justify-center gap-6 overflow-auto p-4">
-                        {yCols.map((yCol, i) => {
-                          const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
-                          const maxV = Math.max(maxGaugeValue, total) * 1.2;
-                          return (
-                            <GaugeChart key={yCol} value={total} maxValue={maxV} color={palette[i % palette.length]} label={yCol} />
-                          );
-                        })}
-                      </div>
-
-                    /* KPI CARD */
-                    ) : activeChartType === "kpi" ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full h-full items-center justify-center p-4 overflow-auto">
-                        {yCols.map((yCol, i) => {
-                          const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
-                          const avg = chartData.length > 0 ? total / chartData.length : 0;
-                          const maxV = Math.max(...chartData.map(d => Number(d[yCol] ?? 0)));
-                          return (
-                            <div key={yCol} className="p-5 bg-surface border border-border/80 rounded-2xl shadow-xs flex flex-col gap-3">
-                              <span className="text-xs font-bold uppercase tracking-wider text-textSecondary">{yCol}</span>
-                              <div className="text-3xl font-extrabold tracking-tight" style={{ color: palette[i % palette.length] }}>
-                                {formatVal(total, valueFormat, decimalPlaces, currencySymbol)}
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-textMuted border-t border-border/60 pt-2">
-                                <div>Avg: <span className="text-textPrimary">{formatVal(avg, valueFormat, decimalPlaces, currencySymbol)}</span></div>
-                                <div>Max: <span className="text-textPrimary">{formatVal(maxV, valueFormat, decimalPlaces, currencySymbol)}</span></div>
-                                <div>Categories: <span className="text-textPrimary">{chartData.length}</span></div>
-                                <div>Mode: <span className="text-textPrimary">{measureType}</span></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                    /* TABLE */
-                    ) : activeChartType === "table" ? (
-                      <div className="w-full h-full overflow-auto border border-border/80 rounded-xl">
-                        <table className="w-full text-left text-xs whitespace-nowrap">
-                          <thead className="bg-primary-soft/30 sticky top-0 border-b border-border/80">
-                            <tr>
-                              <th className="px-4 py-2.5 font-bold">{currentX}</th>
-                              {yCols.map(c => <th key={c} className="px-4 py-2.5 font-bold text-right">{c}</th>)}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60 bg-surface">
-                            {chartData.map((d, i) => (
-                              <tr key={i} className="hover:bg-primary-soft/10 cursor-pointer" onClick={() => setShowDrillThroughModal(d)}>
-                                <td className="px-4 py-2.5 font-bold text-textPrimary">{d.fullLabel || d.label}</td>
-                                {yCols.map(c => (
-                                  <td key={c} className="px-4 py-2.5 text-right font-medium text-textPrimary">
-                                    {formatVal(Number(d[c] ?? 0), valueFormat, decimalPlaces, currencySymbol)}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                    /* BOX PLOT */
-                    ) : activeChartType === "boxplot" ? (
-                      <RechartsComposedChart data={boxPlotData} margin={CHART_MARGIN}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Bar dataKey="min" name="Min" fill="transparent" isAnimationActive={false} />
-                        <Bar dataKey="q1" name="Q1" fill="transparent" stackId="box" isAnimationActive={false} />
-                        <Bar dataKey="median" name="Median" fill={palette[0]} stackId="box" barSize={barWidth} radius={[0, 0, 0, 0]} isAnimationActive={false} />
-                        <Bar dataKey="q3" name="Q3" fill={palette[0] + "60"} stackId="box" barSize={barWidth} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                        <Legend verticalAlign="top" />
-                      </RechartsComposedChart>
-
-                    /* DEFAULT FALLBACK */
-                    ) : (
-                      <RechartsBarChart data={chartData} margin={CHART_MARGIN}>
-                        {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        {yCols.map((yCol, i) => (
-                          <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
-                        ))}
-                      </RechartsBarChart>
-                    )}
-                  </ResponsiveContainer>
+                /* Chart Canvas View Container */
+                <div ref={chartContainerRef} className="w-full flex-1" style={{ height: "360px", minHeight: "340px" }}>
+                  {renderActiveChart(false)}
                 </div>
               )}
             </CardContent>
@@ -1309,8 +2258,24 @@ export function VisualBuilder() {
                 <label className="font-bold text-textPrimary block mb-1.5">Value Formatting</label>
                 <div className="flex gap-2">
                   {(["number", "currency", "percent"] as const).map(fmt => (
-                    <button key={fmt} onClick={() => setValueFormat(fmt)} className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold capitalize ${valueFormat === fmt ? "bg-primary text-white border-primary" : "border-border"}`}>
+                    <button key={fmt} onClick={() => setValueFormat(fmt)} className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold capitalize cursor-pointer ${valueFormat === fmt ? "bg-primary text-white border-primary" : "border-border"}`}>
                       {fmt === "currency" ? `${currencySymbol} Currency` : fmt === "percent" ? "% Percent" : "# Number"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {valueFormat === "currency" && (
+                <div>
+                  <label className="font-bold text-textPrimary block mb-1">Currency Symbol</label>
+                  <input type="text" value={currencySymbol} onChange={e => setCurrencySymbol(e.target.value)} className="w-20 border border-border/80 bg-surface rounded-xl p-2 text-xs" />
+                </div>
+              )}
+              <div>
+                <label className="font-bold text-textPrimary block mb-1.5">Decimal Precision</label>
+                <div className="flex gap-2">
+                  {[0, 1, 2].map(dp => (
+                    <button key={dp} onClick={() => setDecimalPlaces(dp)} className={`px-4 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${decimalPlaces === dp ? "bg-primary text-white border-primary" : "border-border"}`}>
+                      {dp} Decimals
                     </button>
                   ))}
                 </div>
@@ -1319,7 +2284,7 @@ export function VisualBuilder() {
                 <label className="font-bold text-textPrimary block mb-1.5">Color Theme Palette</label>
                 <div className="flex flex-wrap gap-2">
                   {(Object.keys(PALETTES) as (keyof typeof PALETTES)[]).map(k => (
-                    <button key={k} onClick={() => setPaletteKey(k)} className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${paletteKey === k ? "bg-primary text-white border-primary" : "border-border bg-surface text-textSecondary"}`}>
+                    <button key={k} onClick={() => setPaletteKey(k)} className={`px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer ${paletteKey === k ? "bg-primary text-white border-primary" : "border-border bg-surface text-textSecondary"}`}>
                       {k.charAt(0).toUpperCase() + k.slice(1)}
                     </button>
                   ))}
@@ -1336,45 +2301,163 @@ export function VisualBuilder() {
         </div>
       )}
 
-      {/* MODAL: Filters */}
+      {/* MODAL: Filters & Date Range */}
       {showFilterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={() => setShowFilterModal(false)}>
-          <div className="w-full max-w-md bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-lg bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-bold text-textPrimary">In-Builder Filters</h3>
+                <h3 className="text-sm font-bold text-textPrimary">In-Builder Filters & Date Range</h3>
               </div>
               <button onClick={() => setShowFilterModal(false)} className="text-textMuted hover:text-textPrimary p-1 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
-            <div className="p-5 flex flex-col gap-4 text-xs">
-              {activeFilters.length === 0 && (
-                <p className="text-textMuted text-center py-2">No active filters. Add one below.</p>
-              )}
-              <div className="flex flex-col gap-2">
-                {activeFilters.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between bg-primary-soft/30 p-2.5 rounded-xl border border-border/80">
-                    <span className="font-bold text-textPrimary">{f.col} <span className="text-primary">{f.op}</span> "{f.val}"</span>
-                    <button onClick={() => setActiveFilters(prev => prev.filter((_, idx) => idx !== i))} className="text-textMuted hover:text-rose-500 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+            <div className="p-5 overflow-y-auto flex flex-col gap-4 text-xs">
+              {/* Date Range Section */}
+              {dateColumns.length > 0 && (
+                <div className="p-3.5 bg-primary-soft/20 rounded-xl border border-primary/20 flex flex-col gap-2.5">
+                  <span className="font-bold text-textPrimary flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    Date Range Filter
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-textMuted block mb-0.5">Date Column</label>
+                      <select
+                        value={activeDateCol}
+                        onChange={e => setActiveDateCol(e.target.value)}
+                        className="w-full border border-border/70 bg-surface rounded-lg p-1.5 text-xs font-medium"
+                      >
+                        {dateColumns.map(dc => <option key={dc} value={dc}>{dc}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-textMuted block mb-0.5">Preset</label>
+                      <select
+                        value={dateRangePreset}
+                        onChange={e => handleDatePresetChange(e.target.value as any)}
+                        className="w-full border border-border/70 bg-surface rounded-lg p-1.5 text-xs font-medium"
+                      >
+                        <option value="all">All Dates (No filter)</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="mtd">Month to Date</option>
+                        <option value="ytd">Year to Date</option>
+                        <option value="custom">Custom Range</option>
+                      </select>
+                    </div>
                   </div>
-                ))}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-textMuted block mb-0.5">Start Date</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={e => {
+                          setStartDate(e.target.value);
+                          setDateRangePreset("custom");
+                        }}
+                        className="w-full border border-border/70 bg-surface rounded-lg p-1.5 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-textMuted block mb-0.5">End Date</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={e => {
+                          setEndDate(e.target.value);
+                          setDateRangePreset("custom");
+                        }}
+                        className="w-full border border-border/70 bg-surface rounded-lg p-1.5 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Active Filters List */}
+              <div>
+                <label className="font-bold text-textPrimary block mb-1.5">Active Dimension Rules</label>
+                {activeFilters.length === 0 ? (
+                  <p className="text-textMuted text-center py-2 text-xs">No active column rules. Add one below.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {activeFilters.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between bg-primary-soft/30 p-2.5 rounded-xl border border-border/80">
+                        <span className="font-bold text-textPrimary">
+                          {f.col} <span className="text-primary">{f.op}</span> {f.op === "is-null" || f.op === "is-not-null" ? "" : `"${f.val}"`}
+                        </span>
+                        <button onClick={() => setActiveFilters(prev => prev.filter((_, idx) => idx !== i))} className="text-textMuted hover:text-rose-500 cursor-pointer">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Add Filter Rule Form */}
               <div className="flex flex-col gap-2 pt-2 border-t border-border/60">
+                <span className="font-bold text-textPrimary">Add Filter Rule</span>
                 <select value={filterCol || columns[0]} onChange={e => setFilterCol(e.target.value)} className="w-full border border-border/80 bg-surface rounded-xl p-2 text-xs">
-                  {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                  {columns.map(c => <option key={c} value={c}>{c} [{columnTypeMap[c] || "text"}]</option>)}
                 </select>
                 <select value={filterOp} onChange={e => setFilterOp(e.target.value)} className="w-full border border-border/80 bg-surface rounded-xl p-2 text-xs">
-                  <option value="contains">Contains</option>
+                  <option value="contains">Contains (text)</option>
+                  <option value="not-contains">Does Not Contain</option>
                   <option value="equals">Equals (exact)</option>
                   <option value="not-equals">Not Equals</option>
-                  <option value="greater">Greater Than</option>
-                  <option value="less">Less Than</option>
+                  <option value="starts-with">Starts With</option>
+                  <option value="ends-with">Ends With</option>
+                  <option value="greater">Greater Than (&gt;)</option>
+                  <option value="less">Less Than (&lt;)</option>
+                  <option value="greater-equal">Greater or Equal (&ge;)</option>
+                  <option value="less-equal">Less or Equal (&le;)</option>
+                  <option value="between">Between (range)</option>
+                  <option value="is-null">Is Null / Empty</option>
+                  <option value="is-not-null">Is Not Null (populated)</option>
                 </select>
-                <input type="text" value={filterVal} onChange={e => setFilterVal(e.target.value)} placeholder="Filter value…" className="w-full border border-border/80 bg-surface rounded-xl p-2 text-xs" />
+
+                {filterOp === "between" ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={filterVal}
+                      onChange={e => setFilterVal(e.target.value)}
+                      placeholder="Min value…"
+                      className="w-full border border-border/80 bg-surface rounded-xl p-2 text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={filterVal2}
+                      onChange={e => setFilterVal2(e.target.value)}
+                      placeholder="Max value…"
+                      className="w-full border border-border/80 bg-surface rounded-xl p-2 text-xs"
+                    />
+                  </div>
+                ) : filterOp !== "is-null" && filterOp !== "is-not-null" ? (
+                  <input
+                    type="text"
+                    value={filterVal}
+                    onChange={e => setFilterVal(e.target.value)}
+                    placeholder="Filter value…"
+                    className="w-full border border-border/80 bg-surface rounded-xl p-2 text-xs"
+                  />
+                ) : null}
+
                 <button
                   onClick={() => {
                     const c = filterCol || columns[0];
-                    if (filterVal.trim()) {
+                    if (filterOp === "is-null" || filterOp === "is-not-null") {
+                      setActiveFilters([...activeFilters, { col: c, op: filterOp, val: "" }]);
+                    } else if (filterOp === "between") {
+                      if (filterVal.trim() && filterVal2.trim()) {
+                        setActiveFilters([...activeFilters, { col: c, op: filterOp, val: `${filterVal.trim()},${filterVal2.trim()}` }]);
+                        setFilterVal("");
+                        setFilterVal2("");
+                      }
+                    } else if (filterVal.trim()) {
                       setActiveFilters([...activeFilters, { col: c, op: filterOp, val: filterVal.trim() }]);
                       setFilterVal("");
                     }
@@ -1386,16 +2469,28 @@ export function VisualBuilder() {
               </div>
             </div>
             <div className="p-4 border-t border-border/60 flex justify-between">
-              {activeFilters.length > 0 && (
-                <button onClick={() => setActiveFilters([])} className="px-4 py-2 bg-rose-500/10 text-rose-500 font-bold rounded-xl text-xs cursor-pointer">Clear All</button>
+              {(activeFilters.length > 0 || startDate || endDate) && (
+                <button
+                  onClick={() => {
+                    setActiveFilters([]);
+                    setStartDate("");
+                    setEndDate("");
+                    setDateRangePreset("all");
+                  }}
+                  className="px-4 py-2 bg-rose-500/10 text-rose-500 font-bold rounded-xl text-xs cursor-pointer"
+                >
+                  Clear All Filters
+                </button>
               )}
-              <button onClick={() => setShowFilterModal(false)} className="ml-auto px-5 py-2 bg-primary-soft text-textPrimary font-bold rounded-xl text-xs cursor-pointer">Done</button>
+              <button onClick={() => setShowFilterModal(false)} className="ml-auto px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs cursor-pointer">
+                Apply & Close
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: Drill-Through */}
+      {/* MODAL: Drill-Through Inspector */}
       {showDrillThroughModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={() => setShowDrillThroughModal(null)}>
           <div className="w-full max-w-2xl bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
@@ -1403,21 +2498,23 @@ export function VisualBuilder() {
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-primary" />
                 <div>
-                  <h3 className="text-sm font-bold text-textPrimary">Drill-Through: {showDrillThroughModal.fullLabel || showDrillThroughModal.label}</h3>
-                  <p className="text-[11px] text-textSecondary">Underlying row records for this data point</p>
+                  <h3 className="text-sm font-bold text-textPrimary">Drill-Through: {showDrillThroughModal.fullLabel || showDrillThroughModal.label || showDrillThroughModal.name || "Category"}</h3>
+                  <p className="text-[11px] text-textSecondary">
+                    Underlying row records for this data point ({rawGroupedRows[showDrillThroughModal.fullLabel || showDrillThroughModal.label || showDrillThroughModal.name]?.length || 0} rows)
+                  </p>
                 </div>
               </div>
               <button onClick={() => setShowDrillThroughModal(null)} className="text-textMuted hover:text-textPrimary p-1 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-6 overflow-y-auto flex flex-col gap-3 text-xs">
-              {rawGroupedRows[showDrillThroughModal.fullLabel || showDrillThroughModal.label] ? (
+              {rawGroupedRows[showDrillThroughModal.fullLabel || showDrillThroughModal.label || showDrillThroughModal.name] ? (
                 <div className="border border-border/80 rounded-xl overflow-x-auto">
                   <table className="w-full text-left text-xs whitespace-nowrap">
                     <thead className="bg-primary-soft/30 border-b border-border/80">
                       <tr>{columns.map((c, i) => <th key={i} className="px-3.5 py-2 font-bold">{c}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-border/60 bg-surface">
-                      {rawGroupedRows[showDrillThroughModal.fullLabel || showDrillThroughModal.label].slice(0, 100).map((r, i) => (
+                      {rawGroupedRows[showDrillThroughModal.fullLabel || showDrillThroughModal.label || showDrillThroughModal.name].slice(0, 100).map((r, i) => (
                         <tr key={i} className="hover:bg-primary-soft/10">
                           {columns.map((c, j) => <td key={j} className="px-3.5 py-2 text-textPrimary font-medium">{String(r[c] ?? "-")}</td>)}
                         </tr>
@@ -1436,26 +2533,23 @@ export function VisualBuilder() {
         </div>
       )}
 
-      {/* Fullscreen */}
+      {/* FULLSCREEN VIEW (Dynamically renders the active chart) */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-surface p-6 flex flex-col gap-4">
+        <div className="fixed inset-0 z-50 bg-surface p-6 flex flex-col gap-4 animate-in fade-in duration-200">
           <div className="flex items-center justify-between border-b border-border pb-4">
-            <h2 className="text-lg font-bold text-textPrimary">{customTitle || `${currentX} vs ${yCols.join(" & ")}`}</h2>
-            <button onClick={() => setIsFullscreen(false)} className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold cursor-pointer">Exit Fullscreen</button>
+            <div>
+              <h2 className="text-lg font-bold text-textPrimary">{customTitle || `${currentX} vs ${yCols.join(" & ")}`}</h2>
+              {customSubtitle && <p className="text-xs text-textSecondary">{customSubtitle}</p>}
+            </div>
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-primary-hover transition-colors"
+            >
+              Exit Fullscreen
+            </button>
           </div>
-          <div className="flex-1 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsBarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" />
-                <YAxis />
-                <Tooltip />
-                {showLegend && <Legend />}
-                {yCols.map((yCol, i) => (
-                  <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} />
-                ))}
-              </RechartsBarChart>
-            </ResponsiveContainer>
+          <div className="flex-1 w-full min-h-0">
+            {renderActiveChart(true)}
           </div>
         </div>
       )}

@@ -372,10 +372,28 @@ export function CleanTransform() {
   const [outlierRows, setOutlierRows] = useState<number[]>([]);
   const currentDatasetName = useRef(dataset.name);
 
+  // Preserve pristine initial dataset snapshot (before any pipeline steps are applied)
+  const baseSnapshotRef = useRef<{ headers: string[]; rows: Record<string, any>[] }>({
+    headers: [...dataset.tableHeaders],
+    rows: dataset.tableRows.map((r) => ({ ...r })),
+  });
+
+  // Ensure base snapshot is captured if table is initialized after mount
+  if (baseSnapshotRef.current.headers.length === 0 && dataset.tableHeaders.length > 0) {
+    baseSnapshotRef.current = {
+      headers: [...dataset.tableHeaders],
+      rows: dataset.tableRows.map((r) => ({ ...r })),
+    };
+  }
+
   // Synchronize ONLY if a completely new dataset file or preset is loaded
   useEffect(() => {
     if (currentDatasetName.current !== dataset.name) {
       currentDatasetName.current = dataset.name;
+      baseSnapshotRef.current = {
+        headers: [...dataset.tableHeaders],
+        rows: dataset.tableRows.map((r) => ({ ...r })),
+      };
       setWorkingHeaders(dataset.tableHeaders);
       setWorkingRows(dataset.tableRows);
       setAppliedSteps([]);
@@ -423,28 +441,30 @@ export function CleanTransform() {
         timestamp: nowStr(),
         affectedRows,
         affectedCells,
-        headersBefore,
-        rowsBefore,
-        headersAfter,
-        rowsAfter,
+        headersBefore: [...headersBefore],
+        rowsBefore: rowsBefore.map((r) => ({ ...r })),
+        headersAfter: [...headersAfter],
+        rowsAfter: rowsAfter.map((r) => ({ ...r })),
       };
 
       setAppliedSteps((prev) => [stepItem, ...prev]);
       setUndoneSteps([]); // Clear redo stack on new action
       commitTransform(headersAfter, rowsAfter);
+      setToastMsg(`Applied: "${name}"`);
     },
     [commitTransform]
   );
 
-  // Undo last transformation
+  // Undo last transformation (revert to previous step without changing columns)
   const handleUndo = useCallback(() => {
     if (appliedSteps.length === 0) return;
     const [lastStep, ...rest] = appliedSteps;
     setAppliedSteps(rest);
     setUndoneSteps((prev) => [lastStep, ...prev]);
-    commitTransform(lastStep.headersBefore, lastStep.rowsBefore);
+    commitTransform([...lastStep.headersBefore], lastStep.rowsBefore.map((r) => ({ ...r })));
     setHighlightedCells({});
     setOutlierRows([]);
+    setToastMsg(`Reverted step: "${lastStep.name}"`);
   }, [appliedSteps, commitTransform]);
 
   // Redo previously undone transformation
@@ -453,15 +473,77 @@ export function CleanTransform() {
     const [nextStep, ...rest] = undoneSteps;
     setUndoneSteps(rest);
     setAppliedSteps((prev) => [nextStep, ...prev]);
-    commitTransform(nextStep.headersAfter, nextStep.rowsAfter);
+    commitTransform([...nextStep.headersAfter], nextStep.rowsAfter.map((r) => ({ ...r })));
     setHighlightedCells({});
     setOutlierRows([]);
+    setToastMsg(`Redone step: "${nextStep.name}"`);
   }, [undoneSteps, commitTransform]);
+
+  // Redo all undone transformations at once
+  const handleRedoAll = useCallback(() => {
+    if (undoneSteps.length === 0) return;
+    const targetStep = undoneSteps[undoneSteps.length - 1];
+    setAppliedSteps((prev) => [...[...undoneSteps].reverse(), ...prev]);
+    setUndoneSteps([]);
+    commitTransform([...targetStep.headersAfter], targetStep.rowsAfter.map((r) => ({ ...r })));
+    setHighlightedCells({});
+    setOutlierRows([]);
+    setToastMsg(`Redone all ${undoneSteps.length} step(s)`);
+  }, [undoneSteps, commitTransform]);
+
+  // Jump to any previously applied step in history (all later steps move to redo stack safely)
+  const handleGoToAppliedStep = useCallback(
+    (stepIndex: number) => {
+      if (stepIndex <= 0 || stepIndex >= appliedSteps.length) return;
+      const stepsToUndo = appliedSteps.slice(0, stepIndex);
+      const remainingSteps = appliedSteps.slice(stepIndex);
+      const targetStep = appliedSteps[stepIndex];
+
+      setAppliedSteps(remainingSteps);
+      setUndoneSteps((prev) => [...[...stepsToUndo].reverse(), ...prev]);
+      commitTransform([...targetStep.headersAfter], targetStep.rowsAfter.map((r) => ({ ...r })));
+      setHighlightedCells({});
+      setOutlierRows([]);
+      setToastMsg(`Reverted to: "${targetStep.name}" (later steps available in Redo)`);
+    },
+    [appliedSteps, commitTransform]
+  );
+
+  // Redo forward to a specific undone step
+  const handleRedoToStep = useCallback(
+    (undoneIndex: number) => {
+      if (undoneIndex < 0 || undoneIndex >= undoneSteps.length) return;
+      const stepsToRedo = undoneSteps.slice(0, undoneIndex + 1);
+      const remainingUndone = undoneSteps.slice(undoneIndex + 1);
+      const targetStep = undoneSteps[undoneIndex];
+
+      setUndoneSteps(remainingUndone);
+      setAppliedSteps((prev) => [...[...stepsToRedo].reverse(), ...prev]);
+      commitTransform([...targetStep.headersAfter], targetStep.rowsAfter.map((r) => ({ ...r })));
+      setHighlightedCells({});
+      setOutlierRows([]);
+      setToastMsg(`Redone forward to: "${targetStep.name}"`);
+    },
+    [undoneSteps, commitTransform]
+  );
 
   // Safe removal & replay of a step from anywhere in the pipeline
   const handleRemoveStep = useCallback(
     (stepId: string) => {
       const remainingSteps = appliedSteps.filter((s) => s.id !== stepId);
+      const baseH = baseSnapshotRef.current.headers;
+      const baseR = baseSnapshotRef.current.rows;
+
+      if (remainingSteps.length === 0) {
+        setAppliedSteps([]);
+        setUndoneSteps([]);
+        commitTransform([...baseH], baseR.map((r) => ({ ...r })));
+        setHighlightedCells({});
+        setOutlierRows([]);
+        setToastMsg("All steps removed. Reverted to original dataset.");
+        return;
+      }
+
       const replayRecords: AppliedStepRecord[] = [...remainingSteps]
         .reverse()
         .map((s) => ({
@@ -477,7 +559,7 @@ export function CleanTransform() {
           rowsSnapshot: s.rowsAfter,
         }));
 
-      const replayResult = replayPipeline(dataset.tableHeaders, dataset.tableRows, replayRecords);
+      const replayResult = replayPipeline(baseH, baseR, replayRecords);
       if (replayResult.success) {
         setAppliedSteps(remainingSteps);
         commitTransform(replayResult.currentHeaders, replayResult.currentRows);
@@ -490,15 +572,17 @@ export function CleanTransform() {
         );
       }
     },
-    [appliedSteps, dataset.tableHeaders, dataset.tableRows, commitTransform]
+    [appliedSteps, commitTransform]
   );
 
-  // Discard all changes & reset to original upload
+  // Discard all changes & reset to pristine original upload
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const discardChanges = () => {
-    commitTransform(dataset.tableHeaders, dataset.tableRows);
+    const baseH = baseSnapshotRef.current.headers;
+    const baseR = baseSnapshotRef.current.rows;
+    commitTransform([...baseH], baseR.map((r) => ({ ...r })));
     setAppliedSteps([]);
     setUndoneSteps([]);
     setHighlightedCells({});
@@ -513,6 +597,36 @@ export function CleanTransform() {
       return () => clearTimeout(t);
     }
   }, [toastMsg]);
+
+  // Global keyboard shortcuts: Ctrl+Z (Undo) and Ctrl+Y / Ctrl+Shift+Z (Redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z")
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   /* ─────────────────────────────────────────────────────────────
      OPERATIONS CATALOG
@@ -2331,24 +2445,44 @@ export function CleanTransform() {
         {isUploaded && (
           <div className="flex items-center gap-2.5">
             {/* Undo & Redo Controls */}
-            <div className="flex items-center bg-surface border border-border/80 rounded-xl p-1 shadow-xs">
+            <div className="flex items-center bg-surface border border-border/80 rounded-xl p-0.5 shadow-xs divide-x divide-border/60">
               <button
                 type="button"
                 onClick={handleUndo}
                 disabled={appliedSteps.length === 0}
-                title="Undo last transformation (Ctrl+Z)"
-                className="p-1.5 rounded-lg text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                title={
+                  appliedSteps.length > 0
+                    ? `Undo: "${appliedSteps[0].name}" (Ctrl+Z)`
+                    : "Undo (Ctrl+Z) - No steps to undo"
+                }
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
               >
-                <Undo2 className="w-4 h-4" />
+                <Undo2 className="w-3.5 h-3.5" />
+                <span>Undo</span>
+                {appliedSteps.length > 0 && (
+                  <span className="text-[10px] font-extrabold bg-primary/15 text-primary px-1.5 py-0.2 rounded-full">
+                    {appliedSteps.length}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
                 onClick={handleRedo}
                 disabled={undoneSteps.length === 0}
-                title="Redo previously undone transformation (Ctrl+Y)"
-                className="p-1.5 rounded-lg text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                title={
+                  undoneSteps.length > 0
+                    ? `Redo: "${undoneSteps[0].name}" (Ctrl+Y)`
+                    : "Redo (Ctrl+Y) - No undone steps"
+                }
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
               >
-                <Redo2 className="w-4 h-4" />
+                <Redo2 className="w-3.5 h-3.5" />
+                <span>Redo</span>
+                {undoneSteps.length > 0 && (
+                  <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded-full">
+                    {undoneSteps.length}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -2377,6 +2511,11 @@ export function CleanTransform() {
             >
               <CheckCircle2 className="w-4 h-4" />
               Applied Steps ({appliedSteps.length})
+              {undoneSteps.length > 0 && (
+                <span className="text-[10px] bg-white/20 text-white font-extrabold px-1.5 py-0.2 rounded-full">
+                  +{undoneSteps.length} redo
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -2492,6 +2631,11 @@ export function CleanTransform() {
                     onClick={() => setActiveTab("steps")}
                   >
                     Applied Steps ({appliedSteps.length})
+                    {undoneSteps.length > 0 && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold">
+                        +{undoneSteps.length}
+                      </span>
+                    )}
                   </button>
                 </div>
               </CardHeader>
@@ -2570,9 +2714,45 @@ export function CleanTransform() {
                     </div>
                   </div>
                 ) : (
-                  /* Applied Steps Pipeline List */
+                  /* Applied Steps Pipeline List & Redo Controls */
                   <div className="flex flex-col gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
-                    {appliedSteps.length === 0 ? (
+                    {/* Step Navigation Quick Toolbar */}
+                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleUndo}
+                          disabled={appliedSteps.length === 0}
+                          title="Undo to previous step (Ctrl+Z)"
+                          className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-border/70 bg-surface hover:bg-primary-soft/40 text-textSecondary hover:text-textPrimary disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                        >
+                          <Undo2 className="w-3 h-3" />
+                          Previous Step
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRedo}
+                          disabled={undoneSteps.length === 0}
+                          title="Redo next step (Ctrl+Y)"
+                          className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-border/70 bg-surface hover:bg-primary-soft/40 text-textSecondary hover:text-textPrimary disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                        >
+                          <Redo2 className="w-3 h-3" />
+                          Redo {undoneSteps.length > 0 && `(${undoneSteps.length})`}
+                        </button>
+                      </div>
+                      {appliedSteps.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowDiscardConfirm(true)}
+                          title="Reset back to pristine uploaded dataset"
+                          className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                        >
+                          Reset All
+                        </button>
+                      )}
+                    </div>
+
+                    {appliedSteps.length === 0 && undoneSteps.length === 0 ? (
                       <div className="text-center py-8 px-4 flex flex-col items-center gap-2">
                         <CheckCircle2 className="w-8 h-8 text-textMuted stroke-1" />
                         <p className="text-xs font-bold text-textPrimary">No Steps Applied Yet</p>
@@ -2581,39 +2761,129 @@ export function CleanTransform() {
                         </p>
                       </div>
                     ) : (
-                      appliedSteps.map((step, idx) => (
-                        <div
-                          key={step.id}
-                          className="flex items-start gap-2.5 p-3 bg-surface rounded-xl border border-border/80 shadow-xs hover:border-primary/30 transition-all group"
-                        >
-                          <div className="bg-primary-soft/70 p-2 rounded-xl text-primary shrink-0 mt-0.5">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-bold text-textPrimary truncate">{step.name}</p>
-                              <span className="text-[9px] text-textMuted font-mono">{step.timestamp}</span>
-                            </div>
-                            <p className="text-[11px] text-textSecondary truncate mt-0.5">{step.detail}</p>
-                            {(step.affectedRows > 0 || step.affectedCells > 0) && (
-                              <p className="text-[10px] text-primary font-bold mt-1">
-                                {step.affectedRows > 0 && `${step.affectedRows} row(s) affected `}
-                                {step.affectedCells > 0 && `${step.affectedCells} cell(s) affected`}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              title="Remove step and recompute pipeline"
-                              onClick={() => handleRemoveStep(step.id)}
-                              className="p-1.5 rounded-lg hover:bg-rose-500/10 text-textMuted hover:text-rose-500 transition-colors cursor-pointer"
+                      <>
+                        {/* Currently Applied Steps */}
+                        {appliedSteps.map((step, idx) => {
+                          const isActive = idx === 0;
+                          return (
+                            <div
+                              key={step.id}
+                              className={`flex items-start gap-2.5 p-3 rounded-xl border transition-all group ${
+                                isActive
+                                  ? "bg-primary-soft/20 border-primary/40 shadow-xs ring-1 ring-primary/20"
+                                  : "bg-surface border-border/80 shadow-xs hover:border-primary/30"
+                              }`}
                             >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                              <div
+                                className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                                  isActive
+                                    ? "bg-primary text-white shadow-xs"
+                                    : "bg-primary-soft/70 text-primary"
+                                }`}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <p className="text-xs font-bold text-textPrimary truncate">{step.name}</p>
+                                    {isActive ? (
+                                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-primary/15 text-primary shrink-0">
+                                        Current
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-mono text-textMuted shrink-0">
+                                        Step {appliedSteps.length - idx}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[9px] text-textMuted font-mono shrink-0 ml-1">
+                                    {step.timestamp}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-textSecondary truncate mt-0.5">{step.detail}</p>
+                                {(step.affectedRows > 0 || step.affectedCells > 0) && (
+                                  <p className="text-[10px] text-primary font-bold mt-1">
+                                    {step.affectedRows > 0 && `${step.affectedRows} row(s) affected `}
+                                    {step.affectedCells > 0 && `${step.affectedCells} cell(s) affected`}
+                                  </p>
+                                )}
+
+                                {/* Jump / Revert to this step action */}
+                                {!isActive && (
+                                  <div className="mt-2 pt-1.5 border-t border-border/40 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleGoToAppliedStep(idx)}
+                                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-md bg-primary-soft text-primary hover:bg-primary hover:text-white transition-all cursor-pointer"
+                                      title="Revert dataset back to this step state without changing column schemas"
+                                    >
+                                      <Undo2 className="w-2.5 h-2.5" />
+                                      Go to this step
+                                    </button>
+                                    <span className="text-[9px] text-textMuted">Reverts later steps</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  title="Remove step and recompute pipeline"
+                                  onClick={() => handleRemoveStep(step.id)}
+                                  className="p-1.5 rounded-lg hover:bg-rose-500/10 text-textMuted hover:text-rose-500 transition-colors cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Undone Steps available for Redo */}
+                        {undoneSteps.length > 0 && (
+                          <div className="mt-2 pt-3 border-t border-dashed border-border/80 flex flex-col gap-2">
+                            <div className="flex items-center justify-between px-0.5">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-textMuted flex items-center gap-1">
+                                <Redo2 className="w-3 h-3 text-emerald-500" />
+                                Undone Steps ({undoneSteps.length})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleRedoAll}
+                                className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-0.5"
+                              >
+                                Redo All
+                              </button>
+                            </div>
+                            {undoneSteps.map((step, uIdx) => (
+                              <div
+                                key={step.id}
+                                className="flex items-start gap-2.5 p-2.5 bg-surface/60 rounded-xl border border-dashed border-border/80 hover:border-emerald-500/40 transition-all group"
+                              >
+                                <div className="bg-emerald-500/10 p-1.5 rounded-lg text-emerald-600 shrink-0 mt-0.5">
+                                  <Redo2 className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs font-bold text-textPrimary truncate">{step.name}</p>
+                                    <span className="text-[9px] text-textMuted font-mono">{step.timestamp}</span>
+                                  </div>
+                                  <p className="text-[10px] text-textSecondary truncate mt-0.5">{step.detail}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRedoToStep(uIdx)}
+                                  title="Redo this transformation forward"
+                                  className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                                >
+                                  <Redo2 className="w-2.5 h-2.5" />
+                                  Redo
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      ))
+                        )}
+                      </>
                     )}
                   </div>
                 )}
