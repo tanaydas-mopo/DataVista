@@ -32,11 +32,12 @@ const PALETTES = {
 };
 
 /* ─────────────────────────────────────────────
-   23 SUPPORTED CHART TYPES
+   26 SUPPORTED CHART TYPES
 ───────────────────────────────────────────── */
 const ALL_CHART_TYPES = [
   { id: "bar", name: "Bar Chart", icon: BarChartIcon, category: "Comparison", desc: "Compare values across categories" },
   { id: "stacked-bar", name: "Stacked Bar", icon: BarChartIcon, category: "Comparison", desc: "Show categorical sub-segment breakdown" },
+  { id: "100-stacked-bar", name: "100% Stacked Bar", icon: BarChartIcon, category: "Comparison", desc: "Relative percentage contribution totaling 100%" },
   { id: "horizontal-bar", name: "Horizontal Bar", icon: BarChartIcon, category: "Comparison", desc: "Best for ranking and long text labels" },
   { id: "radar", name: "Radar Spider", icon: Compass, category: "Comparison", desc: "Multi-dimensional performance comparison" },
   { id: "combi", name: "Combo (Bar+Line)", icon: Sparkles, category: "Comparison", desc: "Dual-metric comparison (e.g. Volume & Rate)" },
@@ -54,9 +55,11 @@ const ALL_CHART_TYPES = [
   { id: "bubble", name: "Bubble Chart", icon: Activity, category: "Distribution", desc: "Three-dimensional distribution analysis" },
   { id: "histogram", name: "Histogram", icon: BarChartIcon, category: "Distribution", desc: "Frequency distribution across value buckets" },
   { id: "boxplot", name: "Box Plot", icon: Activity, category: "Distribution", desc: "Statistical quartiles and distribution spread" },
+  { id: "correlation", name: "Correlation Matrix", icon: Activity, category: "Distribution", desc: "Pearson correlation coefficient (-1 to +1) across numeric fields" },
 
   { id: "funnel", name: "Funnel Chart", icon: Filter, category: "Process", desc: "Stage-by-stage pipeline drop-off rates" },
   { id: "waterfall", name: "Waterfall Chart", icon: BarChartIcon, category: "Process", desc: "Incremental positive & negative adjustments" },
+  { id: "pareto", name: "Pareto Chart", icon: BarChartIcon, category: "Process", desc: "80/20 rule: frequency bars with cumulative line" },
 
   { id: "kpi", name: "KPI Card", icon: Sparkles, category: "KPI", desc: "High-impact single metric highlight card" },
   { id: "gauge", name: "Gauge Chart", icon: Activity, category: "KPI", desc: "Radial speedometer against target threshold" },
@@ -163,12 +166,25 @@ function isDateColumn(colName: string, sampleValues: any[]): boolean {
   return dateMatches / nonEmpties.length >= 0.5;
 }
 
-function formatDateValue(dateStr: string, grouping: "raw" | "month" | "year" | "dayOfWeek"): string {
+function formatDateValue(dateStr: string, grouping: "raw" | "day" | "week" | "month" | "quarter" | "year" | "dayOfWeek"): string {
   if (!dateStr || grouping === "raw") return dateStr;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
+  if (grouping === "day") {
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+  if (grouping === "week") {
+    const startOfYear = new Date(d.getFullYear(), 0, 1);
+    const pastDaysOfYear = (d.getTime() - startOfYear.getTime()) / 86400000;
+    const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+    return `Wk ${weekNum} (${d.getFullYear()})`;
+  }
   if (grouping === "month") {
     return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+  if (grouping === "quarter") {
+    const q = Math.floor(d.getMonth() / 3) + 1;
+    return `Q${q} ${d.getFullYear()}`;
   }
   if (grouping === "year") {
     return String(d.getFullYear());
@@ -474,6 +490,157 @@ function PivotMatrixTable({
   );
 }
 
+/* ─────────────────────────────────────────────
+   PEARSON CORRELATION MATRIX COMPONENT
+───────────────────────────────────────────── */
+function CorrelationMatrix({
+  numericCols,
+  rows,
+  onSelectPair,
+}: {
+  numericCols: string[];
+  rows: Record<string, any>[];
+  onSelectPair?: (col1: string, col2: string) => void;
+}) {
+  const matrix = useMemo(() => {
+    if (numericCols.length < 2 || rows.length === 0) return null;
+
+    const colArrays: Record<string, number[]> = {};
+    numericCols.forEach((col) => {
+      colArrays[col] = rows.map((r) => {
+        const val = Number(String(r[col] ?? "").replace(/[$,%]/g, ""));
+        return isNaN(val) ? 0 : val;
+      });
+    });
+
+    const N = rows.length;
+    const means: Record<string, number> = {};
+    const stdDevs: Record<string, number> = {};
+
+    numericCols.forEach((col) => {
+      const arr = colArrays[col];
+      const m = arr.reduce((a, b) => a + b, 0) / N;
+      means[col] = m;
+      const variance = arr.reduce((a, b) => a + (b - m) ** 2, 0) / N;
+      stdDevs[col] = Math.sqrt(variance);
+    });
+
+    const grid: Record<string, Record<string, number>> = {};
+    numericCols.forEach((c1) => {
+      grid[c1] = {};
+      numericCols.forEach((c2) => {
+        if (c1 === c2) {
+          grid[c1][c2] = 1;
+        } else {
+          const s1 = stdDevs[c1];
+          const s2 = stdDevs[c2];
+          if (s1 === 0 || s2 === 0) {
+            grid[c1][c2] = 0;
+          } else {
+            const arr1 = colArrays[c1];
+            const arr2 = colArrays[c2];
+            const m1 = means[c1];
+            const m2 = means[c2];
+            let cov = 0;
+            for (let i = 0; i < N; i++) {
+              cov += (arr1[i] - m1) * (arr2[i] - m2);
+            }
+            cov = cov / N;
+            const r = cov / (s1 * s2);
+            grid[c1][c2] = Math.max(-1, Math.min(1, Math.round(r * 100) / 100));
+          }
+        }
+      });
+    });
+
+    return grid;
+  }, [numericCols, rows]);
+
+  if (!matrix || numericCols.length < 2) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center h-full">
+        <Activity className="w-8 h-8 text-textSecondary mb-2" />
+        <h4 className="text-sm font-bold text-textPrimary">Insufficient Numeric Columns</h4>
+        <p className="text-xs text-textSecondary max-w-sm mt-1">
+          A correlation matrix requires at least 2 numeric columns. Current numeric columns: {numericCols.length}.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full overflow-auto border border-border/80 rounded-xl bg-surface p-2">
+      <div className="mb-2 px-2 flex items-center justify-between text-xs text-textSecondary">
+        <span className="font-semibold">Pearson r Correlation Coefficients (-1.00 to +1.00)</span>
+        <span className="text-[10px] text-textMuted">Click any intersection cell to inspect as Scatter Plot</span>
+      </div>
+      <table className="w-full text-xs text-left border-collapse">
+        <thead className="bg-primary-soft/50 sticky top-0 border-b border-border/80 backdrop-blur-xs">
+          <tr>
+            <th className="px-3 py-2 font-bold uppercase text-[10px] text-textSecondary tracking-wider">Metrics</th>
+            {numericCols.map((c) => (
+              <th key={c} className="px-3 py-2 font-bold uppercase text-[10px] text-textSecondary text-center tracking-wider truncate max-w-[100px]" title={c}>
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {numericCols.map((rCol) => (
+            <tr key={rCol} className="hover:bg-primary-soft/10 transition-colors">
+              <td className="px-3 py-2 font-bold text-textPrimary whitespace-nowrap truncate max-w-[120px]" title={rCol}>
+                {rCol}
+              </td>
+              {numericCols.map((cCol) => {
+                const r = matrix[rCol]?.[cCol] ?? 0;
+                const isDiag = rCol === cCol;
+                let bgColor = "transparent";
+                let textColor = "inherit";
+
+                if (isDiag) {
+                  bgColor = "rgba(37, 99, 235, 0.15)";
+                  textColor = "#2563EB";
+                } else if (r > 0) {
+                  const alpha = Math.max(0.12, r * 0.75);
+                  bgColor = `rgba(37, 99, 235, ${alpha})`;
+                  textColor = r > 0.5 ? "#FFFFFF" : "#1E3A8A";
+                } else if (r < 0) {
+                  const alpha = Math.max(0.12, Math.abs(r) * 0.75);
+                  bgColor = `rgba(239, 68, 68, ${alpha})`;
+                  textColor = Math.abs(r) > 0.5 ? "#FFFFFF" : "#991B1B";
+                }
+
+                const strengthText =
+                  isDiag
+                    ? "Perfect identity (1.00)"
+                    : Math.abs(r) >= 0.7
+                    ? `Strong ${r > 0 ? "positive" : "negative"} (${r})`
+                    : Math.abs(r) >= 0.3
+                    ? `Moderate ${r > 0 ? "positive" : "negative"} (${r})`
+                    : `Weak / negligible (${r})`;
+
+                return (
+                  <td
+                    key={cCol}
+                    onClick={() => onSelectPair && !isDiag && onSelectPair(rCol, cCol)}
+                    title={`${rCol} vs ${cCol}: ${strengthText}`}
+                    className={`px-3 py-2 text-center font-mono font-bold text-xs transition-transform ${
+                      !isDiag ? "cursor-pointer hover:scale-105" : ""
+                    }`}
+                    style={{ backgroundColor: bgColor, color: textColor }}
+                  >
+                    {r.toFixed(2)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function VisualBuilder() {
   const { dataset, updateChartVisual } = useDataset();
 
@@ -490,7 +657,7 @@ export function VisualBuilder() {
   const [measureType, setMeasureType] = useState<string>("sum");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc" | "none">("desc");
   const [categoryLimit, setCategoryLimit] = useState<number>(15);
-  const [dateGrouping, setDateGrouping] = useState<"raw" | "month" | "year" | "dayOfWeek">("raw");
+  const [dateGrouping, setDateGrouping] = useState<"raw" | "day" | "week" | "month" | "quarter" | "year" | "dayOfWeek">("raw");
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -826,8 +993,25 @@ export function VisualBuilder() {
       dataPoints.sort((a, b) => Number(a[primaryY] ?? a.value ?? 0) - Number(b[primaryY] ?? b.value ?? 0));
     }
 
+    // Cumulative running total transformation if selected
+    if (measureType === "running-total") {
+      yCols.forEach(yCol => {
+        let running = 0;
+        dataPoints.forEach(item => {
+          running += Number(item[yCol] ?? 0);
+          item[yCol] = Math.round(running * 100) / 100;
+          if (yCols.length === 1) item.value = item[yCol];
+        });
+      });
+    }
+
     const totalCategories = dataPoints.length;
-    const finalData = categoryLimit > 0 ? dataPoints.slice(0, categoryLimit) : dataPoints;
+    let finalData = dataPoints;
+    if (categoryLimit > 0) {
+      finalData = dataPoints.slice(0, categoryLimit);
+    } else if (categoryLimit < 0) {
+      finalData = dataPoints.slice(categoryLimit);
+    }
 
     return {
       chartData: finalData,
@@ -891,6 +1075,46 @@ export function VisualBuilder() {
     }).filter(b => b.value > 0);
   }, [activeChartType, filteredRows, primaryY, palette]);
 
+  /* ── 100% Stacked Bar Data ── */
+  const normalized100Data = useMemo(() => {
+    if (activeChartType !== "100-stacked-bar" || chartData.length === 0) return [];
+    return chartData.map(d => {
+      const rowTotal = yCols.reduce((sum, col) => sum + Math.max(0, Number(d[col] ?? 0)), 0) || 1;
+      const item: Record<string, any> = {
+        label: d.label,
+        fullLabel: d.fullLabel,
+        color: d.color,
+        total: rowTotal,
+      };
+      yCols.forEach(col => {
+        const raw = Math.max(0, Number(d[col] ?? 0));
+        item[col] = Math.round((raw / rowTotal) * 1000) / 10;
+        item[`${col}_raw`] = raw;
+      });
+      return item;
+    });
+  }, [activeChartType, chartData, yCols]);
+
+  /* ── Pareto Chart Data (Bar + Cumulative % + 80% Cutoff) ── */
+  const paretoData = useMemo(() => {
+    if (activeChartType !== "pareto" || chartData.length === 0) return [];
+    const sorted = [...chartData].sort((a, b) => Number(b[primaryY] ?? b.value ?? 0) - Number(a[primaryY] ?? a.value ?? 0));
+    const totalVal = sorted.reduce((sum, d) => sum + Math.max(0, Number(d[primaryY] ?? d.value ?? 0)), 0) || 1;
+    let cumSum = 0;
+    return sorted.map(d => {
+      const val = Math.max(0, Number(d[primaryY] ?? d.value ?? 0));
+      cumSum += val;
+      const cumPct = Math.min(100, Math.round((cumSum / totalVal) * 1000) / 10);
+      return {
+        label: d.label,
+        fullLabel: d.fullLabel,
+        color: d.color,
+        [primaryY]: val,
+        cumPct,
+      };
+    });
+  }, [activeChartType, chartData, primaryY]);
+
   const maxGaugeValue = useMemo(() => {
     if (chartData.length === 0) return 100;
     return Math.max(...chartData.map(d => Number(d[primaryY] ?? d.value ?? 0)), 1);
@@ -936,6 +1160,21 @@ export function VisualBuilder() {
   const chartValidationWarning = useMemo(() => {
     const isXNumeric = columnTypeMap[currentX] === "numeric";
 
+    if (activeChartType === "correlation") {
+      const numCols = columns.filter(c => columnTypeMap[c] === "numeric");
+      if (numCols.length < 2) {
+        return {
+          type: "warning",
+          message: `Correlation Matrix requires at least 2 numeric columns (current numeric columns: ${numCols.length}).`,
+        };
+      }
+    }
+    if (activeChartType === "100-stacked-bar" && yCols.length < 2) {
+      return {
+        type: "info",
+        message: "100% Stacked Bar is most effective when multiple measures are selected to compare relative proportions.",
+      };
+    }
     if ((activeChartType === "scatter" || activeChartType === "bubble") && !isXNumeric) {
       return {
         type: "warning",
@@ -955,7 +1194,7 @@ export function VisualBuilder() {
       };
     }
     return null;
-  }, [activeChartType, columnTypeMap, currentX, yCols.length, chartData.length]);
+  }, [activeChartType, columnTypeMap, currentX, yCols.length, chartData.length, columns]);
 
   /* ── Data-Grounded "Why this chart?" Contextual Explanation ── */
   const dynamicExplanation = useMemo(() => {
@@ -975,16 +1214,26 @@ export function VisualBuilder() {
       statsSummary = `Top category is "${top?.fullLabel || top?.label}" with ${formatVal(Number(top?.[primaryY] ?? top?.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}. Lowest is "${bottom?.fullLabel || bottom?.label}" (${formatVal(Number(bottom?.[primaryY] ?? bottom?.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}). Total across ${chartData.length} categories: ${formatVal(total, valueFormat, decimalPlaces, currencySymbol)} (avg ${formatVal(avg, valueFormat, decimalPlaces, currencySymbol)}).`;
     }
 
-    const isComparison = ["bar", "stacked-bar", "horizontal-bar", "radar", "combi"].includes(activeChartType);
+    const isComparison = ["bar", "stacked-bar", "100-stacked-bar", "horizontal-bar", "radar", "combi"].includes(activeChartType);
     const isTrend = ["line", "multi-line", "area", "stacked-area"].includes(activeChartType);
     const isComposition = ["pie", "donut", "treemap"].includes(activeChartType);
-    const isDistribution = ["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType);
+    const isDistribution = ["scatter", "bubble", "histogram", "boxplot", "correlation"].includes(activeChartType);
+    const isProcess = ["funnel", "waterfall", "pareto"].includes(activeChartType);
     const isKPI = ["kpi", "gauge"].includes(activeChartType);
 
     let rationale = "";
     let tip = "";
 
-    if (isComparison) {
+    if (activeChartType === "pareto") {
+      rationale = `Evaluating the 80/20 Pareto principle for ${primaryY} across ${xName}. Identifies the vital few categories driving cumulative impact.`;
+      tip = "Tip: The red dashed line marks the 80% cutoff. Categories to the left represent key drivers.";
+    } else if (activeChartType === "100-stacked-bar") {
+      rationale = `Comparing relative segment proportions totaling 100% across ${yNames} for each ${xName} category.`;
+      tip = "Tip: Normalizes varying scale differences across categories for direct mix comparison.";
+    } else if (activeChartType === "correlation") {
+      rationale = `Pearson correlation matrix evaluating linear relationships (-1.00 inverse to +1.00 direct) across all numeric features.`;
+      tip = "Tip: Click any intersection cell to inspect the correlation in a Scatter Plot.";
+    } else if (isComparison) {
       rationale = `Comparing ${yNames} (${measureType.toUpperCase()}) across distinct ${xName} categories. ${chartName} reveals rankings and relative performance differences at a glance.`;
       tip = "Tip: Sort descending to spotlight high performers, or switch to Horizontal Bar if labels are long.";
     } else if (isTrend) {
@@ -996,6 +1245,9 @@ export function VisualBuilder() {
     } else if (isDistribution) {
       rationale = `Examining dispersion, clusters, and statistical relationships for ${yNames} across ${xName}.`;
       tip = "Tip: Inspect outlier points lying noticeably outside the dominant group cluster.";
+    } else if (isProcess) {
+      rationale = `Mapping multi-stage conversion and cumulative adjustments for ${yNames} across ${xName}.`;
+      tip = "Tip: Look for sharp step drops between sequential pipeline phases.";
     } else if (isKPI) {
       rationale = `Providing quick executive summary numbers and operational target tracking.`;
       tip = "Tip: Click 'Save to Dashboard' to feature this metric on your team canvas.";
@@ -1200,11 +1452,11 @@ export function VisualBuilder() {
       .slice(0, 100);
   }, [filteredRows, recordsSearch, columns]);
 
-  /* ── UNIFIED CHART RENDERER (Supports all 23 Chart Types) ── */
+  /* ── UNIFIED CHART RENDERER (Supports all 26 Chart Types) ── */
   const renderActiveChart = (fullscreen = false) => {
     const height: number | `${number}%` = fullscreen ? "100%" : 360;
 
-    if (chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot"].includes(activeChartType)) {
+    if (chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot", "correlation"].includes(activeChartType)) {
       return (
         <div className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[300px]">
           <div className="w-12 h-12 rounded-2xl bg-primary-soft/60 flex items-center justify-center text-primary mb-3">
@@ -1230,6 +1482,24 @@ export function VisualBuilder() {
             {showLegend && <Legend verticalAlign="top" />}
             {yCols.map((yCol, i) => (
               <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} stackId={activeChartType === "stacked-bar" ? "a" : undefined} barSize={barWidth} isAnimationActive={false} />
+            ))}
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    /* 100% STACKED BAR */
+    if (activeChartType === "100-stacked-bar") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsBarChart data={normalized100Data} margin={CHART_MARGIN} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis axisLine={false} tickLine={false} domain={[0, 100]} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, String(name ?? "")]} />
+            {showLegend && <Legend verticalAlign="top" />}
+            {yCols.map((yCol, i) => (
+              <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} stackId="100pct" barSize={barWidth} isAnimationActive={false} />
             ))}
           </RechartsBarChart>
         </ResponsiveContainer>
@@ -1452,6 +1722,32 @@ export function VisualBuilder() {
       );
     }
 
+    /* PARETO CHART (80/20 Rule: Bars + Cumulative Line) */
+    if (activeChartType === "pareto") {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsComposedChart data={paretoData} margin={{ top: 20, right: 35, left: 10, bottom: 25 }} onClick={(e: any) => e?.activePayload && setShowDrillThroughModal(e.activePayload[0]?.payload)}>
+            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" />}
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
+            <YAxis yAxisId="right" orientation="right" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(v: any, name: any) =>
+                name === "Cumulative %"
+                  ? [`${Number(v).toFixed(1)}%`, "Cumulative %"]
+                  : [formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]
+              }
+            />
+            {showLegend && <Legend verticalAlign="top" />}
+            <Bar yAxisId="left" dataKey={primaryY} name={primaryY} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
+            <Line yAxisId="right" type="monotone" dataKey="cumPct" name="Cumulative %" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
+            <ReferenceLine yAxisId="right" y={80} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "80% Cutoff", fill: "#EF4444", fontSize: 10, position: "insideTopRight" }} />
+          </RechartsComposedChart>
+        </ResponsiveContainer>
+      );
+    }
+
     /* HEATMAP */
     if (activeChartType === "heatmap") {
       return (
@@ -1479,6 +1775,23 @@ export function VisualBuilder() {
           decimalPlaces={decimalPlaces}
           currencySymbol={currencySymbol}
           onRowClick={(row) => setShowDrillThroughModal(row)}
+        />
+      );
+    }
+
+    /* CORRELATION MATRIX */
+    if (activeChartType === "correlation") {
+      const numericCols = columns.filter(c => columnTypeMap[c] === "numeric");
+      return (
+        <CorrelationMatrix
+          numericCols={numericCols}
+          rows={filteredRows}
+          onSelectPair={(c1, c2) => {
+            setSelectedX(c1);
+            setSelectedYCols([c2]);
+            setActiveChartType("scatter");
+            showToast(`Inspecting correlation: ${c1} vs ${c2} in Scatter Plot.`);
+          }}
         />
       );
     }
@@ -1870,8 +2183,8 @@ export function VisualBuilder() {
                     <span className="text-[10px] font-bold text-primary flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> Date Grouping
                     </span>
-                    <div className="grid grid-cols-4 gap-1">
-                      {(["raw", "month", "year", "dayOfWeek"] as const).map(grp => (
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                      {(["raw", "day", "week", "month", "quarter", "year", "dayOfWeek"] as const).map(grp => (
                         <button
                           key={grp}
                           type="button"
@@ -1882,7 +2195,7 @@ export function VisualBuilder() {
                               : "bg-surface text-textSecondary border-border/80 hover:bg-primary-soft/40"
                           }`}
                         >
-                          {grp === "raw" ? "Exact" : grp === "month" ? "Month" : grp === "year" ? "Year" : "Day"}
+                          {grp === "raw" ? "Exact" : grp === "day" ? "Day" : grp === "week" ? "Wk" : grp === "month" ? "Mo" : grp === "quarter" ? "Qtr" : grp === "year" ? "Yr" : "DoW"}
                         </button>
                       ))}
                     </div>
@@ -1952,6 +2265,7 @@ export function VisualBuilder() {
                     <option value="stddev">StdDev</option>
                     <option value="variance">Variance</option>
                     <option value="pct-total">% Total</option>
+                    <option value="running-total">Running Total</option>
                   </select>
                 </div>
 
@@ -1967,7 +2281,10 @@ export function VisualBuilder() {
                     <option value={15}>Top 15</option>
                     <option value={25}>Top 25</option>
                     <option value={50}>Top 50</option>
-                    <option value={0}>All</option>
+                    <option value={-5}>Bottom 5</option>
+                    <option value={-10}>Bottom 10</option>
+                    <option value={-15}>Bottom 15</option>
+                    <option value={0}>All Categories</option>
                   </select>
                 </div>
               </div>
