@@ -644,18 +644,14 @@ export function CleanTransform() {
     { icon: Filter, name: "Filter Rows", desc: "Keep or remove rows based on conditions", modal: "filter", category: "rows" },
     { icon: Trash2, name: "Remove Duplicates", desc: "Eliminate duplicate records across all or selected columns", modal: "duplicates", category: "rows" },
     { icon: SortAsc, name: "Sort Rows", desc: "Sort rows by single or multiple columns", modal: "sort-rows", category: "rows" },
-    { icon: Eye, name: "Detect Outliers", desc: "Find and handle statistical anomalies using IQR or Z-Score", modal: "detect-outliers", category: "rows" },
     { icon: Edit3, name: "Rename Columns", desc: "Change the headers of your dataset", modal: "rename", category: "columns" },
     { icon: Type, name: "Change Data Type", desc: "Convert column types (text, integer, date...)", modal: "change-type", category: "columns" },
-    { icon: Scissors, name: "Split Column", desc: "Split one column into multiple by a delimiter or width", modal: "split-column", category: "columns" },
     { icon: Merge, name: "Merge Columns", desc: "Combine multiple columns into one with custom separator", modal: "merge-columns", category: "columns" },
     { icon: Trash2, name: "Remove Columns", desc: "Delete one or more columns permanently", modal: "remove-columns", category: "columns" },
     { icon: MinusSquare, name: "Remove Null Values", desc: "Drop rows or columns containing missing values", modal: "remove-nulls", category: "clean" },
     { icon: Sparkles, name: "Fill Missing Values", desc: "Impute null cells with mean, median, mode, or custom", modal: "fill-missing", category: "clean" },
     { icon: ArrowRightLeft, name: "Find & Replace", desc: "Replace specific values with match-case support", modal: "find-replace", category: "clean" },
     { icon: AlignLeft, name: "Trim & Standardize Text", desc: "Clean leading/trailing spaces and standardize casing", modal: "trim-case", category: "clean" },
-    { icon: Calendar, name: "Convert Date Formats", desc: "Normalize date strings and Excel serial date numbers", modal: "convert-dates", category: "clean" },
-    { icon: MinusSquare, name: "Remove Empty Rows & Cols", desc: "Purge 100% blank rows and 100% blank columns", modal: "remove-empty", category: "clean" },
     { icon: Zap, name: "AI Auto Clean", desc: "AI-powered data audit and recipe recommendations", modal: "auto-clean", category: "ai" },
   ];
 
