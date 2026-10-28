@@ -83,7 +83,14 @@ export function UploadDataset() {
     }
   };
 
-  const handleRemove = () => {
+  const handleCancelStagedFile = () => {
+    setFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveActiveDataset = () => {
     setFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -96,10 +103,10 @@ export function UploadDataset() {
     router.push('/login');
   };
 
-  // Determine if a dataset or staged file is ready for analysis
-  const hasReadyDataset = !!file || isDatasetActive;
-  const displayName = file ? file.name : dataset.name;
-  const displaySize = file ? getFormattedSize(file) : (dataset.fileSize || "0.00 MB");
+  // Determine if a new file is staged and ready for analysis
+  const hasStagedFile = !!file;
+  const displayName = file ? file.name : "";
+  const displaySize = file ? getFormattedSize(file) : "0.00 MB";
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-between bg-appBackground text-textPrimary font-sans p-4 sm:p-6 transition-colors duration-200 transform-gpu">
@@ -215,8 +222,40 @@ export function UploadDataset() {
             </div>
           </div>
 
-          {/* Main Card: Dropzone / Ready Dataset State */}
+          {/* Main Card: Dropzone / Staged File State */}
           <div className="w-full bg-surface/95 rounded-3xl border border-border shadow-xl p-6 sm:p-8 transition-all duration-200">
+            {/* Quick-Access Banner for Existing Active Dataset */}
+            {isDatasetActive && !hasStagedFile && (
+              <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-primary-soft/30 rounded-2xl border border-primary/20 backdrop-blur-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-textPrimary truncate">
+                        {dataset.name}
+                      </p>
+                      <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-500 bg-emerald-500/15 rounded-full border border-emerald-500/30 shrink-0">
+                        Active Dataset
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-textSecondary font-medium">
+                      {dataset.totalRows} rows • {dataset.totalColumns} columns • Updated {dataset.lastUpdated}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 shrink-0 self-end sm:self-auto cursor-pointer"
+                >
+                  Continue to Analysis
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <div
               className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 ease-out flex flex-col items-center justify-center text-center ${
                 isDragging
@@ -230,15 +269,15 @@ export function UploadDataset() {
               {/* Top Status Icon */}
               <div
                 className={`p-4 rounded-2xl mb-4 transition-all duration-300 shadow-md ${
-                  hasReadyDataset
+                  hasStagedFile
                     ? 'bg-emerald-500 text-white scale-110 shadow-emerald-500/30'
                     : 'bg-primary text-white shadow-blue-500/20 animate-float-slow'
                 }`}
               >
-                {hasReadyDataset ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
+                {hasStagedFile ? <CheckCircle2 className="w-8 h-8" /> : <CloudUpload className="w-8 h-8" />}
               </div>
 
-              {hasReadyDataset ? (
+              {hasStagedFile ? (
                 <div className="flex flex-col items-center w-full">
                   <div className="space-y-2 mb-6">
                     <p className="text-base font-bold text-textPrimary">
@@ -273,21 +312,21 @@ export function UploadDataset() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleRemove}
+                      onClick={handleCancelStagedFile}
                       className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-danger bg-danger-soft hover:bg-danger/20 rounded-xl border border-danger/30 transition-all active:scale-95 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Remove Dataset
+                      Remove File
                     </button>
                   </div>
                 </div>
               ) : (
                 <>
                   <h3 className="text-lg font-bold text-textPrimary mb-1">
-                    Drag &amp; Drop Your Dataset
+                    Add Your Dataset
                   </h3>
                   <p className="text-xs text-textSecondary mb-4">
-                    Upload CSV, Excel (.xlsx), TSV, or JSON files.
+                    Drag and drop or browse CSV, Excel (.xlsx), TSV, or JSON files.
                   </p>
 
                   {/* Floating Format Badges */}
@@ -313,10 +352,10 @@ export function UploadDataset() {
                     Maximum upload size: 100 MB
                   </p>
 
-                  {/* Browse Files Button */}
+                  {/* Add Dataset Button */}
                   <label className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-primary bg-surface border border-primary/40 rounded-xl shadow-xs cursor-pointer hover:bg-primary hover:text-white transition-all duration-200 active:scale-95">
                     <FolderOpen className="w-4 h-4" />
-                    Browse Files
+                    Add Dataset
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -344,7 +383,7 @@ export function UploadDataset() {
                   </span>
                   <button
                     type="button"
-                    onClick={handleRemove}
+                    onClick={handleRemoveActiveDataset}
                     title="Clear Recent Dataset Details"
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-danger bg-danger-soft hover:bg-danger/20 px-2.5 py-0.5 rounded-md border border-danger/30 transition-all active:scale-95 cursor-pointer"
                   >

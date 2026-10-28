@@ -3,7 +3,6 @@ import {
   Database,
   Sparkles,
   BarChart,
-  Layout,
   Download,
   Settings,
   ChevronLeft,
@@ -81,12 +80,6 @@ export function Sidebar({ className, isCollapsed = false, onToggleCollapse }: Si
             href="/visual-builder"
             icon={BarChart}
             label="Visual Builder"
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            href="/dashboard-canvas"
-            icon={Layout}
-            label="Dashboard Canvas"
             isCollapsed={isCollapsed}
           />
           <SidebarItem

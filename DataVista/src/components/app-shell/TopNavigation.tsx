@@ -51,11 +51,6 @@ export const ROUTE_METADATA: Record<string, { title: string; subtitle: string; c
     subtitle: "23 customizable chart types with intelligent measure detection",
     category: "Visualization",
   },
-  "/dashboard-canvas": {
-    title: "Dashboard Canvas",
-    subtitle: "Modular widget layout, live preview, and dashboard publishing",
-    category: "Reporting",
-  },
   "/export-report": {
     title: "Export & Report",
     subtitle: "High-resolution PDF documents, PNG snapshots, and clean CSV packages",
@@ -205,7 +200,6 @@ export function TopNavigation() {
     { label: "Data & Schema Inspector", path: "/data-schema", desc: "15 columns schema inspection" },
     { label: "Clean & Transform AI", path: "/clean-transform", desc: "Recipes, imputation, filters" },
     { label: "Visual Chart Builder", path: "/visual-builder", desc: "23 charts & multidimensional plots" },
-    { label: "Dashboard Canvas", path: "/dashboard-canvas", desc: "Interactive widget drag-drop canvas" },
     { label: "Export PDF / CSV Report", path: "/export-report", desc: "Executive document generator" },
     { label: "Workspace Settings", path: "/settings", desc: "Themes, profile, API keys" },
   ];

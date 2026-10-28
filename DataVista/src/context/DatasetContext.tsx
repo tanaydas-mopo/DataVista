@@ -663,7 +663,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       }
       return updated;
     });
-    setNotification(`Saved chart "${title}" to Dashboard canvas.`);
+    setNotification(`Saved chart "${title}" to Dashboard.`);
     setTimeout(() => setNotification(null), 4000);
   };
 

@@ -58,7 +58,7 @@ export function QuickActions() {
         router.push("/visual-builder");
         break;
       case "dashboard":
-        router.push("/dashboard-canvas");
+        router.push("/dashboard");
         break;
       case "report":
         router.push("/export-report");
