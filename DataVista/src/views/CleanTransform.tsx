@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Filter, Trash2, Edit3, ArrowRightLeft, Type, Sparkles, CheckCircle2, Database,
   X, ChevronDown, Merge, Scissors, SortAsc, Eye,
@@ -105,6 +106,12 @@ function Modal({
   maxWidth?: string;
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -130,7 +137,7 @@ function Modal({
     onClose();
   };
 
-  return (
+  const modalNode = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all animate-in fade-in duration-200 cursor-pointer"
       onClick={handleBackdropClick}
@@ -138,11 +145,11 @@ function Modal({
       aria-modal="true"
     >
       <div
-        className={`w-full ${maxWidth} bg-surface border border-border/80 rounded-2xl shadow-2xl shadow-primary/5 flex flex-col max-h-[88vh] overflow-hidden transform transition-all animate-in zoom-in-95 duration-200 cursor-default`}
+        className={`w-full ${maxWidth} bg-surface border border-border/80 rounded-2xl shadow-2xl shadow-primary/5 flex flex-col max-h-[88vh] overflow-hidden transition-all animate-in zoom-in-95 duration-200 cursor-default`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-gradient-to-r from-primary-soft/30 via-transparent to-transparent">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-gradient-to-r from-primary-soft/30 via-transparent to-transparent shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-gradient-to-br from-primary/15 to-primary/5 p-2.5 rounded-xl text-primary ring-1 ring-primary/20 shadow-xs flex items-center justify-center shrink-0">
               <Icon className="w-5 h-5" />
@@ -169,6 +176,12 @@ function Modal({
       </div>
     </div>
   );
+
+  if (!mounted || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(modalNode, document.body);
 }
 
 function Chip({

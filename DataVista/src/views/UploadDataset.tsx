@@ -224,38 +224,6 @@ export function UploadDataset() {
 
           {/* Main Card: Dropzone / Staged File State */}
           <div className="w-full bg-surface/95 rounded-3xl border border-border shadow-xl p-6 sm:p-8 transition-all duration-200">
-            {/* Quick-Access Banner for Existing Active Dataset */}
-            {isDatasetActive && !hasStagedFile && (
-              <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-primary-soft/30 rounded-2xl border border-primary/20 backdrop-blur-sm">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <FileSpreadsheet className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-textPrimary truncate">
-                        {dataset.name}
-                      </p>
-                      <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-500 bg-emerald-500/15 rounded-full border border-emerald-500/30 shrink-0">
-                        Active Dataset
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-textSecondary font-medium">
-                      {dataset.totalRows} rows • {dataset.totalColumns} columns • Updated {dataset.lastUpdated}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all active:scale-95 shrink-0 self-end sm:self-auto cursor-pointer"
-                >
-                  Continue to Analysis
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
             <div
               className={`w-full relative rounded-2xl border-2 border-dashed p-8 sm:p-10 transition-all duration-200 ease-out flex flex-col items-center justify-center text-center ${
                 isDragging
@@ -352,10 +320,10 @@ export function UploadDataset() {
                     Maximum upload size: 100 MB
                   </p>
 
-                  {/* Add Dataset Button */}
+                  {/* Browse Files Button */}
                   <label className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold text-primary bg-surface border border-primary/40 rounded-xl shadow-xs cursor-pointer hover:bg-primary hover:text-white transition-all duration-200 active:scale-95">
                     <FolderOpen className="w-4 h-4" />
-                    Add Dataset
+                    Browse Files
                     <input
                       ref={fileInputRef}
                       type="file"

@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-[flex,width,padding] duration-200 ease-out transform-gpu">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-[flex,width,padding] duration-200 ease-out">
         {/* Mobile Header Bar */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-surface border-b border-border">
           <DataVistaLogo size="sm" />
@@ -96,7 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Main Content Viewport */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 transform-gpu">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8">
           <div className="mx-auto max-w-[1600px]">{children}</div>
         </main>
       </div>
