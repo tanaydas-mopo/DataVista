@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 
 export interface DynamicKpi {
@@ -702,22 +702,37 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const contextValue = useMemo(
+    () => ({
+      dataset,
+      uploadDataset,
+      switchDatasetPreset,
+      loadPreviousDataset,
+      removeDataset,
+      updateChartVisual,
+      updateTableData,
+      notification,
+      clearNotification,
+      restorePreviousDataset,
+      canUndoDataset: !!previousDataset,
+    }),
+    [
+      dataset,
+      uploadDataset,
+      switchDatasetPreset,
+      loadPreviousDataset,
+      removeDataset,
+      updateChartVisual,
+      updateTableData,
+      notification,
+      clearNotification,
+      restorePreviousDataset,
+      previousDataset,
+    ]
+  );
+
   return (
-    <DatasetContext.Provider
-      value={{
-        dataset,
-        uploadDataset,
-        switchDatasetPreset,
-        loadPreviousDataset,
-        removeDataset,
-        updateChartVisual,
-        updateTableData,
-        notification,
-        clearNotification,
-        restorePreviousDataset,
-        canUndoDataset: !!previousDataset
-      }}
-    >
+    <DatasetContext.Provider value={contextValue}>
       {children}
     </DatasetContext.Provider>
   );
