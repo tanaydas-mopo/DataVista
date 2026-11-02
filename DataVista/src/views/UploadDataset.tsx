@@ -147,7 +147,7 @@ export function UploadDataset() {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-textPrimary">AI Data Cleaner</p>
+            <p className="text-xs font-bold text-textPrimary">Data Cleaner</p>
             <p className="text-[10px] font-medium text-textSecondary mt-0.5">Clean &amp; transform on demand</p>
           </div>
         </div>
@@ -214,7 +214,7 @@ export function UploadDataset() {
             </div>
             <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-delayed">
               <Sparkles className="w-4 h-4 text-purple-500" />
-              <span className="text-[11px] font-bold text-textPrimary">AI Data Cleaner</span>
+              <span className="text-[11px] font-bold text-textPrimary">Data Cleaner</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-md rounded-xl border border-border shadow-sm animate-float-slow">
               <ShieldCheck className="w-4 h-4 text-primary" />

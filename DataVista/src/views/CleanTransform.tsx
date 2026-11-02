@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import {
   Filter, Trash2, Edit3, ArrowRightLeft, Type, Sparkles, CheckCircle2, Database,
   X, ChevronDown, Merge, Scissors, SortAsc, Eye,
-  MinusSquare, Search, Zap, Undo2, Redo2, Check, Plus, Minus, Layers, RefreshCw, AlertTriangle,
+  MinusSquare, Search, Undo2, Redo2, Check, Plus, Minus, Layers, RefreshCw, AlertTriangle,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, Calendar, AlignLeft,
   Info, HelpCircle, Columns3, CheckSquare, Square, SlidersHorizontal, ArrowUpDown, FileSpreadsheet
 } from "lucide-react";
@@ -48,7 +48,6 @@ type ModalType =
   | "find-replace"
   | "change-type"
   | "rename"
-  | "auto-clean"
   | "fill-missing"
   | "split-column"
   | "merge-columns"
@@ -62,7 +61,7 @@ type ModalType =
   | "inspect-columns"
   | "export";
 
-type OpCategory = "rows" | "columns" | "clean" | "ai";
+type OpCategory = "rows" | "columns" | "clean";
 
 interface AppliedStepItem {
   id: string;
@@ -665,7 +664,6 @@ export function CleanTransform() {
     { icon: Sparkles, name: "Fill Missing Values", desc: "Impute null cells with mean, median, mode, or custom", modal: "fill-missing", category: "clean" },
     { icon: ArrowRightLeft, name: "Find & Replace", desc: "Replace specific values with match-case support", modal: "find-replace", category: "clean" },
     { icon: AlignLeft, name: "Trim & Standardize Text", desc: "Clean leading/trailing spaces and standardize casing", modal: "trim-case", category: "clean" },
-    { icon: Zap, name: "AI Auto Clean", desc: "AI-powered data audit and recipe recommendations", modal: "auto-clean", category: "ai" },
   ];
 
   const filteredOperations = useMemo(() => {
@@ -2161,160 +2159,6 @@ export function CleanTransform() {
     );
   };
 
-  /* 16. AI Supercharged Auto Clean Modal */
-  const AutoCleanModal = () => {
-    const [selectedRecipes, setSelectedRecipes] = useState<string[]>(["dupes", "whitespace", "dates", "nulls"]);
-
-    const recipes = useMemo(() => {
-      const recs: { id: string; name: string; desc: string; impact: string }[] = [];
-
-      if (quality.duplicateReport.excessDuplicatesCount > 0) {
-        recs.push({
-          id: "dupes",
-          name: `Purge ${quality.duplicateReport.excessDuplicatesCount} Duplicate Rows`,
-          desc: "Identical duplicate records identified across all columns.",
-          impact: "High",
-        });
-      }
-
-      recs.push({
-        id: "whitespace",
-        name: "Trim Whitespace & Collapse Extra Spaces",
-        desc: "Strip leading/trailing space padding across all text columns.",
-        impact: "Medium",
-      });
-
-      recs.push({
-        id: "dates",
-        name: "Format & Normalize Excel Serial Dates",
-        desc: "Convert raw Excel serial date numbers to standard YYYY-MM-DD.",
-        impact: "Medium",
-      });
-
-      if (quality.missingCells > 0) {
-        recs.push({
-          id: "nulls",
-          name: `Impute ${quality.missingCells} Missing Values with Column Median / Mode`,
-          desc: "Fill numeric nulls with median and text nulls with mode.",
-          impact: "High",
-        });
-      }
-
-      return recs;
-    }, [quality]);
-
-    const toggleRecipe = (id: string) => {
-      setSelectedRecipes((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
-    };
-
-    const apply = () => {
-      let currentH = [...workingHeaders];
-      let currentR = [...workingRows];
-      let totalPurgedRows = 0;
-      let totalImputedCells = 0;
-
-      // 1. Purge Duplicates
-      if (selectedRecipes.includes("dupes") && quality.duplicateReport.excessDuplicatesCount > 0) {
-        const dupeRes = executeRemoveDuplicates(currentH, currentR, currentH, "first");
-        currentR = dupeRes.newRows;
-        totalPurgedRows += dupeRes.removedCount;
-      }
-
-      // 2. Trim Whitespace
-      if (selectedRecipes.includes("whitespace")) {
-        const trimRes = executeTrimAndCase(currentH, currentR, {
-          columns: currentH,
-          trimMode: "both",
-          caseMode: "none",
-        });
-        currentR = trimRes.newRows;
-      }
-
-      // 3. Impute Nulls
-      if (selectedRecipes.includes("nulls")) {
-        currentH.forEach((col) => {
-          const colQ = quality.columnReports.find((c) => c.column === col);
-          if (colQ && colQ.missingCount > 0) {
-            const isNum = colQ.dataType === "Integer" || colQ.dataType === "Decimal";
-            const fillRes = executeFillMissing(currentH, currentR, {
-              column: col,
-              method: isNum ? "median" : "mode",
-            });
-            currentR = fillRes.newRows;
-            totalImputedCells += fillRes.affectedCells;
-          }
-        });
-      }
-
-      recordStep(
-        "AI Supercharged Auto Clean",
-        "auto-clean",
-        `Executed multi-recipe data cleaning (Purged ${totalPurgedRows} dupes, Imputed ${totalImputedCells} cells)`,
-        { selectedRecipes },
-        totalPurgedRows,
-        totalImputedCells,
-        workingHeaders,
-        workingRows,
-        currentH,
-        currentR
-      );
-    };
-
-    return (
-      <Modal
-        title="AI Supercharged Auto Clean"
-        subtitle="Dynamic, schema-aware automated data cleaning recipes"
-        icon={Zap}
-        onClose={closeModal}
-      >
-        <div className="flex items-center justify-between p-3.5 rounded-xl border border-primary/20 bg-primary-soft/30">
-          <div>
-            <p className="text-xs font-bold text-textPrimary">Current Quality Score</p>
-            <p className="text-[11px] text-textSecondary">Calculated from missing &amp; duplicate distributions</p>
-          </div>
-          <span className="text-lg font-extrabold text-primary">{quality.healthScore} / 100</span>
-        </div>
-
-        <div className="flex flex-col gap-2.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary">
-            Recommended Cleaning Recipes
-          </p>
-          {recipes.map((r) => {
-            const active = selectedRecipes.includes(r.id);
-            return (
-              <div
-                key={r.id}
-                onClick={() => toggleRecipe(r.id)}
-                className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                  active ? "bg-primary-soft/40 border-primary/40 shadow-xs" : "bg-surface border-border/80 opacity-70"
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded border mt-0.5 flex items-center justify-center shrink-0 transition-all ${
-                    active ? "bg-primary border-primary text-white" : "border-border bg-surface"
-                  }`}
-                >
-                  {active && <Check className="w-3 h-3" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-textPrimary">{r.name}</p>
-                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-primary/10 text-primary">
-                      {r.impact}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-textSecondary mt-0.5 leading-snug">{r.desc}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <ActionRow onApply={apply} onClose={closeModal} applyLabel="Execute Selected Recipes" disabled={selectedRecipes.length === 0} />
-      </Modal>
-    );
-  };
-
   /* 17. Column Health Inspector Modal */
   const InspectColumnsModal = () => {
     return (
@@ -2654,7 +2498,7 @@ export function CleanTransform() {
                   <div className="flex flex-col gap-2">
                     {/* Category Filter Pills */}
                     <div className="flex items-center gap-1 overflow-x-auto pb-1.5 border-b border-border/40 scrollbar-none">
-                      {(["all", "rows", "columns", "clean", "ai"] as const).map((cat) => (
+                      {(["all", "rows", "columns", "clean"] as const).map((cat) => (
                         <button
                           key={cat}
                           type="button"
@@ -2665,7 +2509,7 @@ export function CleanTransform() {
                               : "text-textSecondary hover:text-textPrimary hover:bg-primary-soft/40"
                           }`}
                         >
-                          {cat === "ai" ? "AI Clean" : cat}
+                          {cat}
                         </button>
                       ))}
                     </div>
@@ -3265,7 +3109,6 @@ export function CleanTransform() {
       {modal === "trim-case" && <TrimCaseModal />}
       {modal === "convert-dates" && <ConvertDatesModal />}
       {modal === "remove-empty" && <RemoveEmptyModal />}
-      {modal === "auto-clean" && <AutoCleanModal />}
       {modal === "inspect-columns" && <InspectColumnsModal />}
       {modal === "export" && <ExportModal />}
 
