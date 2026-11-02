@@ -142,13 +142,26 @@ export function ExportReport() {
             ctx.lineWidth = 1;
             ctx.strokeRect(x, kpiTop, kpiCardWidth, kpiHeight);
 
+            // Parse main value and sub-label (e.g. "15" and "Attributes")
+            const rawVal = String(kpi.value || "-");
+            const match = rawVal.match(/^([\d.,]+[%MkBb]?)\s*(.*)$/);
+            const mainVal = match && match[1] ? match[1] : rawVal;
+            const subVal = match && match[2] ? match[2] : "";
+
             ctx.fillStyle = "#64748B";
             ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
             ctx.fillText(kpi.label.toUpperCase(), x + 18, kpiTop + 35);
 
             ctx.fillStyle = "#2563EB";
             ctx.font = "bold 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-            ctx.fillText(String(kpi.value), x + 18, kpiTop + 75);
+            ctx.fillText(mainVal, x + 18, kpiTop + 75);
+
+            if (subVal) {
+              const mainWidth = ctx.measureText(mainVal).width;
+              ctx.fillStyle = "#64748B";
+              ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+              ctx.fillText(subVal.toUpperCase(), x + 18 + mainWidth + 8, kpiTop + 75);
+            }
           });
 
           // 4. Data Table Container
@@ -266,12 +279,18 @@ export function ExportReport() {
                 ` : ""}
 
                 <div class="kpi-grid">
-                  ${kpis.slice(0, 4).map((k) => `
-                    <div class="kpi-card">
-                      <div class="kpi-lbl">${k.label}</div>
-                      <div class="kpi-val">${k.value}</div>
-                    </div>
-                  `).join("")}
+                  ${kpis.slice(0, 4).map((k) => {
+                    const rawVal = String(k.value || "-");
+                    const match = rawVal.match(/^([\d.,]+[%MkBb]?)\s*(.*)$/);
+                    const mainVal = match && match[1] ? match[1] : rawVal;
+                    const subVal = match && match[2] ? match[2] : "";
+                    return `
+                      <div class="kpi-card">
+                        <div class="kpi-lbl">${k.label}</div>
+                        <div class="kpi-val">${mainVal} ${subVal ? `<span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">${subVal}</span>` : ""}</div>
+                      </div>
+                    `;
+                  }).join("")}
                 </div>
 
                 <div class="section-title">Dataset Records Summary (${rows.length} rows)</div>
@@ -493,22 +512,43 @@ export function ExportReport() {
             {/* PDF Preview */}
             {exportFormat === "pdf" && (
               <div className="w-full bg-surface border border-border rounded-2xl p-5 shadow-sm flex flex-col gap-4 max-h-[500px] overflow-y-auto">
-                <div className="flex items-center justify-between border-b border-border/80 pb-3">
-                  <div>
-                    <h3 className="text-sm font-extrabold text-textPrimary">{reportTitle}</h3>
-                    <p className="text-[11px] text-textSecondary font-medium">Prepared by {reportAuthor} • {new Date().toLocaleDateString()}</p>
+                <div className="flex items-start justify-between gap-3 border-b border-border/80 pb-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-extrabold text-textPrimary leading-snug break-words">{reportTitle}</h3>
+                    <p className="text-[11px] text-textSecondary font-medium mt-0.5">Prepared by {reportAuthor} • {new Date().toLocaleDateString()}</p>
                   </div>
-                  <span className="text-xs font-black text-primary tracking-wider uppercase">DataVista</span>
+                  <span className="text-xs font-black text-primary tracking-wider uppercase shrink-0 pt-0.5">DataVista</span>
                 </div>
 
                 {/* All 4 Active KPIs Preview */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {(dataset.kpis.length > 0 ? dataset.kpis.slice(0, 4) : [{ label: "Rows", value: dataset.totalRows }, { label: "Columns", value: dataset.totalColumns }]).map((k, i) => (
-                    <div key={i} className="bg-primary-soft/20 border border-primary/15 p-2.5 rounded-xl text-center">
-                      <p className="text-[10px] font-bold text-textSecondary uppercase truncate">{k.label}</p>
-                      <p className="text-base font-black text-primary mt-0.5">{k.value}</p>
-                    </div>
-                  ))}
+                  {(dataset.kpis.length > 0 ? dataset.kpis.slice(0, 4) : [{ label: "Rows", value: dataset.totalRows }, { label: "Columns", value: dataset.totalColumns }]).map((k, i) => {
+                    const rawVal = String(k.value || "-");
+                    const match = rawVal.match(/^([\d.,]+[%MkBb]?)\s*(.*)$/);
+                    const mainVal = match && match[1] ? match[1] : rawVal;
+                    const subVal = match && match[2] ? match[2] : null;
+
+                    return (
+                      <div
+                        key={i}
+                        className="bg-primary-soft/20 border border-primary/15 p-2 rounded-xl flex flex-col items-center justify-between min-h-[74px] text-center overflow-hidden transition-all"
+                      >
+                        <p className="text-[9.5px] font-bold text-textSecondary uppercase tracking-tight text-center leading-tight break-words max-w-full">
+                          {k.label}
+                        </p>
+                        <div className="flex flex-col items-center justify-center my-auto">
+                          <span className="text-base font-black text-primary tracking-tight leading-none">
+                            {mainVal}
+                          </span>
+                          {subVal && (
+                            <span className="text-[9px] font-bold text-textSecondary uppercase tracking-wider mt-1 leading-none">
+                              {subVal}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Dataset Summary Table */}

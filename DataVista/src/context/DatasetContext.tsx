@@ -517,7 +517,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
               {
                 id: "k2",
                 label: "Total Columns",
-                value: `${totalColsCount} Attributes`,
+                value: totalColsCount.toLocaleString(),
                 trend: "All uploaded columns active",
                 trendDirection: "up",
                 color: "success",
