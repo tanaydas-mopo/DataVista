@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, ShieldCheck, FileText, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
@@ -31,7 +32,9 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
 
   const isTerms = type === "terms";
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
@@ -171,6 +174,7 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

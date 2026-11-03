@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   User,
   Bell,
@@ -904,7 +905,7 @@ export function Settings() {
       </div>
 
       {/* Generate API Key Modal */}
-      {showCreateKeyModal && (
+      {showCreateKeyModal && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200 cursor-pointer"
           onClick={() => setShowCreateKeyModal(false)}
@@ -1019,11 +1020,12 @@ export function Settings() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Logout Confirmation Modal */}
-      {showLogoutModal && (
+      {showLogoutModal && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
           onClick={() => setShowLogoutModal(false)}
@@ -1067,7 +1069,8 @@ export function Settings() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

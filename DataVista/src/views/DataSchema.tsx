@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   UploadCloud,
   FileType,
@@ -447,7 +448,7 @@ export function DataSchema() {
       </div>
 
       {/* Confirmation Modal for Removing File */}
-      {showDeleteModal && (
+      {showDeleteModal && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={() => setShowDeleteModal(false)}
@@ -505,11 +506,12 @@ export function DataSchema() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Attribute Disclosure Modal */}
-      {selectedSampleRow && (
+      {selectedSampleRow && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={() => setSelectedSampleRow(null)}
@@ -571,7 +573,8 @@ export function DataSchema() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

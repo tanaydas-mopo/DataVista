@@ -16,14 +16,19 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
+import { useAuth } from "../components/auth/AuthProvider";
 
 export function ExportReport() {
   const { dataset } = useDataset();
+  const { user } = useAuth();
   const [exportFormat, setExportFormat] = useState<"pdf" | "png" | "csv">("pdf");
   const [pageSize, setPageSize] = useState("A4");
   const [orientation, setOrientation] = useState("Landscape");
   const [reportTitle, setReportTitle] = useState(dataset.name ? `${dataset.name} — Performance Report` : "Executive Analytics Report");
-  const [reportAuthor, setReportAuthor] = useState("Data Analyst");
+  const defaultAuthor =
+    user?.user_metadata?.full_name ||
+    (user?.email ? user.email.split("@")[0].split(/[._-]/).map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ") : "Data Analyst");
+  const [reportAuthor, setReportAuthor] = useState(defaultAuthor);
   const [includeNotes, setIncludeNotes] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);

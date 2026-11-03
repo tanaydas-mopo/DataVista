@@ -1926,7 +1926,7 @@ export function VisualBuilder() {
     );
   };
 
-  /* ── Executive Metrics for Power BI Summary Dock ── */
+  /* ── Executive Metrics for DataVista Summary Dock ── */
   const executiveMetrics = useMemo(() => {
     if (chartData.length === 0) return { total: 0, avg: 0, peak: null, lowest: null };
     const sorted = [...chartData].sort((a, b) => Number(b[primaryY] ?? b.value ?? 0) - Number(a[primaryY] ?? a.value ?? 0));
@@ -2090,7 +2090,7 @@ export function VisualBuilder() {
 
       {isUploaded ? (
         <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0">
-          {/* ── POWER BI "VISUALIZATIONS & FIELDS" PANE ── */}
+          {/* ── DATAVISTA "VISUALIZATIONS & FIELDS" PANE ── */}
           <div className="lg:w-84 flex-shrink-0 flex flex-col gap-4">
             {/* SECTION 1: Visualizations Palette Card */}
             <div className="bg-surface border border-border/80 rounded-2xl p-4 shadow-xs flex flex-col gap-3">
@@ -2121,7 +2121,7 @@ export function VisualBuilder() {
                 ))}
               </div>
 
-              {/* Power BI 4-Column Icon Grid */}
+              {/* DataVista 4-Column Icon Grid */}
               <div className="grid grid-cols-4 gap-1.5 max-h-[175px] overflow-y-auto pr-1">
                 {filteredChartTypes.map((type) => {
                   const IconComp = type.icon;
@@ -2304,7 +2304,7 @@ export function VisualBuilder() {
             </div>
           </div>
 
-          {/* ── POWER BI CENTRAL REPORT CANVAS ── */}
+          {/* ── DATAVISTA CENTRAL REPORT CANVAS ── */}
           <div className="flex-1 flex flex-col min-h-[520px] bg-surface border border-border/80 rounded-2xl shadow-sm overflow-hidden">
             {/* Canvas Header Bar */}
             <div className="px-5 py-3 border-b border-border/60 flex flex-wrap items-center justify-between gap-3 bg-surface/70">
@@ -2544,7 +2544,7 @@ export function VisualBuilder() {
               )}
             </div>
 
-            {/* ── POWER BI EXECUTIVE METRIC DOCK (BOTTOM STATUS STRIP) ── */}
+            {/* ── DATAVISTA EXECUTIVE METRIC DOCK (BOTTOM STATUS STRIP) ── */}
             <div className="px-5 py-2.5 bg-primary-soft/30 border-t border-border/70 flex flex-wrap items-center justify-between text-xs gap-3">
               <div className="flex items-center gap-4 flex-wrap">
                 <span className="font-semibold text-textMuted flex items-center gap-1">

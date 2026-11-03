@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   FileSpreadsheet,
@@ -161,7 +162,7 @@ export function RecentFiles() {
       </Card>
 
       {/* Full Files Management Modal */}
-      {showAllFilesModal && (
+      {showAllFilesModal && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={() => setShowAllFilesModal(false)}
@@ -288,7 +289,8 @@ export function RecentFiles() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

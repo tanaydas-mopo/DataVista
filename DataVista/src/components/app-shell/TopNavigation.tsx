@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
@@ -102,7 +102,7 @@ export function TopNavigation() {
 
   // Filters State
   const [activeFilterChips, setActiveFilterChips] = useState<string[]>([]);
-  const [tempFilterTeam, setTempFilterTeam] = useState("All Teams");
+  const [tempFilterTeam, setTempFilterTeam] = useState("All");
   const [tempFilterMinRuns, setTempFilterMinRuns] = useState("");
 
   // Notifications State
@@ -197,9 +197,9 @@ export function TopNavigation() {
   const searchOptions = [
     { label: "Dashboard Overview", path: "/dashboard", desc: "KPIs and active visualizations" },
     { label: "Upload New Dataset", path: "/upload-dataset", desc: "Import CSV, Excel, or JSON" },
-    { label: "Data & Schema Inspector", path: "/data-schema", desc: "15 columns schema inspection" },
-    { label: "Clean & Transform AI", path: "/clean-transform", desc: "Recipes, imputation, filters" },
-    { label: "Visual Chart Builder", path: "/visual-builder", desc: "23 charts & multidimensional plots" },
+    { label: "Data & Schema Inspector", path: "/data-schema", desc: "Column types, null counts, and schema inspection" },
+    { label: "Clean & Transform", path: "/clean-transform", desc: "Recipes, imputation, filters" },
+    { label: "Visual Chart Builder", path: "/visual-builder", desc: "26 interactive charts & visual studio" },
     { label: "Export PDF / CSV Report", path: "/export-report", desc: "Executive document generator" },
     { label: "Workspace Settings", path: "/settings", desc: "Themes, profile, API keys" },
   ];
@@ -211,6 +211,25 @@ export function TopNavigation() {
           opt.desc.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
+
+  // Dynamic Categories from active dataset
+  const dynamicCategories = useMemo(() => {
+    if (dataset.chartData && dataset.chartData.length > 0) {
+      return dataset.chartData.map((d) => d.label);
+    }
+    return ["CSK", "MI", "RCB", "KKR", "SRH"];
+  }, [dataset.chartData]);
+
+  const categoryLabel = useMemo(() => {
+    if (dataset.chartTitle) {
+      return dataset.chartTitle.replace(/ Distribution$/i, "").replace(/^Matches Won by /i, "") || "Category";
+    }
+    return "Category";
+  }, [dataset.chartTitle]);
+
+  const metricThresholdLabel = useMemo(() => {
+    return dataset.kpis?.[1]?.label || "Value";
+  }, [dataset.kpis]);
 
   const handleApplyDateRange = (preset: string) => {
     setSelectedDatePreset(preset);
@@ -228,14 +247,14 @@ export function TopNavigation() {
 
   const handleApplyFilters = () => {
     const chips: string[] = [];
-    if (tempFilterTeam !== "All Teams") chips.push(`Team: ${tempFilterTeam}`);
-    if (tempFilterMinRuns.trim()) chips.push(`Min Runs: ${tempFilterMinRuns}`);
+    if (tempFilterTeam && tempFilterTeam !== "All") chips.push(`${categoryLabel}: ${tempFilterTeam}`);
+    if (tempFilterMinRuns.trim()) chips.push(`Min ${metricThresholdLabel}: ${tempFilterMinRuns}`);
     setActiveFilterChips(chips);
     setIsFilterPopoverOpen(false);
   };
 
   const handleResetFilters = () => {
-    setTempFilterTeam("All Teams");
+    setTempFilterTeam("All");
     setTempFilterMinRuns("");
     setActiveFilterChips([]);
     setIsFilterPopoverOpen(false);
@@ -417,31 +436,31 @@ export function TopNavigation() {
                 <div className="space-y-3 py-3 text-xs">
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-1.5">
-                      Team Filter
+                      Filter by {categoryLabel}
                     </label>
                     <select
                       value={tempFilterTeam}
                       onChange={(e) => setTempFilterTeam(e.target.value)}
                       className="w-full h-9 rounded-xl border border-border bg-surface px-3 text-xs font-medium text-textPrimary focus:border-primary focus:outline-none"
                     >
-                      <option value="All Teams">All Teams</option>
-                      <option value="CSK">Chennai Super Kings (CSK)</option>
-                      <option value="MI">Mumbai Indians (MI)</option>
-                      <option value="RCB">Royal Challengers (RCB)</option>
-                      <option value="KKR">Kolkata Knight Riders (KKR)</option>
-                      <option value="SRH">Sunrisers Hyderabad (SRH)</option>
+                      <option value="All">All {categoryLabel}s</option>
+                      {dynamicCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-1.5">
-                      Minimum Runs Threshold
+                      Minimum {metricThresholdLabel} Threshold
                     </label>
                     <input
                       type="number"
                       value={tempFilterMinRuns}
                       onChange={(e) => setTempFilterMinRuns(e.target.value)}
-                      placeholder="e.g. 2000"
+                      placeholder="e.g. 100"
                       className="w-full h-9 rounded-xl border border-border bg-surface px-3 text-xs font-medium text-textPrimary focus:border-primary focus:outline-none"
                     />
                   </div>
