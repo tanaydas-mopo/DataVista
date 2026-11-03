@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, Layers, Sparkles, Compass, Settings2, Save, Database, CheckCircle2,
-  Filter, Download, Maximize2, SlidersHorizontal, Bot, ArrowUpDown, X,
+  Filter, Download, Maximize2, SlidersHorizontal, ArrowUpDown, X,
   Table, Grid, RefreshCw, Eye, Plus, Trash2, Search, Calendar, AlertCircle,
-  Check, FileSpreadsheet, Info
+  Check, FileSpreadsheet, Info, FolderOpen
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { useDataset } from "../context/DatasetContext";
@@ -106,9 +108,9 @@ function computeSmartAgg(rawVals: any[], mode: string, totalSumForPct = 0): numb
   if (mode === "avg") {
     val = numVals.reduce((a, b) => a + b, 0) / Math.max(1, numVals.length);
   } else if (mode === "max") {
-    val = Math.max(...numVals);
+    val = numVals.length > 0 ? Math.max(...numVals) : 0;
   } else if (mode === "min") {
-    val = Math.min(...numVals);
+    val = numVals.length > 0 ? Math.min(...numVals) : 0;
   } else if (mode === "median") {
     const s = [...numVals].sort((a, b) => a - b);
     const m = Math.floor(s.length / 2);
@@ -643,6 +645,7 @@ function CorrelationMatrix({
 
 export function VisualBuilder() {
   const { dataset, updateChartVisual } = useDataset();
+  const router = useRouter();
 
   /* ── Core State ── */
   const [activeChartType, setActiveChartType] = useState<string>("bar");
@@ -1939,13 +1942,13 @@ export function VisualBuilder() {
 
   return (
     <div className="flex flex-col gap-4 pb-8 h-full">
-      {/* ── POWER BI STUDIO TOP COMMAND RIBBON ── */}
+      {/* ── DATAVISTA STUDIO TOP COMMAND RIBBON ── */}
       <div className="bg-surface border border-border/80 rounded-2xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
         {/* Left: Studio Brand & Dataset Identity */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary">
-            <Sparkles className="w-4 h-4 shrink-0" />
-            <span className="text-xs font-black tracking-tight uppercase">Power BI Studio</span>
+            <BarChartIcon className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-black tracking-tight uppercase">DataVista Studio</span>
           </div>
 
           <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border/70 text-xs">
@@ -2319,7 +2322,7 @@ export function VisualBuilder() {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* AI Quick Recommendation Pills */}
+                {/* Smart Recommendation Pills */}
                 {recommendations.length > 0 && (
                   <div className="hidden sm:flex items-center gap-1.5">
                     {recommendations.map(rec => (
@@ -2329,7 +2332,7 @@ export function VisualBuilder() {
                         title={rec.rationale}
                         className="px-2.5 py-1 rounded-lg bg-primary-soft/60 hover:bg-primary text-primary hover:text-white border border-primary/20 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
                       >
-                        <Bot className="w-3 h-3" />
+                        <Compass className="w-3 h-3" />
                         <span>{rec.name}</span>
                       </button>
                     ))}
@@ -2571,13 +2574,21 @@ export function VisualBuilder() {
           <Database className="w-16 h-16 text-textMuted stroke-[1.5]" />
           <h3 className="text-lg font-bold text-textPrimary">No Active Dataset</h3>
           <p className="text-sm text-textSecondary max-w-md">
-            Upload a CSV or Excel dataset on the Dashboard to build interactive custom charts and visual analytics.
+            Upload a CSV, Excel, or JSON dataset to start building interactive charts and visual analytics.
           </p>
+          <button
+            type="button"
+            onClick={() => router.push("/upload-dataset")}
+            className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary-hover transition-all cursor-pointer active:scale-95"
+          >
+            <FolderOpen className="w-4 h-4" />
+            Upload Dataset
+          </button>
         </Card>
       )}
 
       {/* MODAL: Customization */}
-      {showCustomizeModal && (
+      {showCustomizeModal && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={() => setShowCustomizeModal(false)}>
           <div className="w-full max-w-lg bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/60">
@@ -2648,11 +2659,12 @@ export function VisualBuilder() {
               <button onClick={() => setShowCustomizeModal(false)} className="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs cursor-pointer">Done</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL: Filters & Date Range */}
-      {showFilterModal && (
+      {showFilterModal && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={() => setShowFilterModal(false)}>
           <div className="w-full max-w-lg bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
@@ -2837,11 +2849,12 @@ export function VisualBuilder() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL: Drill-Through Inspector */}
-      {showDrillThroughModal && (
+      {showDrillThroughModal && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={() => setShowDrillThroughModal(null)}>
           <div className="w-full max-w-2xl bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-primary-soft/30">
@@ -2880,11 +2893,12 @@ export function VisualBuilder() {
               <button onClick={() => setShowDrillThroughModal(null)} className="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs cursor-pointer">Close Inspector</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* FULLSCREEN VIEW (Dynamically renders the active chart) */}
-      {isFullscreen && (
+      {isFullscreen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 bg-surface p-6 flex flex-col gap-4 animate-in fade-in duration-200">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div>
@@ -2901,7 +2915,8 @@ export function VisualBuilder() {
           <div className="flex-1 w-full min-h-0">
             {renderActiveChart(true)}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
