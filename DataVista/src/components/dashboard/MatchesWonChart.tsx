@@ -74,13 +74,23 @@ export const MatchesWonChart = React.memo(function MatchesWonChart() {
     setIsOverflowMenuOpen(false);
   };
 
+  const isWinnerChart =
+    (dataset.chartTitle || "").toLowerCase().includes("won") ||
+    (dataset.chartTitle || "").toLowerCase().includes("winner");
+
+  const tooltipMetricLabel = isWinnerChart ? "Matches Won:" : "Total:";
+
+  const aggregationSubtitle = isWinnerChart
+    ? "Active aggregation: Sum of Wins by Franchise Team"
+    : `Active aggregation: Distribution by ${dataset.chartTitle?.replace(/ Distribution$/i, "") || "Category"}`;
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="rounded-xl border border-border bg-surface/95 backdrop-blur-md p-3 shadow-xl text-xs">
           <p className="font-bold text-textPrimary mb-1">{label}</p>
           <div className="flex items-center gap-2">
-            <span className="text-textSecondary">Total:</span>
+            <span className="text-textSecondary">{tooltipMetricLabel}</span>
             <span className="font-extrabold text-primary">
               {Number(payload[0].value).toLocaleString()}
             </span>
@@ -100,7 +110,7 @@ export const MatchesWonChart = React.memo(function MatchesWonChart() {
             {dataset.chartTitle || "Matches Won by Team"}
           </CardTitle>
           <p className="text-[11px] text-textSecondary mt-0.5">
-            Active aggregation: Sum of Wins by Franchise Team
+            {aggregationSubtitle}
           </p>
         </div>
 

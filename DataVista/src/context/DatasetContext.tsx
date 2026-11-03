@@ -210,6 +210,31 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
             !String(parsed.name).includes("PK\u0003") &&
             !JSON.stringify(parsed.rawHeaders || []).includes("Content_Types")
           ) {
+            // Automatically upgrade chart to Matches Won by Team if Winner column exists
+            if (parsed.rawHeaders && Array.isArray(parsed.rawHeaders) && Array.isArray(parsed.rawRows)) {
+              const winnerIdx = parsed.rawHeaders.findIndex((h: string) => h.toLowerCase() === "winner" || h.toLowerCase() === "outcome");
+              if (winnerIdx !== -1 && (parsed.chartTitle === "Team1 Distribution" || parsed.chartTitle === "Team Distribution")) {
+                const valCounts: Record<string, number> = {};
+                parsed.rawRows.forEach((row: string[]) => {
+                  const val = row[winnerIdx] !== undefined && row[winnerIdx] !== null && String(row[winnerIdx]).trim() !== "" ? String(row[winnerIdx]).trim() : "";
+                  if (val) {
+                    valCounts[val] = (valCounts[val] || 0) + 1;
+                  }
+                });
+                const sortedChart = Object.entries(valCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+                if (sortedChart.length > 0) {
+                  parsed.chartTitle = "Matches Won by Team";
+                  parsed.chartData = sortedChart.map(([label, count], idx) => ({
+                    label: label.length > 18 ? label.substring(0, 15) + "..." : label,
+                    value: count,
+                    color: CHART_COLORS[idx % CHART_COLORS.length],
+                  }));
+                  try {
+                    localStorage.setItem("datavista_dataset", JSON.stringify(parsed));
+                  } catch {}
+                }
+              }
+            }
             return parsed;
           }
         }
@@ -242,13 +267,38 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
   const loadPreviousDataset = (targetDataset: DatasetInfo) => {
     if (!targetDataset) return;
-    setDataset(targetDataset);
+    let upgradedDataset = targetDataset;
+    if (upgradedDataset.rawHeaders && Array.isArray(upgradedDataset.rawHeaders) && Array.isArray(upgradedDataset.rawRows)) {
+      const winnerIdx = upgradedDataset.rawHeaders.findIndex((h: string) => h.toLowerCase() === "winner" || h.toLowerCase() === "outcome");
+      if (winnerIdx !== -1 && (upgradedDataset.chartTitle === "Team1 Distribution" || upgradedDataset.chartTitle === "Team Distribution")) {
+        const valCounts: Record<string, number> = {};
+        upgradedDataset.rawRows.forEach((row: string[]) => {
+          const val = row[winnerIdx] !== undefined && row[winnerIdx] !== null && String(row[winnerIdx]).trim() !== "" ? String(row[winnerIdx]).trim() : "";
+          if (val) {
+            valCounts[val] = (valCounts[val] || 0) + 1;
+          }
+        });
+        const sortedChart = Object.entries(valCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        if (sortedChart.length > 0) {
+          upgradedDataset = {
+            ...upgradedDataset,
+            chartTitle: "Matches Won by Team",
+            chartData: sortedChart.map(([label, count], idx) => ({
+              label: label.length > 18 ? label.substring(0, 15) + "..." : label,
+              value: count,
+              color: CHART_COLORS[idx % CHART_COLORS.length],
+            })),
+          };
+        }
+      }
+    }
+    setDataset(upgradedDataset);
     try {
-      localStorage.setItem("datavista_dataset", JSON.stringify(targetDataset));
+      localStorage.setItem("datavista_dataset", JSON.stringify(upgradedDataset));
     } catch (e) {
       console.warn("Could not save dataset to localStorage:", e);
     }
-    setNotification(`Resumed dataset "${targetDataset.name}"`);
+    setNotification(`Resumed dataset "${upgradedDataset.name}"`);
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -444,7 +494,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
             // Pick the best categorical column to group and visualize
             let chartColIdx = categoricalColIndices.length > 0 ? categoricalColIndices[0] : 0;
-            const preferredKeywords = ["team", "winner", "category", "product", "city", "status", "country", "type", "region", "state", "brand"];
+            const preferredKeywords = ["winner", "result", "outcome", "status", "category", "product", "team", "city", "country", "type", "region", "state", "brand"];
             for (const kw of preferredKeywords) {
               const found = rawHeaders.findIndex((h) => h.toLowerCase().includes(kw));
               if (found !== -1) {
@@ -470,7 +520,8 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
                 }))
               : [{ label: "Records", value: totalRowsCount, color: CHART_COLORS[0] }];
 
-            const chartTitle = `${chartColName} Distribution`;
+            const isWinnerCol = chartColName.toLowerCase().includes("winner") || chartColName.toLowerCase().includes("outcome");
+            const chartTitle = isWinnerCol ? "Matches Won by Team" : `${chartColName} Distribution`;
 
             // Detect primary numeric column for KPI calculation (e.g. sales, revenue, runs, points, score, price)
             let primaryNumIdx = -1;
