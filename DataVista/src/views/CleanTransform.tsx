@@ -1037,6 +1037,8 @@ export function CleanTransform() {
   /* 3. Fill Missing Values Modal */
   const FillMissingModal = () => {
     const [col, setCol] = useState(workingHeaders[0] || "");
+    const [scope, setScope] = useState<"all" | "specific">("all");
+    const [selectedRows, setSelectedRows] = useState<number[]>([]);
     const [method, setMethod] = useState<"mean" | "median" | "mode" | "custom" | "ffill" | "bfill" | "group">("median");
     const [custom, setCustom] = useState("");
     const [groupCol, setGroupCol] = useState(workingHeaders[1] || workingHeaders[0]);
@@ -1048,6 +1050,36 @@ export function CleanTransform() {
 
     const isNumeric = colQuality?.dataType === "Integer" || colQuality?.dataType === "Decimal";
 
+    // Detect all row indices in workingRows that have missing cells for the chosen column
+    const missingRowIndices = useMemo(() => {
+      const indices: number[] = [];
+      workingRows.forEach((r, idx) => {
+        if (isMissingValue(r[col])) {
+          indices.push(idx);
+        }
+      });
+      return indices;
+    }, [col, workingRows]);
+
+    // Keep selected rows in sync when switching columns or when missing rows change
+    useEffect(() => {
+      if (missingRowIndices.length > 0) {
+        setSelectedRows((prev) => {
+          const valid = prev.filter((i) => missingRowIndices.includes(i));
+          return valid.length > 0 ? valid : [missingRowIndices[0]];
+        });
+      } else {
+        setSelectedRows([]);
+      }
+    }, [missingRowIndices]);
+
+    const targetRowIndices = useMemo(() => {
+      if (scope === "specific") {
+        return selectedRows;
+      }
+      return undefined;
+    }, [scope, selectedRows]);
+
     const preview = useMemo(() => {
       return executeFillMissing(workingHeaders, workingRows, {
         column: col,
@@ -1055,15 +1087,16 @@ export function CleanTransform() {
         customValue: custom,
         groupColumn: groupCol,
         groupMethod,
+        targetRowIndices,
       });
-    }, [col, method, custom, groupCol, groupMethod]);
+    }, [col, method, custom, groupCol, groupMethod, targetRowIndices]);
 
     const apply = () => {
       recordStep(
         "Fill Missing Values",
         "fill-missing",
         `Filled ${preview.affectedCells} missing cell(s) in "${col}" using ${preview.filledValueSummary}`,
-        { column: col, method, customValue: custom, groupColumn: groupCol, groupMethod },
+        { column: col, method, customValue: custom, groupColumn: groupCol, groupMethod, targetRowIndices },
         0,
         preview.affectedCells,
         workingHeaders,
@@ -1091,10 +1124,113 @@ export function CleanTransform() {
           }))}
         />
 
+        {/* Row Selection Scope */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary/60 inline-block" />
+              Apply To Rows
+            </p>
+            {scope === "specific" && (
+              <span className="text-[10px] text-primary font-bold">
+                {selectedRows.length} of {missingRowIndices.length} row(s) selected
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Chip
+              label={`All Missing Rows (${missingRowIndices.length})`}
+              active={scope === "all"}
+              onClick={() => setScope("all")}
+            />
+            <Chip
+              label="Specific Row(s) Only"
+              active={scope === "specific"}
+              onClick={() => {
+                setScope("specific");
+                if (selectedRows.length === 0 && missingRowIndices.length > 0) {
+                  setSelectedRows([missingRowIndices[0]]);
+                }
+              }}
+            />
+          </div>
+
+          {scope === "specific" && missingRowIndices.length > 0 && (
+            <div className="p-2.5 rounded-2xl border border-border/80 bg-surface/80 flex flex-col gap-1.5 max-h-48 overflow-y-auto mb-1">
+              <div className="flex items-center justify-between px-1 pb-1 border-b border-border/40 text-[10px] text-textMuted">
+                <span>Select missing rows to fill:</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRows([...missingRowIndices])}
+                    className="text-primary hover:underline font-bold cursor-pointer"
+                  >
+                    Select All ({missingRowIndices.length})
+                  </button>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRows(missingRowIndices.length > 0 ? [missingRowIndices[0]] : [])}
+                    className="text-textSecondary hover:underline cursor-pointer"
+                  >
+                    First Row Only
+                  </button>
+                </div>
+              </div>
+
+              {missingRowIndices.map((rIdx) => {
+                const row = workingRows[rIdx];
+                const isChecked = selectedRows.includes(rIdx);
+                const previewCols = workingHeaders.filter((h) => h !== col).slice(0, 3);
+                const details = previewCols
+                  .map((h) => `${h}: ${row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== "" ? row[h] : "-"}`)
+                  .join(" · ");
+
+                return (
+                  <label
+                    key={rIdx}
+                    className={`flex items-center justify-between gap-3 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                      isChecked
+                        ? "border-primary/50 bg-primary-soft/30 text-textPrimary font-semibold shadow-2xs"
+                        : "border-border/60 hover:bg-primary-soft/10 text-textSecondary"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedRows([...selectedRows, rIdx]);
+                          } else {
+                            setSelectedRows(selectedRows.filter((i) => i !== rIdx));
+                          }
+                        }}
+                        className="rounded text-primary focus:ring-primary h-4 w-4 shrink-0"
+                      />
+                      <span className="font-mono text-xs text-primary font-bold px-1.5 py-0.5 rounded-md bg-primary-soft shrink-0">
+                        Row #{rIdx + 1}
+                      </span>
+                      <span className="truncate text-[11px] text-textSecondary">
+                        {details}
+                      </span>
+                    </div>
+
+                    <span className="text-[10px] font-mono text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded shrink-0">
+                      null
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Method Selection */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-2 flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 inline-block" />
             Imputation Strategy
           </p>
           <div className="flex flex-wrap gap-2">
@@ -1117,7 +1253,7 @@ export function CleanTransform() {
             label="Custom Imputation Value"
             value={custom}
             onChange={setCustom}
-            placeholder={isNumeric ? "e.g. 0 or -1" : "e.g. Unspecified or N/A"}
+            placeholder={isNumeric ? "e.g. 0 or -1" : "e.g. Jaipur, Unspecified, or N/A"}
           />
         )}
 
@@ -1158,7 +1294,11 @@ export function CleanTransform() {
         <ActionRow
           onApply={apply}
           onClose={closeModal}
-          applyLabel={`Impute ${preview.affectedCells} Cell(s)`}
+          applyLabel={
+            scope === "specific" && selectedRows.length === 1
+              ? `Impute 1 Cell (Row #${selectedRows[0] + 1})`
+              : `Impute ${preview.affectedCells} Cell(s)`
+          }
           disabled={preview.affectedCells === 0}
         />
       </Modal>

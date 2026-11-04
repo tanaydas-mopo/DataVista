@@ -483,6 +483,7 @@ export function executeFillMissing(
     customValue?: string;
     groupColumn?: string;
     groupMethod?: "mean" | "median" | "mode";
+    targetRowIndices?: number[];
   }
 ): {
   newRows: Record<string, any>[];
@@ -490,7 +491,11 @@ export function executeFillMissing(
   highlightedCells: Record<string, boolean>;
   filledValueSummary: string;
 } {
-  const { column, method, customValue = "", groupColumn, groupMethod = "mean" } = options;
+  const { column, method, customValue = "", groupColumn, groupMethod = "mean", targetRowIndices } = options;
+  const isTargetRow = (i: number) => {
+    if (!targetRowIndices || targetRowIndices.length === 0) return true;
+    return targetRowIndices.includes(i);
+  };
   const highlightedCells: Record<string, boolean> = {};
   let affectedCells = 0;
   let filledValueSummary = "";
@@ -543,7 +548,7 @@ export function executeFillMissing(
         lastValid = val;
         return { ...row };
       }
-      if (lastValid !== null) {
+      if (lastValid !== null && isTargetRow(i)) {
         highlightedCells[`${i}-${column}`] = true;
         affectedCells++;
         return { ...row, [column]: lastValid };
@@ -559,7 +564,7 @@ export function executeFillMissing(
       const val = newRows[i][column];
       if (!isMissingValue(val)) {
         nextValid = val;
-      } else if (nextValid !== null) {
+      } else if (nextValid !== null && isTargetRow(i)) {
         highlightedCells[`${i}-${column}`] = true;
         affectedCells++;
         newRows[i][column] = nextValid;
@@ -596,7 +601,7 @@ export function executeFillMissing(
     const overallFallback = numericValues.length > 0 ? calculateMedian(numericValues) : calculateMode(nonNullValues);
 
     newRows = rows.map((row, i) => {
-      if (isMissingValue(row[column])) {
+      if (isMissingValue(row[column]) && isTargetRow(i)) {
         const gKey = String(row[groupColumn] ?? "");
         const fillVal = groupFillMap.has(gKey) ? groupFillMap.get(gKey) : overallFallback;
         highlightedCells[`${i}-${column}`] = true;
@@ -609,13 +614,21 @@ export function executeFillMissing(
   } else {
     // Standard Single Fill (mean, median, mode, custom)
     newRows = rows.map((row, i) => {
-      if (isMissingValue(row[column])) {
+      if (isMissingValue(row[column]) && isTargetRow(i)) {
         highlightedCells[`${i}-${column}`] = true;
         affectedCells++;
         return { ...row, [column]: singleFillValue };
       }
       return { ...row };
     });
+  }
+
+  if (targetRowIndices && targetRowIndices.length > 0) {
+    if (targetRowIndices.length === 1) {
+      filledValueSummary += ` (Row #${targetRowIndices[0] + 1} only)`;
+    } else {
+      filledValueSummary += ` (${targetRowIndices.length} selected row(s))`;
+    }
   }
 
   return {
