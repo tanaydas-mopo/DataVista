@@ -79,7 +79,7 @@ export function RecentFiles() {
 
   return (
     <>
-      <Card className="flex h-full flex-col shadow-xs border-border">
+      <Card className="flex flex-col h-fit shadow-xs border-border">
         <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold text-textPrimary flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" />
@@ -90,7 +90,7 @@ export function RecentFiles() {
           </span>
         </CardHeader>
 
-        <CardContent className="flex flex-1 flex-col justify-between pt-3 pb-4">
+        <CardContent className="flex flex-col pt-3 pb-4">
           <div className="flex flex-col gap-2.5">
             {files.map((file) => {
               const isActive = dataset.name === file.name;

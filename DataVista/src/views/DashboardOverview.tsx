@@ -37,7 +37,7 @@ export function DashboardOverview() {
         </div>
 
         {/* Sidebar Content Column */}
-        <div className="flex flex-col gap-6 xl:col-span-1">
+        <div className="flex flex-col gap-6 xl:col-span-1 self-start w-full">
           <DatasetOverview />
           <QuickActions />
           <RecentFiles />

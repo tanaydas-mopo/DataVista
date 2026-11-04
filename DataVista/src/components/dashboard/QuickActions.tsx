@@ -67,11 +67,11 @@ export function QuickActions() {
   };
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="pb-4">
+    <Card className="flex flex-col h-fit">
+      <CardHeader className="pb-3">
         <CardTitle>Quick actions</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 px-3 pb-3">
+      <CardContent className="px-3 pb-3">
         <div className="flex flex-col gap-1">
           {quickActions.map((item) => (
             <button
