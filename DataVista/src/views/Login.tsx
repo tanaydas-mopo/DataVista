@@ -75,21 +75,21 @@ export function Login() {
   };
 
   return (
-    <main className="min-h-[100dvh] w-full flex items-center justify-center bg-[#F4F6F9] p-3 sm:p-6 lg:p-8 font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-700">
+    <main className="min-h-[100dvh] w-full flex items-center justify-center bg-[#F1F3F9] p-3 sm:p-6 lg:p-8 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-700">
       {/* Centered Split-Screen Analytics Frame */}
-      <div className="w-full max-w-6xl rounded-[28px] bg-white border border-slate-200 shadow-[0_20px_60px_-15px_rgba(15,23,42,0.07)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[680px] lg:min-h-[730px]">
+      <div className="w-full max-w-6xl rounded-[28px] bg-white border border-slate-200/90 shadow-[0_20px_60px_-15px_rgba(30,27,75,0.08)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[680px] lg:min-h-[730px]">
         
-        {/* ── LEFT PANEL: CLEAN MODERN SAAS BRANDING & ANALYTICS PREVIEW ── */}
-        <div className="hidden lg:flex lg:col-span-6 xl:col-span-6 bg-gradient-to-br from-[#3B66F5] via-[#335EEA] to-[#254EDA] p-8 xl:p-10 flex-col justify-between relative overflow-hidden text-white select-none">
+        {/* ── LEFT PANEL: WARM HUMAN SAAS INDIGO & ANALYTICS PREVIEW ── */}
+        <div className="hidden lg:flex lg:col-span-6 xl:col-span-6 bg-gradient-to-br from-[#4F46E5] via-[#4338CA] to-[#3730A3] p-8 xl:p-10 flex-col justify-between relative overflow-hidden text-white select-none">
           
-          {/* Subtle soft gradient highlight (non-glowing, clean ambient lighting) */}
+          {/* Subtle soft gradient ambient lighting (human, warm, non-glowing) */}
           <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-blue-900/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-indigo-950/30 blur-3xl pointer-events-none" />
 
           {/* 1. Header: Clean DataVista Logo & Title */}
           <div className="relative z-10 flex items-center justify-between">
             <div className="inline-flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white border border-white/20 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white border border-white/25 shadow-sm">
                 <BarChart3 className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold tracking-tight text-white">
@@ -97,31 +97,31 @@ export function Login() {
               </span>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs text-[11px] font-semibold text-white border border-white/20 shadow-2xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs text-[11px] font-semibold text-white border border-white/25 shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
               Analytics Platform
             </span>
           </div>
 
-          {/* 2. Headlines: Clean, confident human-designed typography */}
+          {/* 2. Headlines: Clean, warm human-designed typography */}
           <div className="relative z-10 my-5 xl:my-6 space-y-2">
             <h2 className="text-3xl xl:text-[34px] font-bold tracking-tight text-white leading-tight">
               Turn Data into Insights
             </h2>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-100">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-200">
               Explore. Analyze. Visualize.
             </p>
-            <p className="text-xs xl:text-sm text-blue-50/90 font-normal leading-relaxed max-w-md">
+            <p className="text-xs xl:text-sm text-indigo-100/90 font-normal leading-relaxed max-w-md">
               Stay ahead with real-time insights, performance analytics, and data-driven strategies. All in one powerful dashboard.
             </p>
           </div>
 
-          {/* 3. Crisp Light Dashboard Mockup (Authentic SaaS UI, not AI-ish) */}
-          <div className="relative z-10 w-full rounded-2xl bg-white text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.22)] border border-white/40 p-4 xl:p-5 flex flex-col gap-3.5 transition-all duration-300">
+          {/* 3. Crisp Light Dashboard Mockup (Warm human SaaS UI) */}
+          <div className="relative z-10 w-full rounded-2xl bg-white text-slate-800 shadow-[0_20px_50px_rgba(30,27,75,0.22)] border border-white/50 p-4 xl:p-5 flex flex-col gap-3.5 transition-all duration-300">
             {/* Mockup Window Header Bar */}
             <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+                <div className="w-6 h-6 rounded-lg bg-[#4F46E5] flex items-center justify-center text-white">
                   <BarChart3 className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -134,9 +134,9 @@ export function Login() {
               </span>
             </div>
 
-            {/* KPI Stat Cards (Realistic Business Analytics Demo) */}
+            {/* KPI Stat Cards (Warm Human Analytics Palette) */}
             <div className="grid grid-cols-3 gap-2.5">
-              {/* Highlight Card */}
+              {/* Highlight Card: Dark Indigo Tone */}
               <div className="p-2.5 rounded-xl bg-slate-900 text-white flex flex-col justify-between shadow-xs">
                 <span className="text-[10px] text-slate-300 font-medium">Total Revenue</span>
                 <span className="text-sm font-extrabold text-white mt-1">$84,230</span>
@@ -154,33 +154,33 @@ export function Login() {
                 </span>
               </div>
 
-              {/* Stat Card 3 */}
+              {/* Stat Card 3: Warm Coral Accent */}
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-500 font-medium">Conversion</span>
                 <span className="text-sm font-extrabold text-slate-800 mt-1">3.85%</span>
-                <span className="text-[9px] font-semibold text-blue-600 mt-1 flex items-center gap-0.5">
+                <span className="text-[9px] font-semibold text-indigo-600 mt-1 flex items-center gap-0.5">
                   <TrendingUp className="w-2.5 h-2.5" /> +1.2%
                 </span>
               </div>
             </div>
 
-            {/* Visualizations Section: Clean Bar Chart + Sales Distribution Donut */}
+            {/* Visualizations Section: Clean Dual Bar Chart + Distribution Donut */}
             <div className="grid grid-cols-5 gap-3 pt-1">
               {/* Left: Monthly Revenue Bars (3 cols) */}
               <div className="col-span-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/70 flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[10px] text-slate-700 font-bold mb-1.5">
                   <span>Monthly Revenue</span>
                   <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-[9px] text-slate-500 font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Direct
+                    <span className="flex items-center gap-1 text-[9px] text-slate-600 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" /> Direct
                     </span>
-                    <span className="flex items-center gap-1 text-[9px] text-slate-400 font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Offline
+                    <span className="flex items-center gap-1 text-[9px] text-slate-500 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Offline
                     </span>
                   </div>
                 </div>
 
-                {/* Clean SaaS Chart Bars */}
+                {/* Human Two-Tone Chart Bars (Warm Indigo + Soft Amber) */}
                 <div className="h-20 flex items-end justify-between gap-1.5 px-0.5 pt-1">
                   {[
                     { h1: 45, h2: 25, label: "Jan" },
@@ -195,11 +195,11 @@ export function Login() {
                       <div className="w-full flex items-end justify-center gap-0.5 h-16">
                         <div
                           style={{ height: `${b.h1}%` }}
-                          className="w-2 bg-blue-600 rounded-t-xs hover:bg-blue-700 transition-colors"
+                          className="w-2 bg-[#4F46E5] rounded-t-xs hover:bg-[#4338CA] transition-colors"
                         />
                         <div
                           style={{ height: `${b.h2}%` }}
-                          className="w-2 bg-slate-300 rounded-t-xs hover:bg-slate-400 transition-colors"
+                          className="w-2 bg-amber-400/90 rounded-t-xs hover:bg-amber-500 transition-colors"
                         />
                       </div>
                       <span className="text-[8px] font-medium text-slate-400">{b.label}</span>
@@ -215,7 +215,7 @@ export function Login() {
                   <PieIcon className="w-3 h-3 text-slate-400" />
                 </div>
 
-                {/* Concentric Ring SVG */}
+                {/* Concentric Ring SVG (Warm Indigo + Warm Amber) */}
                 <div className="relative w-16 h-16 flex items-center justify-center my-0.5">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                     <circle
@@ -231,7 +231,7 @@ export function Login() {
                       cx="18"
                       cy="18"
                       r="15"
-                      className="text-blue-600"
+                      className="text-[#4F46E5]"
                       strokeDasharray="62, 100"
                       strokeWidth="3.5"
                       strokeLinecap="round"
@@ -257,7 +257,7 @@ export function Login() {
                 </div>
 
                 <div className="flex items-center justify-center gap-2 text-[8px] font-semibold text-slate-500">
-                  <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Online</span>
+                  <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" /> Online</span>
                   <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Direct</span>
                 </div>
               </div>
@@ -276,7 +276,7 @@ export function Login() {
           </div>
 
           {/* 4. Bottom Footer Security Note */}
-          <div className="relative z-10 pt-3 border-t border-white/20 flex items-center justify-between text-[11px] text-blue-100/80 font-medium">
+          <div className="relative z-10 pt-3 border-t border-white/20 flex items-center justify-between text-[11px] text-indigo-100/80 font-medium">
             <span>Enterprise-grade security • AES-256</span>
             <span className="text-white/70 font-mono">DataVista Platform</span>
           </div>
@@ -288,7 +288,7 @@ export function Login() {
             
             {/* Mobile Logo Branding (visible on small screens) */}
             <div className="lg:hidden flex items-center justify-center gap-2.5 mb-6">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <div className="w-9 h-9 rounded-xl bg-[#4F46E5] flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
                 <BarChart3 className="w-5 h-5" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900">
@@ -397,7 +397,7 @@ export function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
                     required
-                    className="block w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-medium"
+                    className="block w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#4F46E5] focus:outline-none focus:ring-4 focus:ring-[#4F46E5]/10 transition-all font-medium"
                   />
                 </div>
               </div>
@@ -413,7 +413,7 @@ export function Login() {
                   </label>
                   <Link
                     href="/forgot-password"
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] hover:underline transition-colors cursor-pointer"
                   >
                     Forgot password?
                   </Link>
@@ -430,7 +430,7 @@ export function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="block w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white pl-10 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-medium"
+                    className="block w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white pl-10 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#4F46E5] focus:outline-none focus:ring-4 focus:ring-[#4F46E5]/10 transition-all font-medium"
                   />
                   <button
                     type="button"
@@ -455,7 +455,7 @@ export function Login() {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600 cursor-pointer"
+                    className="h-4 w-4 rounded border-slate-300 text-[#4F46E5] focus:ring-[#4F46E5] accent-[#4F46E5] cursor-pointer"
                   />
                   <span className="text-xs text-slate-600 font-medium">
                     Remember me
@@ -463,11 +463,11 @@ export function Login() {
                 </label>
               </div>
 
-              {/* Sign In Primary Solid Button */}
+              {/* Sign In Primary Solid Button (Warm Indigo Pill) */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-sm font-bold text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer mt-1"
+                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] px-4 text-sm font-bold text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer mt-1"
               >
                 {loading ? (
                   <>
@@ -485,7 +485,7 @@ export function Login() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
-                className="font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors cursor-pointer"
+                className="font-bold text-[#4F46E5] hover:text-[#4338CA] hover:underline transition-colors cursor-pointer"
               >
                 Register
               </Link>
