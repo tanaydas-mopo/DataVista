@@ -14,12 +14,8 @@ import {
   BarChart3,
   TrendingUp,
   RefreshCw,
-  Sparkles,
   ArrowUpRight,
-  PieChart as PieIcon,
-  Activity,
-  Layers,
-  ChevronRight
+  PieChart as PieIcon
 } from "lucide-react";
 
 export function Login() {
@@ -79,206 +75,210 @@ export function Login() {
   };
 
   return (
-    <main className="min-h-[100dvh] w-full flex items-center justify-center bg-[#F8FAFC] p-3 sm:p-6 lg:p-8 font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-700">
+    <main className="min-h-[100dvh] w-full flex items-center justify-center bg-[#F4F6F9] p-3 sm:p-6 lg:p-8 font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-700">
       {/* Centered Split-Screen Analytics Frame */}
-      <div className="w-full max-w-6xl rounded-[32px] bg-white border border-slate-200/90 shadow-[0_20px_60px_-15px_rgba(15,23,42,0.08)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[680px] lg:min-h-[740px]">
+      <div className="w-full max-w-6xl rounded-[28px] bg-white border border-slate-200 shadow-[0_20px_60px_-15px_rgba(15,23,42,0.07)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[680px] lg:min-h-[730px]">
         
-        {/* ── LEFT PANEL: DATAVISTA BRANDING & ANALYTICS VISUALS ── */}
-        <div className="hidden lg:flex lg:col-span-6 xl:col-span-6 bg-gradient-to-br from-[#0B132B] via-[#0F172A] to-[#1E293B] p-8 xl:p-12 flex-col justify-between relative overflow-hidden text-white select-none">
-          {/* Subtle Background Glows & Ambience */}
-          <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none motion-safe:animate-glow-pulse" />
-          <div className="absolute top-1/2 -right-20 w-80 h-80 rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 left-1/3 w-80 h-80 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
+        {/* ── LEFT PANEL: CLEAN MODERN SAAS BRANDING & ANALYTICS PREVIEW ── */}
+        <div className="hidden lg:flex lg:col-span-6 xl:col-span-6 bg-gradient-to-br from-[#3B66F5] via-[#335EEA] to-[#254EDA] p-8 xl:p-10 flex-col justify-between relative overflow-hidden text-white select-none">
+          
+          {/* Subtle soft gradient highlight (non-glowing, clean ambient lighting) */}
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-blue-900/20 blur-3xl pointer-events-none" />
 
-          {/* Subtle Grid Pattern Overlay */}
-          <svg
-            className="absolute inset-0 w-full h-full opacity-[0.04] stroke-white pointer-events-none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <pattern id="login-grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#login-grid-pattern)" />
-          </svg>
-
-          {/* 1. Header: DataVista Logo & Name Prominently at Top */}
+          {/* 1. Header: Clean DataVista Logo & Title */}
           <div className="relative z-10 flex items-center justify-between">
             <div className="inline-flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-sky-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/30 ring-1 ring-white/20">
+              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white border border-white/20 shadow-sm">
                 <BarChart3 className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-extrabold tracking-tight text-white">
-                Data<span className="text-sky-400">Vista</span>
+              <span className="text-xl font-bold tracking-tight text-white">
+                DataVista
               </span>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-[11px] font-semibold text-sky-300 border border-white/15">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Enterprise Suite
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs text-[11px] font-semibold text-white border border-white/20 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+              Analytics Platform
             </span>
           </div>
 
-          {/* 2. Headlines: "Turn Data into Insights" + "Explore. Analyze. Visualize." */}
-          <div className="relative z-10 my-6 xl:my-8 space-y-2.5">
-            <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              Turn Data into <span className="bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-300 bg-clip-text text-transparent">Insights</span>
+          {/* 2. Headlines: Clean, confident human-designed typography */}
+          <div className="relative z-10 my-5 xl:my-6 space-y-2">
+            <h2 className="text-3xl xl:text-[34px] font-bold tracking-tight text-white leading-tight">
+              Turn Data into Insights
             </h2>
-            <p className="text-xs xl:text-sm font-bold uppercase tracking-widest text-sky-400">
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-100">
               Explore. Analyze. Visualize.
             </p>
-            <p className="text-xs xl:text-sm text-slate-300/90 font-normal leading-relaxed max-w-md">
-              Stay ahead with real-time insights, multi-dimensional charts, and data-driven intelligence all in one powerful analytics platform.
+            <p className="text-xs xl:text-sm text-blue-50/90 font-normal leading-relaxed max-w-md">
+              Stay ahead with real-time insights, performance analytics, and data-driven strategies. All in one powerful dashboard.
             </p>
           </div>
 
-          {/* 3. Analytics Dashboard Mockup (Floating Charts, Bar Graphs, Donut & Sparklines) */}
-          <div className="relative z-10 w-full rounded-2xl bg-slate-900/70 border border-white/15 shadow-2xl backdrop-blur-xl p-4 xl:p-5 flex flex-col gap-3.5 transition-all duration-300 hover:border-white/25">
-            {/* Mini Dashboard Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/10 text-xs">
+          {/* 3. Crisp Light Dashboard Mockup (Authentic SaaS UI, not AI-ish) */}
+          <div className="relative z-10 w-full rounded-2xl bg-white text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.22)] border border-white/40 p-4 xl:p-5 flex flex-col gap-3.5 transition-all duration-300">
+            {/* Mockup Window Header Bar */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 text-xs">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+                  <BarChart3 className="w-3.5 h-3.5" />
                 </div>
-                <span className="font-bold text-slate-200 text-[11px] ml-1">Live Analytics Dashboard</span>
+                <div>
+                  <span className="font-bold text-slate-800 text-[11px] block leading-tight">DataVista Dashboard</span>
+                  <span className="text-[9px] text-slate-400 font-medium">Live Analytics Overview</span>
+                </div>
               </div>
-              <span className="text-[10px] font-mono text-sky-300 bg-sky-500/15 border border-sky-400/20 px-2 py-0.5 rounded-md">
-                15,600 Records
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/60">
+                Last 30 days
               </span>
             </div>
 
-            {/* Mini KPI Cards Strip */}
-            <div className="grid grid-cols-3 gap-2 text-left">
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex flex-col">
-                <span className="text-[10px] text-slate-400 font-medium">Total Matches</span>
-                <span className="text-sm font-extrabold text-white mt-0.5">74</span>
-                <span className="text-[9px] font-bold text-emerald-400 mt-1 flex items-center gap-0.5">
-                  <ArrowUpRight className="w-2.5 h-2.5" /> +12% YoY
+            {/* KPI Stat Cards (Realistic Business Analytics Demo) */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {/* Highlight Card */}
+              <div className="p-2.5 rounded-xl bg-slate-900 text-white flex flex-col justify-between shadow-xs">
+                <span className="text-[10px] text-slate-300 font-medium">Total Revenue</span>
+                <span className="text-sm font-extrabold text-white mt-1">$84,230</span>
+                <span className="text-[9px] font-semibold text-emerald-400 mt-1 flex items-center gap-0.5">
+                  <ArrowUpRight className="w-2.5 h-2.5" /> +14.8%
                 </span>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex flex-col">
-                <span className="text-[10px] text-slate-400 font-medium">Runs / Margin</span>
-                <span className="text-sm font-extrabold text-white mt-0.5">18,523</span>
-                <span className="text-[9px] font-bold text-sky-400 mt-1 flex items-center gap-0.5">
-                  <TrendingUp className="w-2.5 h-2.5" /> Avg 125.6
+              {/* Stat Card 2 */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-medium">Active Users</span>
+                <span className="text-sm font-extrabold text-slate-800 mt-1">24,510</span>
+                <span className="text-[9px] font-semibold text-emerald-600 mt-1 flex items-center gap-0.5">
+                  <ArrowUpRight className="w-2.5 h-2.5" /> +8.2%
                 </span>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex flex-col">
-                <span className="text-[10px] text-slate-400 font-medium">Data Quality</span>
-                <span className="text-sm font-extrabold text-white mt-0.5">100%</span>
-                <span className="text-[9px] font-bold text-purple-300 mt-1 flex items-center gap-0.5">
-                  <Sparkles className="w-2.5 h-2.5" /> Clean Source
+              {/* Stat Card 3 */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-medium">Conversion</span>
+                <span className="text-sm font-extrabold text-slate-800 mt-1">3.85%</span>
+                <span className="text-[9px] font-semibold text-blue-600 mt-1 flex items-center gap-0.5">
+                  <TrendingUp className="w-2.5 h-2.5" /> +1.2%
                 </span>
               </div>
             </div>
 
-            {/* Charts Split Area: Bar Chart & Donut Chart */}
+            {/* Visualizations Section: Clean Bar Chart + Sales Distribution Donut */}
             <div className="grid grid-cols-5 gap-3 pt-1">
-              {/* Left: Animated Multi-Bar Chart (3 cols) */}
-              <div className="col-span-3 p-3 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[10px] text-slate-300 mb-2 font-semibold">
-                  <span>Victory Breakdown</span>
+              {/* Left: Monthly Revenue Bars (3 cols) */}
+              <div className="col-span-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/70 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-[10px] text-slate-700 font-bold mb-1.5">
+                  <span>Monthly Revenue</span>
                   <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-[9px] text-sky-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> CSK
+                    <span className="flex items-center gap-1 text-[9px] text-slate-500 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Direct
                     </span>
-                    <span className="flex items-center gap-1 text-[9px] text-blue-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> RCB
+                    <span className="flex items-center gap-1 text-[9px] text-slate-400 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Offline
                     </span>
                   </div>
                 </div>
 
-                {/* Animated Bars */}
-                <div className="h-20 flex items-end justify-between gap-1.5 px-1 pt-2">
+                {/* Clean SaaS Chart Bars */}
+                <div className="h-20 flex items-end justify-between gap-1.5 px-0.5 pt-1">
                   {[
-                    { h1: 85, h2: 60, label: "MI" },
-                    { h1: 70, h2: 90, label: "CSK" },
-                    { h1: 65, h2: 80, label: "RCB" },
-                    { h1: 95, h2: 70, label: "KKR" },
-                    { h1: 50, h2: 45, label: "RR" },
-                    { h1: 40, h2: 55, label: "SRH" },
+                    { h1: 45, h2: 25, label: "Jan" },
+                    { h1: 65, h2: 35, label: "Feb" },
+                    { h1: 55, h2: 30, label: "Mar" },
+                    { h1: 85, h2: 45, label: "Apr" },
+                    { h1: 75, h2: 40, label: "May" },
+                    { h1: 95, h2: 50, label: "Jun" },
+                    { h1: 90, h2: 45, label: "Jul" },
                   ].map((b, idx) => (
                     <div key={idx} className="flex flex-col items-center gap-1 flex-1">
                       <div className="w-full flex items-end justify-center gap-0.5 h-16">
                         <div
                           style={{ height: `${b.h1}%` }}
-                          className="w-2 bg-gradient-to-t from-blue-600 to-sky-400 rounded-t-sm transition-all duration-500 hover:brightness-125"
+                          className="w-2 bg-blue-600 rounded-t-xs hover:bg-blue-700 transition-colors"
                         />
                         <div
                           style={{ height: `${b.h2}%` }}
-                          className="w-2 bg-gradient-to-t from-indigo-600 to-purple-400 rounded-t-sm transition-all duration-500 hover:brightness-125"
+                          className="w-2 bg-slate-300 rounded-t-xs hover:bg-slate-400 transition-colors"
                         />
                       </div>
-                      <span className="text-[8px] font-mono text-slate-400">{b.label}</span>
+                      <span className="text-[8px] font-medium text-slate-400">{b.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Right: SVG Donut Chart (2 cols) */}
-              <div className="col-span-2 p-3 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-between">
-                <div className="w-full flex items-center justify-between text-[10px] text-slate-300 font-semibold mb-1">
-                  <span>Share</span>
-                  <PieIcon className="w-3 h-3 text-sky-400" />
+              {/* Right: Distribution Donut Chart (2 cols) */}
+              <div className="col-span-2 p-3 rounded-xl bg-slate-50/80 border border-slate-200/70 flex flex-col items-center justify-between">
+                <div className="w-full flex items-center justify-between text-[10px] text-slate-700 font-bold mb-1">
+                  <span>Distribution</span>
+                  <PieIcon className="w-3 h-3 text-slate-400" />
                 </div>
 
-                {/* Concentric Donut SVG */}
+                {/* Concentric Ring SVG */}
                 <div className="relative w-16 h-16 flex items-center justify-center my-0.5">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                    {/* Background circle */}
-                    <path
-                      className="text-white/10"
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15"
+                      className="text-slate-200"
                       strokeWidth="3.5"
                       stroke="currentColor"
                       fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
-                    {/* Segment 1: Blue */}
-                    <path
-                      className="text-sky-400"
-                      strokeDasharray="45, 100"
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15"
+                      className="text-blue-600"
+                      strokeDasharray="62, 100"
                       strokeWidth="3.5"
                       strokeLinecap="round"
                       stroke="currentColor"
                       fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
-                    {/* Segment 2: Indigo */}
-                    <path
-                      className="text-indigo-400"
-                      strokeDasharray="30, 100"
-                      strokeDashoffset="-45"
-                      strokeWidth="3.5"
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="11"
+                      className="text-amber-500"
+                      strokeDasharray="28, 100"
+                      strokeDashoffset="-20"
+                      strokeWidth="3"
                       strokeLinecap="round"
                       stroke="currentColor"
                       fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-[11px] font-black text-white">84%</span>
+                    <span className="text-[11px] font-extrabold text-slate-800">76%</span>
                   </div>
                 </div>
 
-                <span className="text-[8px] font-medium text-slate-400 text-center">
-                  Top 3 Teams
-                </span>
+                <div className="flex items-center justify-center gap-2 text-[8px] font-semibold text-slate-500">
+                  <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Online</span>
+                  <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Direct</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Mini Trend Line: Customer Growth */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+              <span className="text-slate-500 font-medium">Customer Growth Rate</span>
+              <div className="flex items-center gap-2">
+                <svg className="w-24 h-4 text-emerald-500 stroke-current fill-none stroke-[1.8]" viewBox="0 0 100 20">
+                  <path d="M0 16 Q 25 18, 40 10 T 75 8 T 100 2" />
+                </svg>
+                <span className="font-bold text-emerald-600 text-[10px]">+22.4%</span>
               </div>
             </div>
           </div>
 
-          {/* 4. Bottom Footer Note */}
-          <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-              Client-side Privacy &amp; AES-256 Storage
-            </span>
-            <span className="text-slate-500 font-mono">DataVista v2.4</span>
+          {/* 4. Bottom Footer Security Note */}
+          <div className="relative z-10 pt-3 border-t border-white/20 flex items-center justify-between text-[11px] text-blue-100/80 font-medium">
+            <span>Enterprise-grade security • AES-256</span>
+            <span className="text-white/70 font-mono">DataVista Platform</span>
           </div>
         </div>
 
@@ -288,11 +288,11 @@ export function Login() {
             
             {/* Mobile Logo Branding (visible on small screens) */}
             <div className="lg:hidden flex items-center justify-center gap-2.5 mb-6">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
                 <BarChart3 className="w-5 h-5" />
               </div>
-              <span className="text-xl font-extrabold tracking-tight text-slate-900">
-                Data<span className="text-blue-600">Vista</span>
+              <span className="text-xl font-bold tracking-tight text-slate-900">
+                DataVista
               </span>
             </div>
 
@@ -463,11 +463,11 @@ export function Login() {
                 </label>
               </div>
 
-              {/* Sign In Primary Gradient Button */}
+              {/* Sign In Primary Solid Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-4 text-sm font-bold text-white shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer mt-1"
+                className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-sm font-bold text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer mt-1"
               >
                 {loading ? (
                   <>
