@@ -225,6 +225,43 @@
   animation: glowPulse 8s ease-in-out infinite;
 }
 
+/* Page Entrance & Smooth Upload Animations */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cloudFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-up-delay-1 {
+  animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+
+.animate-fade-in-up-delay-2 {
+  animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+}
+
+.animate-cloud-float {
+  animation: cloudFloat 4s ease-in-out infinite;
+}
+
 @utility no-scrollbar {
   &::-webkit-scrollbar {
     display: none;

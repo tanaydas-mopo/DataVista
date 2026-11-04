@@ -352,7 +352,7 @@ export function UploadDataset() {
       {/* Main Workspace Area */}
       <main className="relative z-10 w-full max-w-6xl mx-auto flex flex-col items-center my-auto py-6 sm:py-8">
         {/* Header Section */}
-        <div className="text-center mb-6 sm:mb-8 max-w-xl mx-auto">
+        <div className="text-center mb-6 sm:mb-8 max-w-xl mx-auto motion-safe:animate-fade-in-up">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100/60 border border-blue-200/80 text-blue-600 text-xs font-semibold mb-3 shadow-2xs">
             <BarChart3 className="w-3.5 h-3.5" />
             <span>Data Analytics Portal</span>
@@ -366,10 +366,10 @@ export function UploadDataset() {
         </div>
 
         {/* Central Upload Section with Flanking Feature Cards */}
-        <div className="relative w-full max-w-5xl flex items-center justify-center">
+        <div className="relative w-full max-w-5xl flex items-center justify-center motion-safe:animate-fade-in-up-delay-1">
           {/* Left Feature Card & Connecting Curved Line (Desktop xl/lg) */}
           <div className="hidden lg:flex absolute -left-2 xl:-left-10 top-12 z-20 flex-col items-start pointer-events-none">
-            <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100/90 p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06)] w-[190px] text-left transition-all duration-300 hover:scale-[1.02]">
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100/90 p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06)] w-[190px] text-left transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_32px_-8px_rgba(0,0,0,0.1),0_4px_12px_rgba(37,99,235,0.06)] hover:border-blue-200/60">
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5">
                 <Sparkles className="w-4 h-4" />
               </div>
@@ -399,7 +399,7 @@ export function UploadDataset() {
           {/* Right Feature Cards & Connecting Curved Line (Desktop xl/lg) */}
           <div className="hidden lg:flex absolute -right-2 xl:-right-10 top-6 z-20 flex-col items-start gap-3.5 pointer-events-none">
             {/* Top Right Card: Secure file processing */}
-            <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100/90 p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06)] w-[190px] text-left transition-all duration-300 hover:scale-[1.02]">
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100/90 p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06)] w-[190px] text-left transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_32px_-8px_rgba(0,0,0,0.1),0_4px_12px_rgba(37,99,235,0.06)] hover:border-blue-200/60">
               <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-2.5 shadow-2xs">
                 <ShieldCheck className="w-4 h-4" />
               </div>
@@ -412,7 +412,7 @@ export function UploadDataset() {
             </div>
 
             {/* Bottom Right Card: Preview before analysis */}
-            <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100/90 p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06)] w-[190px] text-left transition-all duration-300 hover:scale-[1.02]">
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100/90 p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.06)] w-[190px] text-left transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_32px_-8px_rgba(0,0,0,0.1),0_4px_12px_rgba(37,99,235,0.06)] hover:border-blue-200/60">
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/80 flex items-center justify-center mb-2.5">
                 <Eye className="w-4 h-4" />
               </div>
@@ -443,10 +443,10 @@ export function UploadDataset() {
           <div className="w-full max-w-xl bg-white/95 backdrop-blur-md rounded-3xl border border-slate-100 shadow-[0_20px_50px_-20px_rgba(37,99,235,0.08),0_10px_30px_-10px_rgba(0,0,0,0.03)] p-5 sm:p-7 md:p-8 z-10 transition-all duration-200">
             {/* Inner Dashed Drag-and-Drop Area */}
             <div
-              className={`w-full rounded-2xl border-2 border-dashed p-6 sm:p-8 transition-all duration-200 flex flex-col items-center justify-center text-center ${
+              className={`w-full rounded-2xl border-2 border-dashed p-6 sm:p-8 transition-all duration-300 ease-out flex flex-col items-center justify-center text-center ${
                 isDragging
-                  ? "border-blue-600 bg-blue-100/40 shadow-[0_0_25px_rgba(37,99,235,0.18)] scale-[1.01]"
-                  : "border-blue-400/60 bg-blue-50/20 hover:border-blue-500 hover:bg-blue-50/35"
+                  ? "border-blue-600 bg-blue-100/40 shadow-[0_0_30px_rgba(37,99,235,0.22)] ring-4 ring-blue-500/10 scale-[1.01]"
+                  : "border-blue-400/60 bg-blue-50/20 hover:border-blue-500 hover:bg-blue-50/35 hover:shadow-[0_0_20px_rgba(37,99,235,0.08)]"
               }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -471,7 +471,7 @@ export function UploadDataset() {
                       type="button"
                       onClick={handleUploadOrProceed}
                       disabled={isUploading}
-                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/25 transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-70"
+                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-200 ease-out active:translate-y-0 active:scale-[0.98] active:shadow-md cursor-pointer disabled:opacity-70 disabled:hover:translate-y-0"
                     >
                       {isUploading ? (
                         <>
@@ -502,14 +502,14 @@ export function UploadDataset() {
                 /* Idle Drag-and-Drop Area matching Reference Image */
                 <>
                   {/* Cloud Upload Icon with 3 Accent Rays & Gentle Floating Motion */}
-                  <div className="relative mb-3">
+                  <div className="relative mb-3 motion-safe:animate-cloud-float">
                     {/* Top-right accent sparks */}
                     <div className="absolute -top-1.5 -right-2 flex items-center gap-0.5 pointer-events-none">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500/80" />
                       <span className="w-1 h-3.5 rotate-45 rounded-full bg-blue-500" />
                       <span className="w-1 h-2 -rotate-12 rounded-full bg-blue-400" />
                     </div>
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-b from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 motion-safe:animate-float-slow">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-b from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
                       <CloudUpload className="w-7 h-7 sm:w-8 sm:h-8" />
                     </div>
                   </div>
@@ -560,7 +560,7 @@ export function UploadDataset() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all duration-200 active:scale-95 cursor-pointer mt-1"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-200 ease-out active:translate-y-0 active:scale-[0.98] active:shadow-md cursor-pointer mt-1"
                   >
                     <FolderOpen className="w-4 h-4" />
                     Browse files
@@ -579,8 +579,8 @@ export function UploadDataset() {
         </div>
 
         {/* Responsive Mobile / Tablet Feature Cards (< lg screens) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-xl lg:hidden mt-4">
-          <div className="flex items-center sm:flex-col sm:items-start gap-3 p-3.5 bg-white/95 rounded-2xl border border-slate-100 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-xl lg:hidden mt-4 motion-safe:animate-fade-in-up-delay-1">
+          <div className="flex items-center sm:flex-col sm:items-start gap-3 p-3.5 bg-white/95 rounded-2xl border border-slate-100 shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:border-blue-200/60 transition-all duration-300 ease-out">
             <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -589,7 +589,7 @@ export function UploadDataset() {
               <p className="text-[10px] text-slate-500 mt-0.5">Smart detection for faster analysis</p>
             </div>
           </div>
-          <div className="flex items-center sm:flex-col sm:items-start gap-3 p-3.5 bg-white/95 rounded-2xl border border-slate-100 shadow-xs">
+          <div className="flex items-center sm:flex-col sm:items-start gap-3 p-3.5 bg-white/95 rounded-2xl border border-slate-100 shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:border-blue-200/60 transition-all duration-300 ease-out">
             <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
@@ -598,7 +598,7 @@ export function UploadDataset() {
               <p className="text-[10px] text-slate-500 mt-0.5">Your data is safe with us</p>
             </div>
           </div>
-          <div className="flex items-center sm:flex-col sm:items-start gap-3 p-3.5 bg-white/95 rounded-2xl border border-slate-100 shadow-xs">
+          <div className="flex items-center sm:flex-col sm:items-start gap-3 p-3.5 bg-white/95 rounded-2xl border border-slate-100 shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:border-blue-200/60 transition-all duration-300 ease-out">
             <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
               <Eye className="w-4 h-4" />
             </div>
@@ -610,7 +610,7 @@ export function UploadDataset() {
         </div>
 
         {/* Bottom Card: Recent Datasets Section */}
-        <div className="w-full max-w-4xl bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.04)] p-4 sm:p-5 mt-7 sm:mt-8">
+        <div className="w-full max-w-4xl bg-white/95 backdrop-blur-md rounded-2xl border border-slate-100 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.04)] p-4 sm:p-5 mt-7 sm:mt-8 motion-safe:animate-fade-in-up-delay-2">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-1">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-600" />
@@ -632,7 +632,7 @@ export function UploadDataset() {
               <div
                 key={ds.id}
                 onClick={() => handleSelectRecent(ds)}
-                className="flex items-center justify-between gap-3 py-3 px-2 sm:px-3 rounded-xl hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex items-center justify-between gap-3 py-3 px-2 sm:px-3 rounded-xl hover:bg-blue-50/50 hover:border-blue-100/60 border border-transparent transition-all duration-200 ease-out cursor-pointer group"
                 title={`Load "${ds.name}"`}
               >
                 <div className="flex items-center gap-3 min-w-0">
