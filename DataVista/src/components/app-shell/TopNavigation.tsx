@@ -48,7 +48,7 @@ export const ROUTE_METADATA: Record<string, { title: string; subtitle: string; c
   },
   "/visual-builder": {
     title: "Visual Builder",
-    subtitle: "23 customizable chart types with intelligent measure detection",
+    subtitle: "Intuitive interactive charts with intelligent measure detection",
     category: "Visualization",
   },
   "/export-report": {
@@ -199,7 +199,7 @@ export function TopNavigation() {
     { label: "Upload New Dataset", path: "/upload-dataset", desc: "Import CSV, Excel, or JSON" },
     { label: "Data & Schema Inspector", path: "/data-schema", desc: "Column types, null counts, and schema inspection" },
     { label: "Clean & Transform", path: "/clean-transform", desc: "Recipes, imputation, filters" },
-    { label: "Visual Chart Builder", path: "/visual-builder", desc: "26 interactive charts & visual studio" },
+    { label: "Visual Chart Builder", path: "/visual-builder", desc: "Interactive charts & visual studio" },
     { label: "Export PDF / CSV Report", path: "/export-report", desc: "Executive document generator" },
     { label: "Workspace Settings", path: "/settings", desc: "Themes, profile, API keys" },
   ];

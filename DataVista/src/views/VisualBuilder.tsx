@@ -34,41 +34,24 @@ const PALETTES = {
 };
 
 /* ─────────────────────────────────────────────
-   26 SUPPORTED CHART TYPES
+   ESSENTIAL INTUITIVE CHART TYPES (CURATED & EASY TO USE)
 ───────────────────────────────────────────── */
 const ALL_CHART_TYPES = [
   { id: "bar", name: "Bar Chart", icon: BarChartIcon, category: "Comparison", desc: "Compare values across categories" },
-  { id: "stacked-bar", name: "Stacked Bar", icon: BarChartIcon, category: "Comparison", desc: "Show categorical sub-segment breakdown" },
-  { id: "100-stacked-bar", name: "100% Stacked Bar", icon: BarChartIcon, category: "Comparison", desc: "Relative percentage contribution totaling 100%" },
   { id: "horizontal-bar", name: "Horizontal Bar", icon: BarChartIcon, category: "Comparison", desc: "Best for ranking and long text labels" },
-  { id: "radar", name: "Radar Spider", icon: Compass, category: "Comparison", desc: "Multi-dimensional performance comparison" },
-  { id: "combi", name: "Combo (Bar+Line)", icon: Sparkles, category: "Comparison", desc: "Dual-metric comparison (e.g. Volume & Rate)" },
+  { id: "stacked-bar", name: "Stacked Bar", icon: BarChartIcon, category: "Comparison", desc: "Show categorical sub-segment breakdown" },
 
   { id: "line", name: "Line Chart", icon: LineChartIcon, category: "Trend", desc: "Track continuous performance trends over time" },
-  { id: "multi-line", name: "Multi-Line", icon: LineChartIcon, category: "Trend", desc: "Compare multiple trend trajectories" },
   { id: "area", name: "Area Chart", icon: Layers, category: "Trend", desc: "Volume accumulation over time" },
-  { id: "stacked-area", name: "Stacked Area", icon: Layers, category: "Trend", desc: "Cumulative group contributions over time" },
 
   { id: "pie", name: "Pie Chart", icon: PieChartIcon, category: "Composition", desc: "Share of whole for small category counts" },
   { id: "donut", name: "Donut Chart", icon: PieChartIcon, category: "Composition", desc: "Ring breakdown with center metric focus" },
-  { id: "treemap", name: "Treemap", icon: Layers, category: "Composition", desc: "Hierarchical nested rectangle areas" },
 
   { id: "scatter", name: "Scatter Plot", icon: Activity, category: "Distribution", desc: "Relationship & correlation between two metrics" },
-  { id: "bubble", name: "Bubble Chart", icon: Activity, category: "Distribution", desc: "Three-dimensional distribution analysis" },
-  { id: "histogram", name: "Histogram", icon: BarChartIcon, category: "Distribution", desc: "Frequency distribution across value buckets" },
-  { id: "boxplot", name: "Box Plot", icon: Activity, category: "Distribution", desc: "Statistical quartiles and distribution spread" },
-  { id: "correlation", name: "Correlation Matrix", icon: Activity, category: "Distribution", desc: "Pearson correlation coefficient (-1 to +1) across numeric fields" },
-
-  { id: "funnel", name: "Funnel Chart", icon: Filter, category: "Process", desc: "Stage-by-stage pipeline drop-off rates" },
-  { id: "waterfall", name: "Waterfall Chart", icon: BarChartIcon, category: "Process", desc: "Incremental positive & negative adjustments" },
-  { id: "pareto", name: "Pareto Chart", icon: BarChartIcon, category: "Process", desc: "80/20 rule: frequency bars with cumulative line" },
 
   { id: "kpi", name: "KPI Card", icon: Sparkles, category: "KPI", desc: "High-impact single metric highlight card" },
-  { id: "gauge", name: "Gauge Chart", icon: Activity, category: "KPI", desc: "Radial speedometer against target threshold" },
 
-  { id: "table", name: "Data Table", icon: Table, category: "Data", desc: "Tabular view with raw aggregated values" },
-  { id: "heatmap", name: "Heat Map", icon: Grid, category: "Data", desc: "2D intensity grid via color variations" },
-  { id: "matrix", name: "Matrix Table", icon: Grid, category: "Data", desc: "Pivot style intersection table" },
+  { id: "table", name: "Table View", icon: Table, category: "Data", desc: "Tabular view with raw aggregated values" },
 ];
 
 /* ─────────────────────────────────────────────
@@ -1136,8 +1119,8 @@ export function VisualBuilder() {
     }
 
     if (yCols.length > 1) {
-      list.push({ id: "combi", name: "Combo Chart", rationale: "Multiple measures selected: evaluates primary bars with secondary trend line." });
       list.push({ id: "stacked-bar", name: "Stacked Bar", rationale: "Compares aggregate totals broken down by measure components." });
+      list.push({ id: "line", name: "Line Chart", rationale: "Evaluates trajectories across multiple measures simultaneously." });
     }
 
     if (isXNumeric && isYNumeric) {
@@ -1163,31 +1146,10 @@ export function VisualBuilder() {
   const chartValidationWarning = useMemo(() => {
     const isXNumeric = columnTypeMap[currentX] === "numeric";
 
-    if (activeChartType === "correlation") {
-      const numCols = columns.filter(c => columnTypeMap[c] === "numeric");
-      if (numCols.length < 2) {
-        return {
-          type: "warning",
-          message: `Correlation Matrix requires at least 2 numeric columns (current numeric columns: ${numCols.length}).`,
-        };
-      }
-    }
-    if (activeChartType === "100-stacked-bar" && yCols.length < 2) {
-      return {
-        type: "info",
-        message: "100% Stacked Bar is most effective when multiple measures are selected to compare relative proportions.",
-      };
-    }
-    if ((activeChartType === "scatter" || activeChartType === "bubble") && !isXNumeric) {
+    if (activeChartType === "scatter" && !isXNumeric) {
       return {
         type: "warning",
-        message: `Scatter and Bubble charts require a numeric Dimension (${currentX} is currently text/date) to plot X coordinates correctly.`,
-      };
-    }
-    if (activeChartType === "combi" && yCols.length < 2) {
-      return {
-        type: "info",
-        message: "Combo Chart shines when visualizing at least two measures (one as Bar, one as Line). Add another measure in the sidebar.",
+        message: `Scatter plot requires a numeric Dimension (${currentX} is currently text/date) to plot X coordinates correctly.`,
       };
     }
     if ((activeChartType === "pie" || activeChartType === "donut") && chartData.length > 10) {
@@ -1197,7 +1159,7 @@ export function VisualBuilder() {
       };
     }
     return null;
-  }, [activeChartType, columnTypeMap, currentX, yCols.length, chartData.length, columns]);
+  }, [activeChartType, columnTypeMap, currentX, chartData.length]);
 
   /* ── Data-Grounded "Why this chart?" Contextual Explanation ── */
   const dynamicExplanation = useMemo(() => {
@@ -1217,26 +1179,16 @@ export function VisualBuilder() {
       statsSummary = `Top category is "${top?.fullLabel || top?.label}" with ${formatVal(Number(top?.[primaryY] ?? top?.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}. Lowest is "${bottom?.fullLabel || bottom?.label}" (${formatVal(Number(bottom?.[primaryY] ?? bottom?.value ?? 0), valueFormat, decimalPlaces, currencySymbol)}). Total across ${chartData.length} categories: ${formatVal(total, valueFormat, decimalPlaces, currencySymbol)} (avg ${formatVal(avg, valueFormat, decimalPlaces, currencySymbol)}).`;
     }
 
-    const isComparison = ["bar", "stacked-bar", "100-stacked-bar", "horizontal-bar", "radar", "combi"].includes(activeChartType);
-    const isTrend = ["line", "multi-line", "area", "stacked-area"].includes(activeChartType);
-    const isComposition = ["pie", "donut", "treemap"].includes(activeChartType);
-    const isDistribution = ["scatter", "bubble", "histogram", "boxplot", "correlation"].includes(activeChartType);
-    const isProcess = ["funnel", "waterfall", "pareto"].includes(activeChartType);
-    const isKPI = ["kpi", "gauge"].includes(activeChartType);
+    const isComparison = ["bar", "stacked-bar", "horizontal-bar"].includes(activeChartType);
+    const isTrend = ["line", "area"].includes(activeChartType);
+    const isComposition = ["pie", "donut"].includes(activeChartType);
+    const isDistribution = activeChartType === "scatter";
+    const isKPI = activeChartType === "kpi";
 
     let rationale = "";
     let tip = "";
 
-    if (activeChartType === "pareto") {
-      rationale = `Evaluating the 80/20 Pareto principle for ${primaryY} across ${xName}. Identifies the vital few categories driving cumulative impact.`;
-      tip = "Tip: The red dashed line marks the 80% cutoff. Categories to the left represent key drivers.";
-    } else if (activeChartType === "100-stacked-bar") {
-      rationale = `Comparing relative segment proportions totaling 100% across ${yNames} for each ${xName} category.`;
-      tip = "Tip: Normalizes varying scale differences across categories for direct mix comparison.";
-    } else if (activeChartType === "correlation") {
-      rationale = `Pearson correlation matrix evaluating linear relationships (-1.00 inverse to +1.00 direct) across all numeric features.`;
-      tip = "Tip: Click any intersection cell to inspect the correlation in a Scatter Plot.";
-    } else if (isComparison) {
+    if (isComparison) {
       rationale = `Comparing ${yNames} (${measureType.toUpperCase()}) across distinct ${xName} categories. ${chartName} reveals rankings and relative performance differences at a glance.`;
       tip = "Tip: Sort descending to spotlight high performers, or switch to Horizontal Bar if labels are long.";
     } else if (isTrend) {
@@ -1248,9 +1200,6 @@ export function VisualBuilder() {
     } else if (isDistribution) {
       rationale = `Examining dispersion, clusters, and statistical relationships for ${yNames} across ${xName}.`;
       tip = "Tip: Inspect outlier points lying noticeably outside the dominant group cluster.";
-    } else if (isProcess) {
-      rationale = `Mapping multi-stage conversion and cumulative adjustments for ${yNames} across ${xName}.`;
-      tip = "Tip: Look for sharp step drops between sequential pipeline phases.";
     } else if (isKPI) {
       rationale = `Providing quick executive summary numbers and operational target tracking.`;
       tip = "Tip: Click 'Save to Dashboard' to feature this metric on your team canvas.";
@@ -2122,7 +2071,7 @@ export function VisualBuilder() {
               </div>
 
               {/* DataVista 4-Column Icon Grid */}
-              <div className="grid grid-cols-4 gap-1.5 max-h-[175px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-4 gap-1.5 max-h-[210px] overflow-y-auto pr-1">
                 {filteredChartTypes.map((type) => {
                   const IconComp = type.icon;
                   const isSelected = activeChartType === type.id;
