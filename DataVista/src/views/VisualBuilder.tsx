@@ -54,6 +54,11 @@ const ALL_CHART_TYPES = [
   { id: "table", name: "Table View", icon: Table, category: "Data", desc: "Tabular view with raw aggregated values" },
 ];
 
+export function getYDisplayName(col: string): string {
+  if (!col || col === "__count__") return "Record Count";
+  return col;
+}
+
 /* ─────────────────────────────────────────────
    ROBUST DYNAMIC AGGREGATION ENGINE
    - Numeric columns: calculate real Sum, Avg, Max, Min, Median, StdDev, Variance, % of Total
@@ -754,26 +759,16 @@ export function VisualBuilder() {
   }, [dateColumns, activeDateCol]);
 
   /* ── Intelligent Dynamic Default Selections ── */
-  const isYearOrIdCol = (c: string) => {
-    const l = c.toLowerCase();
-    return l.includes("season") || l.includes("year") || l === "id" || l.endsWith("_id");
-  };
-
   const currentX = useMemo(() => {
     if (selectedX && columns.includes(selectedX)) return selectedX;
     return columns.find(c => columnTypeMap[c] !== "numeric") || columns[0] || "Category";
   }, [selectedX, columns, columnTypeMap]);
 
   const defaultY = useMemo(() => {
-    return (
-      columns.find(c => columnTypeMap[c] === "numeric" && c !== currentX && !isYearOrIdCol(c)) ||
-      columns.find(c => columnTypeMap[c] === "numeric" && c !== currentX) ||
-      columns.find(c => c !== currentX) ||
-      columns[1] ||
-      columns[0] ||
-      "Metric_1"
-    );
-  }, [columns, columnTypeMap, currentX]);
+    // Default to Record Count (Number of Records) so users are never forced into
+    // an unexpected pre-existing column like Margin_Runs!
+    return "__count__";
+  }, []);
 
   const primaryY = selectedYCols[0] || defaultY;
   const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
@@ -913,8 +908,8 @@ export function VisualBuilder() {
     const zCol = yCols[1] || primaryY;
     const scatterData = filteredRows.slice(0, 300).map(row => {
       const xVal = Number(String(row[currentX] ?? "").replace(/[$,%]/g, ""));
-      const yVal = Number(String(row[primaryY] ?? "").replace(/[$,%]/g, ""));
-      const zVal = isBubble ? Number(String(row[zCol] ?? "").replace(/[$,%]/g, "")) : 10;
+      const yVal = primaryY === "__count__" ? 1 : Number(String(row[primaryY] ?? "").replace(/[$,%]/g, ""));
+      const zVal = isBubble ? (zCol === "__count__" ? 10 : Number(String(row[zCol] ?? "").replace(/[$,%]/g, ""))) : 10;
       return {
         x: isNaN(xVal) ? 0 : xVal,
         y: isNaN(yVal) ? 0 : yVal,
@@ -943,7 +938,9 @@ export function VisualBuilder() {
 
       yCols.forEach(yCol => {
         if (!grouped[xKey][yCol]) grouped[xKey][yCol] = [];
-        grouped[xKey][yCol].push(row[yCol]);
+        if (yCol !== "__count__") {
+          grouped[xKey][yCol].push(row[yCol]);
+        }
       });
     });
 
@@ -952,8 +949,12 @@ export function VisualBuilder() {
     const grandTotals: Record<string, number> = {};
     if (measureType === "pct-total") {
       yCols.forEach(yCol => {
-        const colVals = filteredRows.map(r => Number(String(r[yCol] ?? "").replace(/[$,%]/g, ""))).filter(n => !isNaN(n) && isFinite(n));
-        grandTotals[yCol] = colVals.reduce((a, b) => a + b, 0) || 1;
+        if (yCol === "__count__") {
+          grandTotals[yCol] = filteredRows.length || 1;
+        } else {
+          const colVals = filteredRows.map(r => Number(String(r[yCol] ?? "").replace(/[$,%]/g, ""))).filter(n => !isNaN(n) && isFinite(n));
+          grandTotals[yCol] = colVals.reduce((a, b) => a + b, 0) || 1;
+        }
       });
     }
 
@@ -965,10 +966,16 @@ export function VisualBuilder() {
       };
 
       yCols.forEach(yCol => {
-        const rawVals = grouped[key][yCol] || [];
-        const val = computeSmartAgg(rawVals, measureType, grandTotals[yCol] || 0);
-        item[yCol] = val;
-        if (yCols.length === 1) item.value = val;
+        if (yCol === "__count__") {
+          const countVal = (groupedRawRecords[key] || []).length;
+          item[yCol] = countVal;
+          if (yCols.length === 1) item.value = countVal;
+        } else {
+          const rawVals = grouped[key][yCol] || [];
+          const val = computeSmartAgg(rawVals, measureType, grandTotals[yCol] || 0);
+          item[yCol] = val;
+          if (yCols.length === 1) item.value = val;
+        }
       });
       return item;
     });
@@ -1265,11 +1272,11 @@ export function VisualBuilder() {
 
   const exportConfigJSON = () => {
     const config = {
-      title: customTitle || `${currentX} vs ${yCols.join(" & ")}`,
+      title: customTitle || (yCols.length === 1 && yCols[0] === "__count__" ? `Total Record Count by ${currentX}` : `${currentX} vs ${yCols.map(getYDisplayName).join(" & ")}`),
       subtitle: customSubtitle,
       chartType: activeChartType,
       dimension: currentX,
-      measures: yCols,
+      measures: yCols.map(getYDisplayName),
       measureType,
       sortOrder,
       paletteKey,
@@ -1312,7 +1319,7 @@ export function VisualBuilder() {
     }
 
     if (chartData.length === 0) return;
-    const headerRow = [currentX, ...yCols.map(c => `${c} (${measureType.toUpperCase()})`)].join(",");
+    const headerRow = [currentX, ...yCols.map(c => `${getYDisplayName(c)} (${measureType.toUpperCase()})`)].join(",");
     const dataRows = chartData.map(d => {
       const xVal = `"${String(d.fullLabel || d.label).replace(/"/g, '""')}"`;
       const yVals = yCols.map(c => Number(d[c] ?? 0));
@@ -1338,7 +1345,7 @@ export function VisualBuilder() {
         value: Number(d[primaryY] ?? d.value ?? 0),
         color: String(d.color || palette[0]),
       }));
-      const title = customTitle || `${currentX} vs ${yCols.join(" & ")}`;
+      const title = customTitle || (yCols.length === 1 && yCols[0] === "__count__" ? `Total Record Count by ${currentX}` : `${currentX} vs ${yCols.map(getYDisplayName).join(" & ")}`);
 
       updateChartVisual(title, formattedData);
 
@@ -1433,7 +1440,7 @@ export function VisualBuilder() {
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
             {showLegend && <Legend verticalAlign="top" />}
             {yCols.map((yCol, i) => (
-              <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} stackId={activeChartType === "stacked-bar" ? "a" : undefined} barSize={barWidth} isAnimationActive={false} />
+              <Bar key={yCol} dataKey={yCol} name={getYDisplayName(yCol)} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} stackId={activeChartType === "stacked-bar" ? "a" : undefined} barSize={barWidth} isAnimationActive={false} />
             ))}
           </RechartsBarChart>
         </ResponsiveContainer>
@@ -1451,7 +1458,7 @@ export function VisualBuilder() {
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, String(name ?? "")]} />
             {showLegend && <Legend verticalAlign="top" />}
             {yCols.map((yCol, i) => (
-              <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} stackId="100pct" barSize={barWidth} isAnimationActive={false} />
+              <Bar key={yCol} dataKey={yCol} name={getYDisplayName(yCol)} fill={palette[i % palette.length]} stackId="100pct" barSize={barWidth} isAnimationActive={false} />
             ))}
           </RechartsBarChart>
         </ResponsiveContainer>
@@ -1469,7 +1476,7 @@ export function VisualBuilder() {
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
             {showLegend && <Legend verticalAlign="top" />}
             {yCols.map((yCol, i) => (
-              <Bar key={yCol} dataKey={yCol} name={yCol} fill={palette[i % palette.length]} radius={[0, 6, 6, 0]} barSize={barWidth} isAnimationActive={false} />
+              <Bar key={yCol} dataKey={yCol} name={getYDisplayName(yCol)} fill={palette[i % palette.length]} radius={[0, 6, 6, 0]} barSize={barWidth} isAnimationActive={false} />
             ))}
           </RechartsBarChart>
         </ResponsiveContainer>
@@ -1487,7 +1494,7 @@ export function VisualBuilder() {
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
             {showLegend && <Legend verticalAlign="top" />}
             {yCols.map((yCol, i) => (
-              <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} strokeWidth={3} dot={{ r: 5 }} isAnimationActive={false} />
+              <Line key={yCol} type="monotone" dataKey={yCol} name={getYDisplayName(yCol)} stroke={palette[i % palette.length]} strokeWidth={3} dot={{ r: 5 }} isAnimationActive={false} />
             ))}
           </RechartsLineChart>
         </ResponsiveContainer>
@@ -1505,7 +1512,7 @@ export function VisualBuilder() {
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
             {showLegend && <Legend verticalAlign="top" />}
             {yCols.map((yCol, i) => (
-              <Area key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.25} stackId={activeChartType === "stacked-area" ? "a" : undefined} isAnimationActive={false} />
+              <Area key={yCol} type="monotone" dataKey={yCol} name={getYDisplayName(yCol)} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.25} stackId={activeChartType === "stacked-area" ? "a" : undefined} isAnimationActive={false} />
             ))}
           </RechartsAreaChart>
         </ResponsiveContainer>
@@ -1557,7 +1564,7 @@ export function VisualBuilder() {
             <PolarAngleAxis dataKey="label" tick={{ fill: "var(--color-textSecondary, #475569)", fontSize: 11 }} />
             <PolarRadiusAxis angle={30} domain={[0, "auto"]} />
             {yCols.map((yCol, i) => (
-              <Radar key={yCol} name={yCol} dataKey={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.4} isAnimationActive={false} />
+              <Radar key={yCol} name={getYDisplayName(yCol)} dataKey={yCol} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.4} isAnimationActive={false} />
             ))}
             <Tooltip contentStyle={tooltipStyle} />
             {showLegend && <Legend verticalAlign="top" />}
@@ -1584,21 +1591,21 @@ export function VisualBuilder() {
             <YAxis
               type="number"
               dataKey="y"
-              name={primaryY}
+              name={getYDisplayName(primaryY)}
               axisLine={false}
               tickLine={false}
               tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }}
-              label={{ value: primaryY, angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--color-textSecondary, #64748B)" }}
+              label={{ value: getYDisplayName(primaryY), angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--color-textSecondary, #64748B)" }}
             />
             {activeChartType === "bubble" && (
-              <ZAxis type="number" dataKey="z" range={[60, 420]} name={yCols[1] || primaryY} />
+              <ZAxis type="number" dataKey="z" range={[60, 420]} name={getYDisplayName(yCols[1] || primaryY)} />
             )}
             <Tooltip
               contentStyle={tooltipStyle}
               formatter={(val: any, name: any) => [formatVal(Number(val), valueFormat, decimalPlaces, currencySymbol), String(name ?? "")]}
             />
             <Scatter
-              name={`${currentX} vs ${primaryY}`}
+              name={`${currentX} vs ${getYDisplayName(primaryY)}`}
               data={scatterRawData}
               fill={palette[0]}
               fillOpacity={0.7}
@@ -1640,9 +1647,9 @@ export function VisualBuilder() {
             <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--color-textSecondary, #64748B)", fontSize: 11 }} />
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatVal(Number(v), valueFormat, decimalPlaces, currencySymbol)} />
             {showLegend && <Legend verticalAlign="top" />}
-            <Bar dataKey={primaryY} name={primaryY} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
+            <Bar dataKey={primaryY} name={getYDisplayName(primaryY)} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
             {yCols.slice(1).map((yCol, i) => (
-              <Line key={yCol} type="monotone" dataKey={yCol} name={yCol} stroke={palette[(i + 1) % palette.length]} strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
+              <Line key={yCol} type="monotone" dataKey={yCol} name={getYDisplayName(yCol)} stroke={palette[(i + 1) % palette.length]} strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
             ))}
           </RechartsComposedChart>
         </ResponsiveContainer>
@@ -1663,7 +1670,7 @@ export function VisualBuilder() {
             />
             {showLegend && <Legend verticalAlign="top" />}
             <Bar dataKey="start" name="invisible" fill="transparent" stackId="wf" isAnimationActive={false} />
-            <Bar dataKey="value" name={primaryY} stackId="wf" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+            <Bar dataKey="value" name={getYDisplayName(primaryY)} stackId="wf" isAnimationActive={false} radius={[4, 4, 0, 0]}>
               {waterfallData.map((d, i) => (
                 <Cell key={i} fill={Number(d?.value) >= 0 ? palette[0] : "#EF4444"} />
               ))}
@@ -1692,7 +1699,7 @@ export function VisualBuilder() {
               }
             />
             {showLegend && <Legend verticalAlign="top" />}
-            <Bar yAxisId="left" dataKey={primaryY} name={primaryY} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
+            <Bar yAxisId="left" dataKey={primaryY} name={getYDisplayName(primaryY)} fill={palette[0]} radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false} />
             <Line yAxisId="right" type="monotone" dataKey="cumPct" name="Cumulative %" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
             <ReferenceLine yAxisId="right" y={80} stroke="#EF4444" strokeDasharray="3 3" label={{ value: "80% Cutoff", fill: "#EF4444", fontSize: 10, position: "insideTopRight" }} />
           </RechartsComposedChart>
@@ -1768,7 +1775,7 @@ export function VisualBuilder() {
             const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
             const maxV = Math.max(maxGaugeValue, total) * 1.25;
             return (
-              <GaugeChart key={yCol} value={total} maxValue={maxV} color={palette[i % palette.length]} label={yCol} />
+              <GaugeChart key={yCol} value={total} maxValue={maxV} color={palette[i % palette.length]} label={getYDisplayName(yCol)} />
             );
           })}
         </div>
@@ -1787,9 +1794,9 @@ export function VisualBuilder() {
             return (
               <div key={yCol} className="p-5 bg-surface border border-border/80 rounded-2xl shadow-xs flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-textSecondary">{yCol}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-textSecondary">{getYDisplayName(yCol)}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary">
-                    {measureType.toUpperCase()}
+                    {yCol === "__count__" ? "COUNT" : measureType.toUpperCase()}
                   </span>
                 </div>
                 <div className="text-3xl font-black tracking-tight" style={{ color: palette[i % palette.length] }}>
@@ -1818,7 +1825,7 @@ export function VisualBuilder() {
                 <th className="px-4 py-2.5 font-bold uppercase text-[11px] text-textSecondary tracking-wider">{currentX}</th>
                 {yCols.map(c => (
                   <th key={c} className="px-4 py-2.5 font-bold uppercase text-[11px] text-textSecondary text-right tracking-wider">
-                    {c} ({measureType.toUpperCase()})
+                    {getYDisplayName(c)} ({c === "__count__" ? "COUNT" : measureType.toUpperCase()})
                   </th>
                 ))}
               </tr>
@@ -2156,43 +2163,99 @@ export function VisualBuilder() {
               </div>
 
               {/* WELL 2: Values (Y-Axis Measures) */}
-              <div className="flex flex-col gap-1.5 pt-2 border-t border-border/60">
+              <div className="flex flex-col gap-2 pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-textPrimary">Values (Y-Axis Measures)</label>
-                  <span className="text-[10px] font-semibold text-textMuted">{yCols.length} active</span>
+                  <label className="text-xs font-bold text-textPrimary flex items-center gap-1.5">
+                    <span>Values (Y-Axis Measure)</span>
+                  </label>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary-soft text-primary uppercase">
+                    {primaryY === "__count__" ? "🔢 Count" : columnTypeMap[primaryY] === "numeric" ? "# Number" : "🔤 Text"}
+                  </span>
                 </div>
 
-                {/* Measure Pills */}
-                <div className="flex flex-wrap gap-1.5 mb-1">
+                {/* Primary Y-Axis Selector (Direct Dropdown just like X-Axis!) */}
+                <select
+                  value={primaryY}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                      if (selectedYCols.length <= 1) {
+                        setSelectedYCols([val]);
+                      } else {
+                        setSelectedYCols([val, ...selectedYCols.slice(1).filter(c => c !== val)]);
+                      }
+                    }
+                  }}
+                  className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
+                >
+                  <option value="__count__">★ Record Count (Number of Records / Matches)</option>
+                  {columns.filter(c => columnTypeMap[c] === "numeric").length > 0 && (
+                    <optgroup label="Numeric Measures (Sum, Average, etc.)">
+                      {columns.filter(c => columnTypeMap[c] === "numeric").map((col, i) => (
+                        <option key={i} value={col}>
+                          {col} [numeric]
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {columns.filter(c => columnTypeMap[c] !== "numeric").length > 0 && (
+                    <optgroup label="Categorical & Other Columns">
+                      {columns.filter(c => columnTypeMap[c] !== "numeric").map((col, i) => (
+                        <option key={i} value={col}>
+                          {col} [{columnTypeMap[col] || "text"}]
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+
+                {/* Measure Pills (Always show with clear X remove buttons) */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                   {yCols.map((col, idx) => (
                     <span
                       key={col}
                       className="px-2.5 py-1 rounded-xl bg-primary-soft text-primary text-xs font-bold border border-primary/20 flex items-center gap-1.5 shadow-2xs"
                     >
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: palette[idx % palette.length] }} />
-                      <span className="truncate max-w-[120px]">{col}</span>
-                      <span className="text-[9px] uppercase font-mono opacity-80">({measureType})</span>
-                      {yCols.length > 1 && (
-                        <button onClick={() => setSelectedYCols(prev => prev.filter(c => c !== col))} className="hover:text-rose-500 cursor-pointer ml-0.5">
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
+                      <span className="truncate max-w-[120px]">{getYDisplayName(col)}</span>
+                      <span className="text-[9px] uppercase font-mono opacity-80">
+                        ({col === "__count__" ? "COUNT" : measureType})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (yCols.length > 1) {
+                            setSelectedYCols(prev => prev.filter(c => c !== col));
+                          } else {
+                            // Reset back to Record Count
+                            setSelectedYCols(["__count__"]);
+                          }
+                        }}
+                        title={yCols.length > 1 ? `Remove ${getYDisplayName(col)}` : "Reset to Record Count"}
+                        className="hover:text-rose-500 hover:bg-rose-500/10 rounded-full p-0.5 cursor-pointer ml-0.5 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </span>
                   ))}
                 </div>
 
+                {/* Optional Multi-Measure Comparison Dropdown */}
                 <select
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val && !yCols.includes(val)) setSelectedYCols([...yCols, val]);
+                    if (val && !yCols.includes(val)) {
+                      setSelectedYCols([...yCols, val]);
+                    }
+                    e.target.value = "";
                   }}
-                  value=""
-                  className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs cursor-pointer"
+                  defaultValue=""
+                  className="w-full border border-dashed border-border/80 bg-surface/50 hover:bg-surface text-textSecondary hover:text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-2xs cursor-pointer transition-colors"
                 >
-                  <option value="">+ Add Measure…</option>
+                  <option value="" disabled>+ Add Comparison Measure (Multi-Series)…</option>
                   {columns.filter(c => !yCols.includes(c)).map((col, i) => (
                     <option key={i} value={col}>
-                      {col} [{columnTypeMap[col] || "text"}]
+                      + Compare with {col} [{columnTypeMap[col] || "text"}]
                     </option>
                   ))}
                 </select>
@@ -2259,7 +2322,7 @@ export function VisualBuilder() {
             <div className="px-5 py-3 border-b border-border/60 flex flex-wrap items-center justify-between gap-3 bg-surface/70">
               <div className="min-w-0 pr-2">
                 <h3 className="text-base font-extrabold text-textPrimary truncate">
-                  {customTitle || `${currentX} vs ${yCols.join(" & ")}`}
+                  {customTitle || (yCols.length === 1 && yCols[0] === "__count__" ? `Total Record Count by ${currentX}` : `${currentX} vs ${yCols.map(getYDisplayName).join(" & ")}`)}
                 </h3>
                 {customSubtitle ? (
                   <p className="text-xs text-textSecondary mt-0.5 font-medium truncate">{customSubtitle}</p>
@@ -2335,7 +2398,7 @@ export function VisualBuilder() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-extrabold text-textPrimary tracking-tight">Why this chart: {dynamicExplanation.chartName}</span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary border border-primary/20">
-                          {currentX} vs {yCols.join(", ")}
+                          {currentX} vs {yCols.map(getYDisplayName).join(", ")}
                         </span>
                       </div>
                       <p className="text-textSecondary mt-1 leading-relaxed">{dynamicExplanation.rationale}</p>
@@ -2418,7 +2481,7 @@ export function VisualBuilder() {
                           <tr>
                             <th className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider">{currentX}</th>
                             {yCols.map(col => (
-                              <th key={col} className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider text-right">{col} ({measureType.toUpperCase()})</th>
+                              <th key={col} className="px-4 py-2.5 font-bold uppercase text-[11px] tracking-wider text-right">{getYDisplayName(col)} ({measureType.toUpperCase()})</th>
                             ))}
                           </tr>
                         </thead>
@@ -2851,7 +2914,7 @@ export function VisualBuilder() {
         <div className="fixed inset-0 z-50 bg-surface p-6 flex flex-col gap-4 animate-in fade-in duration-200">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div>
-              <h2 className="text-lg font-bold text-textPrimary">{customTitle || `${currentX} vs ${yCols.join(" & ")}`}</h2>
+              <h2 className="text-lg font-bold text-textPrimary">{customTitle || (yCols.length === 1 && yCols[0] === "__count__" ? `Total Record Count by ${currentX}` : `${currentX} vs ${yCols.map(getYDisplayName).join(" & ")}`)}</h2>
               {customSubtitle && <p className="text-xs text-textSecondary">{customSubtitle}</p>}
             </div>
             <button
