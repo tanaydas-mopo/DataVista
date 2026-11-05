@@ -1213,54 +1213,328 @@ export function VisualBuilder() {
   }, [activeChartType, currentX, yCols, primaryY, measureType, chartData, valueFormat, decimalPlaces, currencySymbol]);
 
   /* ── Export Handlers ── */
-  const exportChartPNG = () => {
+  const drawCanvasRoundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    if (typeof (ctx as any).roundRect === "function") {
+      (ctx as any).roundRect(x, y, w, h, r);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+  };
+
+  const exportChartSVG = () => {
     if (!chartContainerRef.current) {
       showToast("Chart container not ready for export.");
       return;
     }
-    const svgEl = chartContainerRef.current.querySelector("svg");
-    if (!svgEl) {
-      showToast("Tabular/HTML views cannot be exported as SVG vector. Use Export CSV instead.");
+    const svgs = Array.from(chartContainerRef.current.querySelectorAll("svg"));
+    if (svgs.length === 0) {
+      showToast("No visual graphic available to export.");
       return;
     }
 
+    const mainSvg = svgs.reduce((largest, current) => {
+      const cRect = current.getBoundingClientRect();
+      const lRect = largest.getBoundingClientRect();
+      return (cRect.width * cRect.height > lRect.width * lRect.height) ? current : largest;
+    }, svgs[0]);
+
+    const rect = mainSvg.getBoundingClientRect();
+    const chartWidth = Math.max(Math.round(rect.width || mainSvg.clientWidth || 800), 400);
+    const chartHeight = Math.max(Math.round(rect.height || mainSvg.clientHeight || 360), 250);
+
+    const cloneSvg = mainSvg.cloneNode(true) as SVGSVGElement;
+    cloneSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    cloneSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+    cloneSvg.setAttribute("width", String(chartWidth));
+    cloneSvg.setAttribute("height", String(chartHeight));
+    cloneSvg.setAttribute("viewBox", `0 0 ${chartWidth} ${chartHeight}`);
+
+    const origEls = [mainSvg, ...Array.from(mainSvg.querySelectorAll("*"))];
+    const cloneEls = [cloneSvg, ...Array.from(cloneSvg.querySelectorAll("*"))];
+    for (let i = 0; i < origEls.length && i < cloneEls.length; i++) {
+      const orig = origEls[i] as HTMLElement | SVGElement;
+      const clone = cloneEls[i] as HTMLElement | SVGElement;
+      try {
+        const style = window.getComputedStyle(orig);
+        if (style.fill && style.fill !== "none") clone.style.fill = style.fill;
+        if (style.stroke && style.stroke !== "none") clone.style.stroke = style.stroke;
+        if (style.strokeWidth) clone.style.strokeWidth = style.strokeWidth;
+        if (style.fontSize) clone.style.fontSize = style.fontSize;
+        if (style.fontWeight) clone.style.fontWeight = style.fontWeight;
+        if (style.fontFamily) clone.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      } catch {}
+    }
+
+    const titleText = customTitle || (yCols.length === 1 && yCols[0] === "__count__" ? `Total Record Count by ${currentX}` : `${currentX} vs ${yCols.map(getYDisplayName).join(" & ")}`);
+    const svgString = new XMLSerializer().serializeToString(cloneSvg);
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${titleText.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Vector SVG chart downloaded!");
+  };
+
+  const exportChartPNG = () => {
+    if (viewMode === "table" || activeChartType === "table") {
+      exportTableCSV(tableViewType);
+      showToast("Table view exported as CSV dataset.");
+      return;
+    }
+
+    if (!chartContainerRef.current) {
+      showToast("Chart container not ready for export.");
+      return;
+    }
+
+    const titleText = customTitle || (yCols.length === 1 && yCols[0] === "__count__" ? `Total Record Count by ${currentX}` : `${currentX} vs ${yCols.map(getYDisplayName).join(" & ")}`);
+    const subtitleText = customSubtitle || `${filteredRows.length} active rows filtered · ${chartData.length} categories displayed`;
+    const fileName = `${titleText.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.png`;
+
+    // Special handling for KPI view
+    if (activeChartType === "kpi") {
+      try {
+        const canvas = document.createElement("canvas");
+        const scale = 2;
+        const width = 800;
+        const cardWidth = Math.min(360, (width - 40 - (yCols.length - 1) * 16) / Math.min(yCols.length, 2));
+        const height = 240 + Math.ceil(yCols.length / 2) * 160;
+
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "#0f172a";
+        ctx.fillText(titleText, 32, 45);
+
+        ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "#64748b";
+        ctx.fillText(subtitleText, 32, 70);
+
+        yCols.forEach((yCol, idx) => {
+          const colX = 32 + (idx % 2) * (cardWidth + 16);
+          const colY = 95 + Math.floor(idx / 2) * 155;
+          const total = chartData.reduce((a, b) => a + Number(b[yCol] ?? 0), 0);
+          const avg = chartData.length > 0 ? total / chartData.length : 0;
+          const maxV = Math.max(...chartData.map(d => Number(d[yCol] ?? 0)), 0);
+          const minV = Math.min(...chartData.map(d => Number(d[yCol] ?? 0)), 0);
+
+          ctx.fillStyle = "#f8fafc";
+          ctx.strokeStyle = "#e2e8f0";
+          ctx.lineWidth = 1;
+          drawCanvasRoundRect(ctx, colX, colY, cardWidth, 140, 12);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          ctx.fillStyle = "#64748b";
+          ctx.fillText(getYDisplayName(yCol).toUpperCase(), colX + 16, colY + 28);
+
+          ctx.font = "bold 26px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          ctx.fillStyle = palette[idx % palette.length] || "#2563eb";
+          ctx.fillText(formatVal(total, valueFormat, decimalPlaces, currencySymbol), colX + 16, colY + 68);
+
+          ctx.font = "10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          ctx.fillStyle = "#64748b";
+          ctx.fillText(`Avg: ${formatVal(avg, valueFormat, decimalPlaces, currencySymbol)}   Max: ${formatVal(maxV, valueFormat, decimalPlaces, currencySymbol)}`, colX + 16, colY + 100);
+          ctx.fillText(`Min: ${formatVal(minV, valueFormat, decimalPlaces, currencySymbol)}   Categories: ${chartData.length}`, colX + 16, colY + 120);
+        });
+
+        ctx.strokeStyle = "#f1f5f9";
+        ctx.beginPath();
+        ctx.moveTo(32, height - 30);
+        ctx.lineTo(width - 32, height - 30);
+        ctx.stroke();
+
+        ctx.font = "10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "#94a3b8";
+        ctx.fillText(`DataVista Platform · ${dataset.name || "Dataset"} · ${new Date().toLocaleDateString()}`, 32, height - 12);
+
+        const pngURL = canvas.toDataURL("image/png");
+        const a = document.createElement("a");
+        a.download = fileName;
+        a.href = pngURL;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast("High-resolution KPI card PNG downloaded!");
+        return;
+      } catch {
+        showToast("Error exporting KPI PNG.");
+        return;
+      }
+    }
+
+    const svgs = Array.from(chartContainerRef.current.querySelectorAll("svg"));
+    if (svgs.length === 0) {
+      showToast("No visual graphic available to export.");
+      return;
+    }
+
+    // Crucial: The chart surface is the largest SVG by area (NOT the tiny 14x14 legend icon!)
+    const mainSvg = svgs.reduce((largest, current) => {
+      const cRect = current.getBoundingClientRect();
+      const lRect = largest.getBoundingClientRect();
+      return (cRect.width * cRect.height > lRect.width * lRect.height) ? current : largest;
+    }, svgs[0]);
+
+    const rect = mainSvg.getBoundingClientRect();
+    const chartWidth = Math.max(Math.round(rect.width || mainSvg.clientWidth || 800), 400);
+    const chartHeight = Math.max(Math.round(rect.height || mainSvg.clientHeight || 360), 250);
+
     try {
-      const svgString = new XMLSerializer().serializeToString(svgEl);
+      const cloneSvg = mainSvg.cloneNode(true) as SVGSVGElement;
+      cloneSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      cloneSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+      cloneSvg.setAttribute("width", String(chartWidth));
+      cloneSvg.setAttribute("height", String(chartHeight));
+      cloneSvg.setAttribute("viewBox", `0 0 ${chartWidth} ${chartHeight}`);
+
+      const origEls = [mainSvg, ...Array.from(mainSvg.querySelectorAll("*"))];
+      const cloneEls = [cloneSvg, ...Array.from(cloneSvg.querySelectorAll("*"))];
+
+      for (let i = 0; i < origEls.length && i < cloneEls.length; i++) {
+        const orig = origEls[i] as HTMLElement | SVGElement;
+        const clone = cloneEls[i] as HTMLElement | SVGElement;
+        try {
+          const style = window.getComputedStyle(orig);
+          if (style.fill && style.fill !== "none") clone.style.fill = style.fill;
+          if (style.stroke && style.stroke !== "none") clone.style.stroke = style.stroke;
+          if (style.strokeWidth) clone.style.strokeWidth = style.strokeWidth;
+          if (style.strokeDasharray && style.strokeDasharray !== "none") clone.style.strokeDasharray = style.strokeDasharray;
+          if (style.fontSize) clone.style.fontSize = style.fontSize;
+          if (style.fontWeight) clone.style.fontWeight = style.fontWeight;
+          if (style.fontFamily) clone.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          if (style.opacity) clone.style.opacity = style.opacity;
+        } catch {}
+      }
+
+      const svgString = new XMLSerializer().serializeToString(cloneSvg);
       const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
       const URL = window.URL || window.webkitURL || window;
       const blobURL = URL.createObjectURL(svgBlob);
       const image = new Image();
 
       image.onload = () => {
+        const scale = 2; // Crisp 2x retina export
+        const paddingX = 36;
+        const headerH = 75;
+        const legendH = (showLegend && yCols.length > 0) ? 30 : 0;
+        const footerH = 40;
+
+        const totalWidth = chartWidth + paddingX * 2;
+        const totalHeight = headerH + legendH + chartHeight + footerH;
+
         const canvas = document.createElement("canvas");
-        const scale = 2;
-        canvas.width = (svgEl.clientWidth || 800) * scale;
-        canvas.height = (svgEl.clientHeight || 450) * scale;
+        canvas.width = totalWidth * scale;
+        canvas.height = totalHeight * scale;
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+        if (!ctx) {
+          URL.revokeObjectURL(blobURL);
+          return;
+        }
+
         ctx.scale(scale, scale);
+
+        // 1. Crisp clean background
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(image, 0, 0, svgEl.clientWidth || 800, svgEl.clientHeight || 450);
+        ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+        // 2. Title & Subtitle
+        ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "#0f172a";
+        ctx.fillText(titleText, paddingX, 38);
+
+        ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "#64748b";
+        ctx.fillText(subtitleText, paddingX, 58);
+
+        // 3. Legend (if enabled)
+        let chartStartY = headerH;
+        if (showLegend && yCols.length > 0) {
+          let legendX = paddingX;
+          const legendY = headerH + 12;
+
+          yCols.forEach((col, idx) => {
+            const color = palette[idx % palette.length] || "#2563eb";
+            const colLabel = `${getYDisplayName(col)}${yCols.length > 1 ? ` (${col === "__count__" ? "COUNT" : measureType.toUpperCase()})` : ""}`;
+
+            // Legend color box
+            ctx.fillStyle = color;
+            drawCanvasRoundRect(ctx, legendX, legendY - 9, 12, 12, 3);
+            ctx.fill();
+
+            // Legend text
+            ctx.font = "500 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+            ctx.fillStyle = "#334155";
+            ctx.fillText(colLabel, legendX + 16, legendY);
+
+            legendX += ctx.measureText(colLabel).width + 36;
+          });
+
+          chartStartY += legendH;
+        }
+
+        // 4. Draw Main Chart SVG
+        ctx.drawImage(image, paddingX, chartStartY, chartWidth, chartHeight);
+
+        // 5. Footer divider and metadata
+        const footerY = totalHeight - 16;
+        ctx.strokeStyle = "#f1f5f9";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(paddingX, totalHeight - 32);
+        ctx.lineTo(totalWidth - paddingX, totalHeight - 32);
+        ctx.stroke();
+
+        ctx.font = "10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "#94a3b8";
+        ctx.fillText(`${dataset?.name || "Dataset"} · Aggregation: ${measureType.toUpperCase()} · ${new Date().toLocaleDateString()}`, paddingX, footerY);
+
+        ctx.textAlign = "right";
+        ctx.fillText("DataVista Analytics Platform", totalWidth - paddingX, footerY);
+        ctx.textAlign = "left";
 
         const pngURL = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
-        downloadLink.download = `${(customTitle || `${currentX}_vs_${primaryY}`).toLowerCase().replace(/\s+/g, "_")}.png`;
+        downloadLink.download = fileName;
         downloadLink.href = pngURL;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(blobURL);
-        showToast("High-resolution PNG downloaded!");
+        showToast("High-resolution chart PNG downloaded!");
       };
 
       image.onerror = () => {
-        showToast("PNG export failed. Rasterization error.");
+        URL.revokeObjectURL(blobURL);
+        exportChartSVG();
       };
 
       image.src = blobURL;
-    } catch (err) {
-      showToast("PNG export error.");
+    } catch {
+      showToast("PNG rasterization error. Falling back to SVG...");
+      exportChartSVG();
     }
   };
 
@@ -2003,7 +2277,7 @@ export function VisualBuilder() {
             </button>
 
             {showExportMenu && (
-              <div className="absolute right-0 mt-1 w-52 bg-surface border border-border/80 rounded-xl shadow-2xl z-30 py-1.5 text-xs animate-in fade-in duration-150">
+              <div className="absolute right-0 mt-1 w-56 bg-surface border border-border/80 rounded-xl shadow-2xl z-30 py-1.5 text-xs animate-in fade-in duration-150">
                 <button
                   onClick={() => {
                     exportChartPNG();
@@ -2016,10 +2290,20 @@ export function VisualBuilder() {
                 </button>
                 <button
                   onClick={() => {
-                    exportTableCSV("aggregated");
+                    exportChartSVG();
                     setShowExportMenu(false);
                   }}
                   className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
+                  Download Vector SVG
+                </button>
+                <button
+                  onClick={() => {
+                    exportTableCSV("aggregated");
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-primary-soft/40 flex items-center gap-2 font-medium text-textPrimary cursor-pointer border-t border-border/60"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                   Export Aggregated CSV
