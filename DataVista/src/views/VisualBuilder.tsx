@@ -644,7 +644,7 @@ export function VisualBuilder() {
   const [recordsSearch, setRecordsSearch] = useState<string>("");
   const [showWhyChart, setShowWhyChart] = useState<boolean>(true);
   const [selectedX, setSelectedX] = useState<string>("");
-  const [selectedYCols, setSelectedYCols] = useState<string[]>([]);
+  const [selectedYCols, setSelectedYCols] = useState<string[]>(["__count__"]);
   const [measureType, setMeasureType] = useState<string>("sum");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc" | "none">("desc");
   const [categoryLimit, setCategoryLimit] = useState<number>(15);
@@ -764,14 +764,8 @@ export function VisualBuilder() {
     return columns.find(c => columnTypeMap[c] !== "numeric") || columns[0] || "Category";
   }, [selectedX, columns, columnTypeMap]);
 
-  const defaultY = useMemo(() => {
-    // Default to Record Count (Number of Records) so users are never forced into
-    // an unexpected pre-existing column like Margin_Runs!
-    return "__count__";
-  }, []);
-
-  const primaryY = selectedYCols[0] || defaultY;
-  const yCols = selectedYCols.length > 0 ? selectedYCols : [primaryY];
+  const primaryY = selectedYCols[0] || "";
+  const yCols = selectedYCols;
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -1173,7 +1167,7 @@ export function VisualBuilder() {
     const chartMeta = ALL_CHART_TYPES.find(c => c.id === activeChartType);
     const chartName = chartMeta?.name || "Chart";
     const xName = currentX;
-    const yNames = yCols.join(", ");
+    const yNames = yCols.length > 0 ? yCols.map(getYDisplayName).join(", ") : "no measure selected";
 
     let statsSummary = "";
     if (chartData.length > 0) {
@@ -1414,6 +1408,27 @@ export function VisualBuilder() {
   /* ── UNIFIED CHART RENDERER (Supports all 26 Chart Types) ── */
   const renderActiveChart = (fullscreen = false) => {
     const height: number | `${number}%` = fullscreen ? "100%" : 360;
+
+    if (yCols.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[300px]">
+          <div className="w-12 h-12 rounded-2xl bg-primary-soft/60 flex items-center justify-center text-primary mb-3">
+            <Plus className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-bold text-textPrimary">No Y-Axis Measure Selected</h4>
+          <p className="text-xs text-textSecondary max-w-sm mt-1 mb-4">
+            Choose a measure from <strong>Values (Y-Axis Measures)</strong> on the left, or click below to count records by {currentX}.
+          </p>
+          <button
+            type="button"
+            onClick={() => setSelectedYCols(["__count__"])}
+            className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <span>★</span> Plot Record Count
+          </button>
+        </div>
+      );
+    }
 
     if (chartData.length === 0 && !["scatter", "bubble", "histogram", "boxplot", "correlation"].includes(activeChartType)) {
       return (
@@ -2163,99 +2178,57 @@ export function VisualBuilder() {
               </div>
 
               {/* WELL 2: Values (Y-Axis Measures) */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-border/60">
+              <div className="flex flex-col gap-1.5 pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-textPrimary flex items-center gap-1.5">
-                    <span>Values (Y-Axis Measure)</span>
-                  </label>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary-soft text-primary uppercase">
-                    {primaryY === "__count__" ? "🔢 Count" : columnTypeMap[primaryY] === "numeric" ? "# Number" : "🔤 Text"}
-                  </span>
+                  <label className="text-xs font-bold text-textPrimary">Values (Y-Axis Measures)</label>
+                  <span className="text-[10px] font-semibold text-textMuted">{yCols.length} active</span>
                 </div>
 
-                {/* Primary Y-Axis Selector (Direct Dropdown just like X-Axis!) */}
-                <select
-                  value={primaryY}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val) {
-                      if (selectedYCols.length <= 1) {
-                        setSelectedYCols([val]);
-                      } else {
-                        setSelectedYCols([val, ...selectedYCols.slice(1).filter(c => c !== val)]);
-                      }
-                    }
-                  }}
-                  className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2.5 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs appearance-none cursor-pointer"
-                >
-                  <option value="__count__">★ Record Count (Number of Records / Matches)</option>
-                  {columns.filter(c => columnTypeMap[c] === "numeric").length > 0 && (
-                    <optgroup label="Numeric Measures (Sum, Average, etc.)">
-                      {columns.filter(c => columnTypeMap[c] === "numeric").map((col, i) => (
-                        <option key={i} value={col}>
-                          {col} [numeric]
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {columns.filter(c => columnTypeMap[c] !== "numeric").length > 0 && (
-                    <optgroup label="Categorical & Other Columns">
-                      {columns.filter(c => columnTypeMap[c] !== "numeric").map((col, i) => (
-                        <option key={i} value={col}>
-                          {col} [{columnTypeMap[col] || "text"}]
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-
-                {/* Measure Pills (Always show with clear X remove buttons) */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  {yCols.map((col, idx) => (
-                    <span
-                      key={col}
-                      className="px-2.5 py-1 rounded-xl bg-primary-soft text-primary text-xs font-bold border border-primary/20 flex items-center gap-1.5 shadow-2xs"
-                    >
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: palette[idx % palette.length] }} />
-                      <span className="truncate max-w-[120px]">{getYDisplayName(col)}</span>
-                      <span className="text-[9px] uppercase font-mono opacity-80">
-                        ({col === "__count__" ? "COUNT" : measureType})
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (yCols.length > 1) {
-                            setSelectedYCols(prev => prev.filter(c => c !== col));
-                          } else {
-                            // Reset back to Record Count
-                            setSelectedYCols(["__count__"]);
-                          }
-                        }}
-                        title={yCols.length > 1 ? `Remove ${getYDisplayName(col)}` : "Reset to Record Count"}
-                        className="hover:text-rose-500 hover:bg-rose-500/10 rounded-full p-0.5 cursor-pointer ml-0.5 transition-colors"
+                {yCols.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-1">
+                    {yCols.map((col, idx) => (
+                      <span
+                        key={col}
+                        className="px-2.5 py-1 rounded-xl bg-primary-soft text-primary text-xs font-bold border border-primary/20 flex items-center gap-1.5 shadow-2xs"
                       >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: palette[idx % palette.length] }} />
+                        <span className="truncate max-w-[120px]">{getYDisplayName(col)}</span>
+                        <span className="text-[9px] uppercase font-mono opacity-80">
+                          ({col === "__count__" ? "COUNT" : measureType.toUpperCase()})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedYCols(prev => prev.filter(c => c !== col))}
+                          title={`Remove ${getYDisplayName(col)}`}
+                          className="hover:text-rose-500 hover:bg-rose-500/10 rounded-full p-0.5 cursor-pointer ml-0.5 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-                {/* Optional Multi-Measure Comparison Dropdown */}
                 <select
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val && !yCols.includes(val)) {
-                      setSelectedYCols([...yCols, val]);
+                    if (!val) return;
+                    if (yCols.length === 1 && yCols[0] === "__count__") {
+                      setSelectedYCols([val]);
+                    } else if (!yCols.includes(val)) {
+                      setSelectedYCols(prev => [...prev, val]);
                     }
-                    e.target.value = "";
                   }}
-                  defaultValue=""
-                  className="w-full border border-dashed border-border/80 bg-surface/50 hover:bg-surface text-textSecondary hover:text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-2xs cursor-pointer transition-colors"
+                  value=""
+                  className="w-full border border-border/80 bg-surface text-textPrimary rounded-xl p-2 text-xs font-semibold focus:outline-none focus:border-primary shadow-xs cursor-pointer"
                 >
-                  <option value="" disabled>+ Add Comparison Measure (Multi-Series)…</option>
+                  <option value="">+ Add Measure…</option>
+                  {!yCols.includes("__count__") && (
+                    <option value="__count__">★ Record Count (Number of Records)</option>
+                  )}
                   {columns.filter(c => !yCols.includes(c)).map((col, i) => (
                     <option key={i} value={col}>
-                      + Compare with {col} [{columnTypeMap[col] || "text"}]
+                      {col} [{columnTypeMap[col] || "text"}]
                     </option>
                   ))}
                 </select>
